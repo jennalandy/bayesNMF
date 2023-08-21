@@ -4,6 +4,18 @@ While data and simulation examples are in the context of mutational signatures a
 
 ## Quick Start
 
+### Installation
+
+```{r}
+library(devtools)
+devtools::install_github("jennalandy/bayesNMF")
+library(bayesNMF)
+```
+
+### Use
+
+Running the Normal-Exponential model requires a mutational catalog matrix $M$ and the number of signatures or latent factors $N$. We also recommend setting the file name to something related to your analysis. The default file name will be "nmf_normal_exponential".
+
 ```{r}
 res <- nmf_normal_exponential(M, N = 5, file = "my_run")
 ```
@@ -22,8 +34,8 @@ We also include commands to compare estimated signatures to the true signatures 
 The following functions provide a similarity matrix between the true and estimated $P$ matrices, as well as a heatmap to visualize this.
 
 ```{r}
-sim_mat <- get_sim_mat(res$P.mean, true_P)
-heatmap <- get_heatmap(res$P.mean, true_P)
+sim_mat <- get_sim_mat(est_P = res$P.mean, true_P = true_P)
+heatmap <- get_heatmap(est_P = res$P.mean, true_P = true_P)
 ```
 
 You can also do this all in one call. If `true_P` is provided to `nmf_normal_exponential`, then the similarity matrix and heatmap are stored in `res$sim_mat` and `res$heatmap`, respectively.
