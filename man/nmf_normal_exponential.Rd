@@ -23,7 +23,7 @@ nmf_normal_exponential(
   Alpha = rep(alpha, dim(M)[1]),
   beta = 2,
   Beta = rep(beta, dim(M)[1]),
-  true_Theta = NULL
+  true_P = NULL
 )
 }
 \arguments{
@@ -70,7 +70,7 @@ length K. Defaults to all same value `alpha`}
 \item{Beta}{rate parameter for the inverse-gamma prior on `sigmasq`,
 length K. Defaults to all same value `beta`}
 
-\item{true_Theta}{(optional) true parameters to compare to in a heatmap}
+\item{true_P}{(optional) true signatures matrix P to compare to in a heatmap}
 }
 \value{
 list

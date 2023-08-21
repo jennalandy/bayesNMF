@@ -37,6 +37,10 @@ get_heatmap <- function(est_P, true_P) {
             Var1 = factor(
                 sim_mat_melted$Var1,
                 levels = unique(sim_mat_melted$Var1)
+            ),
+            Var2 = factor(
+                sim_mat_melted$Var2,
+                levels = unique(sim_mat_melted$Var2)
             )
         ) %>%
         ggplot2::ggplot(ggplot2::aes(x = Var1, y = Var2, fill = value, label = round(value, 2))) +

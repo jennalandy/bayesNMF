@@ -135,7 +135,7 @@ get_loglik <- function(M, Theta, dims) {
     sum(sweep(
         (M - Theta$P %*% Theta$E)**2,
         1,
-        1/(2 * Theta$sigmasq),
+        1/(2 * Theta$sigmasq), # Length K
         '*'
     ))
 }
@@ -167,7 +167,7 @@ get_loglik <- function(M, Theta, dims) {
 #' @param beta see `Beta`
 #' @param Beta rate parameter for the inverse-gamma prior on `sigmasq`,
 #' length K. Defaults to all same value `beta`
-#' @param true_Theta (optional) true parameters to compare to in a heatmap
+#' @param true_P (optional) true signatures matrix P to compare to in a heatmap
 #'
 #' @return list
 #' @export
@@ -189,7 +189,7 @@ nmf_normal_exponential <- function(
     Alpha = rep(alpha, dim(M)[1]),
     beta = 2,
     Beta = rep(beta, dim(M)[1]),
-    true_Theta = NULL
+    true_P = NULL
 ) {
     savefile = paste0(file, '.res')
     logfile = paste0(file, '.log')
@@ -244,15 +244,9 @@ nmf_normal_exponential <- function(
 
     RMSE <- c()
     RMSE <- c(RMSE, get_RMSE(M, Theta))
-    if (!is.null(true_Theta)) {
-        true_RMSE <- get_RMSE(M, true_Theta)
-    }
 
     loglik <- c()
     loglik <- c(loglik, get_loglik(M, Theta, dims))
-    if (!is.null(true_Theta)) {
-        true_loglik <- get_loglik(M, true_Theta, dims)
-    }
 
     P.log <- list()
     E.log <- list()
@@ -280,12 +274,8 @@ nmf_normal_exponential <- function(
             grDevices::pdf(plotfile)
             graphics::par(mfrow = c(1,2))
             plot(RMSE)
-            if (!is.null(true_Theta)) {
-                graphics::abline(h = true_RMSE)
-            }
-            plot(loglik)
-            if (!is.null(true_Theta)) {
-                graphics::abline(h = true_loglik)
+            if (sum(loglik != -Inf) > 0){
+                plot(loglik)
             }
             grDevices::dev.off()
 
@@ -297,17 +287,24 @@ nmf_normal_exponential <- function(
                 P.mean = Reduce(`+`, P.log[keep])/length(keep),
                 E.mean = Reduce(`+`, E.log[keep])/length(keep),
                 sigmasq.mean = Reduce(`+`, sigmasq.log[keep])/length(keep),
-                burn_in = burn_in
+                burn_in = burn_in,
+                loglik.chain = loglik,
+                RMSE.chain = RMSE,
+                final_metrics = list(
+                    loglik = loglik[iter],
+                    RMSE = RMSE[iter]
+                )
             )
             save(res, file = savefile)
         }
     }
-    if (!is.null(true_Theta)) {
-        sim_mat <- get_sim_mat(res$P.mean, true_Theta$P)
-        heatmap <- get_heatmap(res$P.mean, true_Theta$P)
+    if (!is.null(true_P)) {
+        sim_mat <- get_sim_mat(res$P.mean, true_P)
+        heatmap <- get_heatmap(res$P.mean, true_P)
 
         res$sim_mat <- sim_mat
         res$heatmap <- heatmap
     }
+    sink()
     return(res)
 }
