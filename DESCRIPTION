@@ -1,0 +1,28 @@
+Package: bayesNMF
+Type: Package
+Title: Bayesian NMF with Multiple Models
+Version: 0.1.0
+Author: Jenna Michelle Landy
+Maintainer: Jenna Michelle Landy <jlandy@g.harvard.edu>
+Description: Performs Bayesian Non-Negative Matrix Factorization (NMF) with
+    various model options. So far, this package implements the
+    normal-exponential introduced by Schmidt et al. 2009.
+License: MIT License
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    dplyr,
+    ggplot2,
+    graphics,
+    grDevices,
+    invgamma,
+    magrittr,
+    RcppHungarian,
+    reshape2,
+    stats,
+    text2vec,
+    truncnorm
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
+RoxygenNote: 7.2.3
