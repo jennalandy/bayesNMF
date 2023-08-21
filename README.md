@@ -1,6 +1,13 @@
 # bayesNMF: an R package with various models for Bayesian NMF
 
-While data and simulation examples are in the context of mutational signatures analysis, this package can be used for any application of NMF.
+## Notes
+
+Hello! This package is a **work in progress**. I will be adding more models, but so far, I have
+- Normal-Exponential: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Exponential priors, $\sigma^2_k$ follows an Inverse-Gamma prior
+
+I also plan to add markdown files with full model specifications and derivations of the Gibbs updates used in these implementations.
+
+While language and simulation examples are in the context of mutational signatures analysis, this package can be used for any application of NMF.
 
 ## Quick Start
 
