@@ -112,7 +112,7 @@ $RMSE
 [1] 5.68804
 ```
 
-The similarity matrix and corresponding heatmap are only provided if `true_Theta` is used.
+The similarity matrix and corresponding heatmap are only provided if `true_P` is used.
 
 ```{r}
 res$sim_mat
