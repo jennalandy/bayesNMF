@@ -13,7 +13,7 @@ nmf_normal_exponential(
   niters = 1000,
   burn_in = 500,
   logevery = 100,
-  file = "normal_exponential_gibbs_sampler",
+  file = "nmf_normal_exponential",
   overwrite = FALSE,
   lambda_p = 5,
   Lambda_p = matrix(lambda_p, nrow = dim(M)[1], ncol = N),
