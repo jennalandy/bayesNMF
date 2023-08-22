@@ -113,16 +113,6 @@ sample_sigmasq <- function(M, Theta, dims){
     return(sigmasq)
 }
 
-#' get RMSE
-#'
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#'
-#' @return scalar
-get_RMSE <- function(M, Theta) {
-    sqrt(mean((M - Theta$P %*% Theta$E)**2))
-}
-
 #' get log likelihood
 #'
 #' @param M mutational catalog matrix, K x G
@@ -243,10 +233,8 @@ nmf_normal_exponential <- function(
     }
 
     RMSE <- c()
-    RMSE <- c(RMSE, get_RMSE(M, Theta))
-
+    KL <- c()
     loglik <- c()
-    loglik <- c(loglik, get_loglik(M, Theta, dims))
 
     P.log <- list()
     E.log <- list()
@@ -262,6 +250,7 @@ nmf_normal_exponential <- function(
         Theta$sigmasq <- sample_sigmasq(M, Theta, dims)
 
         RMSE <- c(RMSE, get_RMSE(M, Theta))
+        KL <- c(KL, get_KLDiv(M, Theta))
         loglik <- c(loglik, get_loglik(M, Theta, dims))
 
         P.log[[iter]] <- Theta$P
@@ -272,8 +261,11 @@ nmf_normal_exponential <- function(
             cat(paste(iter, "/", niters, "\n"))
 
             grDevices::pdf(plotfile)
-            graphics::par(mfrow = c(1,2))
+            graphics::par(mfrow = c(3,1))
             plot(RMSE)
+            if (sum(loglik != -Inf & loglik != Inf) > 0) {
+                plot(KL)
+            }
             if (sum(loglik != -Inf) > 0){
                 plot(loglik)
             }
@@ -290,9 +282,11 @@ nmf_normal_exponential <- function(
                 burn_in = burn_in,
                 loglik.chain = loglik,
                 RMSE.chain = RMSE,
+                KLDiv.chain = KL,
                 final_metrics = list(
                     loglik = loglik[iter],
-                    RMSE = RMSE[iter]
+                    RMSE = RMSE[iter],
+                    KLDiv = KL[iter]
                 )
             )
             save(res, file = savefile)

@@ -1,3 +1,27 @@
+#' get RMSE
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#'
+#' @return scalar
+#' @export
+get_RMSE <- function(M, Theta) {
+    sqrt(mean((M - Theta$P %*% Theta$E)**2))
+}
+
+#' Get KL Divergence
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#'
+#' @return scalar
+#' @export
+get_KLDiv <- function(M, Theta) {
+    Mhat <- Theta$P %*% Theta$E
+    Mhat[Mhat == 0] <- 1
+    M[M == 0] <- 1
+    sum(M * log(M / Mhat) - M + Mhat)
+}
+
 #' Reassign signatures in a similarity matrix
 #'
 #' @param sim_mat similarity matrix between estimated and true signatures
@@ -15,6 +39,7 @@ reassign_signatures <- function(sim_mat) {
 #' @param true_P true P (signatures matrix)
 #'
 #' @return matrix
+#' @export
 get_sim_mat <- function(est_P, true_P) {
     text2vec::sim2(t(est_P), t(true_P), method = 'cosine')
 }
