@@ -86,8 +86,8 @@ nmf_poisson_gamma <- function(
         M, N,
         P = NULL,
         E = NULL,
-        niters = 1000,
-        burn_in = 500,
+        niters = 10000,
+        burn_in = 5000,
         logevery = 100,
         file = 'nmf_poisson_gamma',
         overwrite = FALSE,
@@ -234,6 +234,7 @@ nmf_poisson_gamma <- function(
 
         res$sim_mat <- sim_mat
         res$heatmap <- heatmap
+        save(res, file = savefile)
     }
     sink()
     return(res)

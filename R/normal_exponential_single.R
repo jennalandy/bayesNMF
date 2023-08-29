@@ -166,8 +166,8 @@ nmf_normal_exponential <- function(
     P = NULL,
     E = NULL,
     sigmasq = NULL,
-    niters = 1000,
-    burn_in = 500,
+    niters = 10000,
+    burn_in = 5000,
     logevery = 100,
     file = 'nmf_normal_exponential',
     overwrite = FALSE,
@@ -298,6 +298,7 @@ nmf_normal_exponential <- function(
 
         res$sim_mat <- sim_mat
         res$heatmap <- heatmap
+        save(res, file = savefile)
     }
     sink()
     return(res)
