@@ -3,7 +3,9 @@
 ## Notes
 
 Hello! This package is a **work in progress**. I will be adding more models, but so far, I have
+- Poisson-Gamma: $M \sim Poisson(PE)$, $P$ and $E$ follow gamma priors
 - Normal-Exponential: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Exponential priors, $\sigma^2_k$ follows an Inverse-Gamma prior
+- Normal-TruncNormal: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Truncated-Normal priors, $\sigma^2_k$ follows an Inverse-Gamma prior
 
 I also plan to add markdown files with full model specifications and derivations of the Gibbs updates used in these implementations.
 
@@ -20,6 +22,14 @@ library(bayesNMF)
 ```
 
 ### Use
+
+The functions for each model are:
+
+- `nmf_poisson_gamma`
+- `nmf_normal_exponential`
+- `nmf_normal_truncnormal`
+
+All functions have the same structure, so I will just use `nmf_normal_exponential` for the tutorial.
 
 Running the Normal-Exponential model requires a mutational catalog matrix $M$ and the number of signatures or latent factors $N$. We also recommend setting the file name to something related to your analysis. The default file name will be "nmf_normal_exponential".
 
