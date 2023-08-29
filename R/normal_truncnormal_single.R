@@ -285,12 +285,12 @@ nmf_normal_truncnormal <- function(
             graphics::par(mfrow = c(3,1))
             plot(RMSE)
             if (sum(!is.na(KL)) > 0) {
-                if (sum(KL != -Inf) > 0) {
+                if (sum(KL != -Inf, na.rm = TRUE) > 0) {
                     plot(KL)
                 }
             }
             if (sum(!is.na(loglik)) > 0){
-                if (sum(loglik != -Inf) > 0) {
+                if (sum(loglik != -Inf, na.rm = TRUE) > 0) {
                     plot(loglik)
                 }
             }
