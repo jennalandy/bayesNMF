@@ -199,11 +199,15 @@ nmf_poisson_gamma <- function(
             grDevices::pdf(plotfile)
             graphics::par(mfrow = c(3,1))
             plot(RMSE)
-            if (sum(loglik != -Inf & loglik != Inf) > 0) {
-                plot(KL)
+            if (sum(!is.na(KL)) > 0) {
+                if (sum(KL != -Inf) > 0) {
+                    plot(KL)
+                }
             }
-            if (sum(loglik != -Inf) > 0){
-                plot(loglik)
+            if (sum(!is.na(loglik)) > 0){
+                if (sum(loglik != -Inf) > 0) {
+                    plot(loglik)
+                }
             }
             grDevices::dev.off()
 
