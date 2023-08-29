@@ -13,7 +13,7 @@ nmf_normal_truncnormal(
   niters = 10000,
   burn_in = 5000,
   logevery = 100,
-  file = "nmf_normal_exponential",
+  file = "nmf_normal_truncnormal",
   overwrite = FALSE,
   mu_p = 1/5,
   Mu_p = matrix(mu_p, nrow = dim(M)[1], ncol = N),

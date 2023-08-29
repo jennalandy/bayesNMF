@@ -4,3 +4,6 @@
 *.log
 *.res
 *.pdf
+tests/testthat/*.log
+tests/testthat/*.pdf
+tests/testthat/*.res

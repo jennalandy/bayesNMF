@@ -176,7 +176,7 @@ nmf_normal_truncnormal <- function(
         niters = 10000,
         burn_in = 5000,
         logevery = 100,
-        file = 'nmf_normal_exponential',
+        file = 'nmf_normal_truncnormal',
         overwrite = FALSE,
         mu_p = 1/5, #100/nrow(M),
         Mu_p = matrix(mu_p, nrow = dim(M)[1], ncol = N),
@@ -284,7 +284,7 @@ nmf_normal_truncnormal <- function(
             grDevices::pdf(plotfile)
             graphics::par(mfrow = c(3,1))
             plot(RMSE)
-            if (sum(loglik != -Inf & loglik != Inf) > 0) {
+            if (sum(KL != -Inf & !is.nan(KL)) > 0) {
                 plot(KL)
             }
             if (sum(loglik != -Inf) > 0){
