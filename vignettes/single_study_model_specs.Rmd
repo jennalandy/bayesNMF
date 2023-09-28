@@ -1,0 +1,119 @@
+---
+title: "Single Study Model Specifications"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{single_study_model_specs}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+Define $\hat M = PE$ such that $\hat M_{kg} = \sum_n P_{kn}E_{ng}$. Define $\hat M_{/n}$ as $\hat{M}$ after removing signature $n$, such that $\hat M_{kg/n} = \sum_{n' \ne n} P_{kn'}E_{n'g}$.
+
+## Poisson-Gamma Model
+
+@cemgil2009 introduces Bayesian NMF with the Poisson-Gamma model. This Poisson likelihood is related to optimizing the KL-divergence reconstruction error.
+
+### Likelihood and Priors
+
+Additional latent variables must be introduced to be able to isolate the full conditionals of items of $P$ and $E$. These new latent variables, $S_{kng}$, are defined as the number of mutations of type $k$ in tumor genome $g$ due to signature $n$.
+
+$$
+\begin{aligned}
+S_{kng} &\sim Poisson(S_{kng}|\lambda = P_{kn}E_{ng})\\
+M_{kg} &= \sum_{n = 1}^N S_{kng}\\
+\implies M_{kg} &\sim Poisson(M_{kg} | \lambda = \sum_{n = 1}^NP_{kn}E_{ng})
+\end{aligned}
+$$
+
+$$
+\begin{aligned}
+P_{kn} &\sim Gamma(P_{kn}|a = \alpha_{kn}^P, b = \beta_{kn}^P)\\
+E_{ng} &\sim Gamma(E_{ng}|a = \alpha_{ng}^E, b = \beta_{ng}^E)
+\end{aligned}
+$$
+
+### Gibb's Updates
+
+$$
+\begin{aligned}
+p(P_{kn}|...) &\propto p(P_{kn})\prod_gp(Z_{kng}|P_{kn}, ...)\\
+&\sim Gamma\Big(\alpha^P_{kn}+\sum_gZ_{kng}, \beta^P_{kn} + \sum_gE_{ng}\Big)\\\\
+p(E_{ng}|...) &\propto p(E_{ng})\prod_{k}p(Z_{kng}|E_{ng}, ...)\\
+&\sim Gamma\Big(\alpha^E_{ng} + \sum_kZ_{kng}, \beta^E_{ng} + \sum_k P_{kn}\Big)\\\\
+p(\vec{Z}_{kg}|...) &= \frac{p(\vec Z_{kng}, M_{kg} | ...)}{p(M_{kg}|...)}\\
+&= \frac{M_{kg}!}{Z_{k1g}!...Z_{kNg}!} \cdot \prod_n\Big(\frac{P_{kn}E_{ng}}{\sum_{n'}P_{kn'}E_{n'g}}\Big)^{Z_{kng}} \cdot I(M_{kg} = \sum_n Z_{kng})\\
+&\sim Multinomial\Big(M_{kg}, p_n = \frac{P_{kn}E_{ng}}{\sum_{n'}P_{kn'}E_{n'g}}\Big)
+\end{aligned}
+$$
+
+## Normal-Exponential Model
+
+@schmidt2009 introduces the normal-exponential model for Bayesian NMF. This Gaussian likelihood is related to optimizing the frobenius norm reconstruction error $||M - PE||_F = \sqrt{\sum_{k,g}(M - PE)^2_{kg}}$.
+
+### Likelihood and Priors
+
+$$
+\begin{aligned}
+M_{kg} &\sim Normal(M_{kg} | \mu = \sum_{n = 1}^NP_{kn}E_{ng}, \sigma^2 = \sigma^2_k)
+\end{aligned}
+$$ $$
+\begin{aligned}
+P_{kn} &\sim Exp(P_{kn}|\lambda = \lambda^E_{kn})\\
+E_{ng} &\sim Exp(E_{ng}|\lambda = \lambda^P_{ng})\\
+\sigma^2_k &\sim InvGamma(\sigma^2|\alpha = \alpha_k, \beta = \beta_k)
+\end{aligned}
+$$
+
+### Gibb's Updates
+
+$$
+\begin{aligned}
+p(P_{kn}|...) &\propto p(P_{kn})\prod_g p(M_{kg}|P_{kn},...)\\
+ &\sim TruncNormal\Big(\mu_{kn} = \frac{\sum_gE_{ng}(M_{kg} - \hat M_{kg/n}) - \lambda^P_{kn}\sigma^2_k}{\sum_gE_{ng}^2}, \sigma^2_{kn} = \frac{\sigma^2_k}{\sum_gE_{ng}^2},\text{lower} = 0, \text{upper} = \infty)\\\\
+p(E_{ng}|...) &\propto p(E_{ng})\prod_k p(M_{kg}|E_{ng},...)\\
+ &\sim TruncNormal\Big(\mu_{ng} = \frac{\sum_gP_{kn}(M_{kg} - \hat M_{kg/n})/\sigma^2_k - \lambda^E_{ng}}{\sum_gP_{kn}^2 / \sigma^2_k}, \sigma^2_{ng} = \frac{1}{{\sum_gP_{kn}^2 / \sigma^2_k}},\text{lower} = 0, \text{upper} = \infty)\\\\
+p(\sigma^2_k|...) &\propto p(\sigma^2_k)\prod_g p(M_{kg}|\sigma^2_k,...)\\
+ & \sim InvGamma\Big(\alpha_k + G/2, \beta_k + \frac{1}{2}\sum_g(M_{kg} - \hat{M}_{kg})^2\Big)
+\end{aligned}
+$$
+
+## Normal-TruncNormal Model
+
+Even when using exponential priors, the full conditionals above are truncated normal. It would not make computation any more difficult to use a truncated normal prior, rather than exponential. This is particularly useful for keeping $E$ away from zero in the multi-study models, but I want to compare it to other methods in the single-study space as well.
+
+### Likelihood and Priors
+
+$$
+\begin{aligned}
+M_{kg} &\sim Normal(M_{kg} | \mu = \sum_{n = 1}^NP_{kn}E_{ng}, \sigma^2 = \sigma^2_k)
+\end{aligned}
+$$ $$
+\begin{aligned}
+P_{kn} &\sim TruncNorm(P_{kn}|\mu = \mu^E_{kn}, \sigma^2 = \sigma^{2E}_{kn}, \text{lower} = 0, \text{upper} = \infty)\\
+E_{ng} &\sim TruncNorm(E_{ng}|\mu = \mu^P_{ng}, \sigma^2 = \sigma^{2P}_{ng}, \text{lower} = 0, \text{upper} = \infty)\\
+\sigma^2_k &\sim InvGamma(\sigma^2|\alpha = \alpha_k, \beta = \beta_k)
+\end{aligned}
+$$
+
+### Gibb's Updates
+
+$$
+\begin{aligned}
+p(P_{kn}|...) &\propto p(P_{kn})\prod_g p(M_{kg}|P_{kn},...)\\
+ &\sim TruncNormal\Big(\mu_{kn} = \frac{\mu^P_{kn}/\sigma^{2P}_{kn} + \sum_g E_{ng}(M_{kg} - \hat{M}_{kg/n})/\sigma^2_k}{1/\sigma^{2P}_{kn} +\sum_g E_{ng}^2/\sigma^2_k}, \sigma^2_{kn} = \frac{1}{1/\sigma^{2P}_{kn} +\sum_g E_{ng}^2/\sigma^2_k},\text{lower} = 0, \text{upper} = \infty)\\\\
+p(E_{ng}|...) &\propto p(E_{ng})\prod_k p(M_{kg}|E_{ng},...)\\
+ &\sim TruncNormal\Big(\mu_{ng} = \frac{\mu^E_{ng}/\sigma^{2E}_{ng} + \sum_k P_{kn}(M_{kg} - \hat M_{kg/n})/\sigma^2_k}{1/\sigma^{2E}_{ng} + \sum_k P_{kn}^2/\sigma^2_k}, \sigma^2_{ng} = \frac{1}{1/\sigma^{2E}_{ng} + \sum_k P_{kn}^2/\sigma^2_k},\text{lower} = 0, \text{upper} = \infty)\\\\
+p(\sigma^2_k|...) &\propto p(\sigma^2_k)\prod_g p(M_{kg}|\sigma^2_k,...)\\
+ & \sim InvGamma\Big(\alpha_k + G/2, \beta_k + \frac{1}{2}\sum_g(M_{kg} - \hat{M}_{kg})^2\Big)
+\end{aligned}
+$$
+
+## Sources

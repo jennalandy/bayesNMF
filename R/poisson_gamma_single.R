@@ -224,6 +224,8 @@ nmf_poisson_gamma <- function(
                 RMSE.chain = RMSE,
                 KLDiv.chain = KL,
                 final_metrics = list(
+		    Theta = Theta,
+		    dims = dims,
                     loglik = loglik[iter],
                     RMSE = RMSE[iter],
                     KLDiv = KL[iter]

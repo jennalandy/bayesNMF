@@ -287,7 +287,9 @@ nmf_normal_exponential <- function(
                 loglik.chain = loglik,
                 RMSE.chain = RMSE,
                 KLDiv.chain = KL,
-                final_metrics = list(
+                final_values = list(
+		    Theta = Theta,
+		    dims = dims,
                     loglik = loglik[iter],
                     RMSE = RMSE[iter],
                     KLDiv = KL[iter]
