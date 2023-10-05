@@ -87,20 +87,28 @@ nmf_poisson_gamma <- function(
         P = NULL,
         E = NULL,
         niters = 10000,
-        burn_in = 5000,
+        burn_in = round(2*niters/3),
         logevery = 100,
         file = 'nmf_poisson_gamma',
         overwrite = FALSE,
-        alpha_p = 5,
+        alpha_p = 10,
         Alpha_p = matrix(alpha_p, nrow = dim(M)[1], ncol = N),
-        beta_p = 0.05,
+        beta_p = sqrt(N),
         Beta_p = matrix(beta_p, nrow = dim(M)[1], ncol = N),
-        alpha_e = 5,
+        alpha_e = 10,
         Alpha_e = matrix(alpha_e, nrow = N, ncol = dim(M)[2]),
-        beta_e = 0.01,
+        beta_e = sqrt(N),
         Beta_e = matrix(beta_e, nrow = N, ncol = dim(M)[2]),
         true_P = NULL
 ) {
+    if (burn_in > niters) {
+        message(paste0(
+            "Burn in ", burn_in, " is greater than niters ",
+            niters, ", setting burn_in = 0"
+        ))
+        burn_in = 0
+    }
+
     savefile = paste0(file, '.res')
     logfile = paste0(file, '.log')
     plotfile = paste0(file, '.pdf')
@@ -213,6 +221,8 @@ nmf_poisson_gamma <- function(
 
             keep = burn_in:length(P.log)
             res <- list(
+                M = M,
+                true_P = true_P,
                 P.log = P.log,
                 E.log = E.log,
                 Z.log = Z.log,

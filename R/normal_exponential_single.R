@@ -41,7 +41,12 @@ sample_Pn <- function(n, M, Theta) {
     sigmasq_P = mu_sigmasq_P$sigmasq
 
     # sample from truncated normal
-    truncnorm::rtruncnorm(1, mean = mu_P, sd = sqrt(sigmasq_P), a = 0, b = Inf)
+    sampled <- truncnorm::rtruncnorm(1, mean = mu_P, sd = sqrt(sigmasq_P), a = 0, b = Inf)
+    if (sum(sampled < 0) > 0) {
+        warning("Tried to sample negative Pn, set to 0")
+    }
+    sampled[sampled < 0] <- 0
+    return(sampled)
 }
 
 #' Get mu and sigmasq for E[n,]
@@ -88,7 +93,12 @@ sample_En <- function(n, M, Theta) {
     sigmasq_E = mu_sigmasq_E$sigmasq
 
     # sample from truncated normal
-    truncnorm::rtruncnorm(1, mean = mu_E, sd = sqrt(sigmasq_E), a = 0, b = Inf)
+    sampled <- truncnorm::rtruncnorm(1, mean = mu_E, sd = sqrt(sigmasq_E), a = 0, b = Inf)
+    if (sum(sampled < 0) > 0) {
+        warning("Tried to sample negative Pn, set to 0")
+    }
+    sampled[sampled < 0] <- 0
+    return(sampled)
 }
 
 #' sample sigmasq
@@ -167,13 +177,13 @@ nmf_normal_exponential <- function(
     E = NULL,
     sigmasq = NULL,
     niters = 10000,
-    burn_in = 5000,
+    burn_in = round(2*niters/3),
     logevery = 100,
     file = 'nmf_normal_exponential',
     overwrite = FALSE,
-    lambda_p = 5,
+    lambda_p = sqrt(N/100),
     Lambda_p = matrix(lambda_p, nrow = dim(M)[1], ncol = N),
-    lambda_e = 3,
+    lambda_e = sqrt(N/100),
     Lambda_e = matrix(lambda_e, nrow = N, ncol = dim(M)[2]),
     alpha = 0.1,
     Alpha = rep(alpha, dim(M)[1]),
@@ -181,6 +191,14 @@ nmf_normal_exponential <- function(
     Beta = rep(beta, dim(M)[1]),
     true_P = NULL
 ) {
+    if (burn_in > niters) {
+        message(paste0(
+            "Burn in ", burn_in, " is greater than niters ",
+            niters, ", setting burn_in = 0"
+        ))
+        burn_in = 0
+    }
+
     savefile = paste0(file, '.res')
     logfile = paste0(file, '.log')
     plotfile = paste0(file, '.pdf')
@@ -277,6 +295,8 @@ nmf_normal_exponential <- function(
 
             keep = burn_in:length(P.log)
             res <- list(
+                M = M,
+                true_P = true_P,
                 P.log = P.log,
                 E.log = E.log,
                 sigmasq.log = sigmasq.log,

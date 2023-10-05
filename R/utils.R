@@ -17,6 +17,10 @@ get_RMSE <- function(M, Theta) {
 #' @export
 get_KLDiv <- function(M, Theta) {
     Mhat <- Theta$P %*% Theta$E
+    if (sum(Mhat < 0) > 1) {
+        print(Theta$P)
+        print(Theta$E)
+    }
     Mhat[Mhat == 0] <- 1
     M[M == 0] <- 1
     sum(M * log(M / Mhat) - M + Mhat)

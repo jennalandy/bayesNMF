@@ -174,17 +174,17 @@ nmf_normal_truncnormal <- function(
         E = NULL,
         sigmasq = NULL,
         niters = 10000,
-        burn_in = 5000,
+        burn_in = round(2*niters/3),
         logevery = 100,
         file = 'nmf_normal_truncnormal',
         overwrite = FALSE,
-        mu_p = 1/5, #100/nrow(M),
+        mu_p = sqrt(100/N),
         Mu_p = matrix(mu_p, nrow = dim(M)[1], ncol = N),
-        sigmasq_p = 1/25, #mu_p/10,
+        sigmasq_p = mu_p, #mu_p/10,
         Sigmasq_p = matrix(sigmasq_p, nrow = dim(M)[1], ncol = N),
-        mu_e = 1/3, #mean(colSums(M))/(N*100),
+        mu_e = sqrt(100/N), #mean(colSums(M))/(N*100),
         Mu_e = matrix(mu_e, nrow = N, ncol = dim(M)[2]),
-        sigmasq_e = 1/9, #mu_e/10,
+        sigmasq_e = mu_e, #mu_e/10,
         Sigmasq_e = matrix(sigmasq_e, nrow = N, ncol = dim(M)[2]),
         alpha = 0.1,
         Alpha = rep(alpha, dim(M)[1]),
@@ -192,6 +192,14 @@ nmf_normal_truncnormal <- function(
         Beta = rep(beta, dim(M)[1]),
         true_P = NULL
 ) {
+    if (burn_in > niters) {
+        message(paste0(
+            "Burn in ", burn_in, " is greater than niters ",
+            niters, ", setting burn_in = 0"
+        ))
+        burn_in = 0
+    }
+
     savefile = paste0(file, '.res')
     logfile = paste0(file, '.log')
     plotfile = paste0(file, '.pdf')
@@ -298,6 +306,8 @@ nmf_normal_truncnormal <- function(
 
             keep = burn_in:length(P.log)
             res <- list(
+                M = M,
+                true_P = true_P,
                 P.log = P.log,
                 E.log = E.log,
                 sigmasq.log = sigmasq.log,
