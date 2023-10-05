@@ -36,12 +36,14 @@ get_mu_sigmasq_Pn <- function(n, M, Theta) {
 #'
 #' @return vector length K
 sample_Pn <- function(n, M, Theta) {
+    tmp = Theta$P[,n]
     mu_sigmasq_P <- get_mu_sigmasq_Pn(n, M, Theta)
     mu_P = mu_sigmasq_P$mu
     sigmasq_P = mu_sigmasq_P$sigmasq
 
     # sample from truncated normal
     sampled <- truncnorm::rtruncnorm(1, mean = mu_P, sd = sqrt(sigmasq_P), a = 0, b = Inf)
+    sampled[is.na(sampled)] <- tmp[is.na(sampled)]
     if (sum(sampled < 0) > 0) {
         warning("Tried to sample negative Pn, set to 0")
     }
