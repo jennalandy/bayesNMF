@@ -26,6 +26,53 @@ get_KLDiv <- function(M, Theta) {
     sum(M * log(M / Mhat) - M + Mhat)
 }
 
+#' Pairwise cosine similarity between rows or columns of matrices
+#'
+#' @param mat1 matrix, first matrix for comparison
+#' @param mat2 matrix, second matrix for comparison
+#' @param name1 string, to name rows of similarity matrix
+#' @param name2 string, to name columns of similarity matrix
+#' @param which string, one of c("rows","cols")
+#'
+#' @return matrix
+#' @export
+pairwise_sim <- function(
+        mat1, mat2,
+        name1 = '',
+        name2 = '',
+        which = 'rows'
+) {
+    if (which == 'cols') {
+        mat1 = t(mat1)
+        mat2 = t(mat2)
+    }
+
+    if (ncol(mat1) != ncol(mat2)) {
+        overlap_dim = ifelse(which == "rows","cols","rows")
+        stop(paste0(
+            "Different number of ", overlap_dim, ": ",
+            ncol(mat1), " != ", ncol(mat2)
+        ))
+    }
+
+    rows = nrow(mat1)
+    sim_mat = do.call(rbind, lapply(1:rows, function(row_mat1) {
+        sapply(1:rows, function(row_mat2) {
+            lsa::cosine(mat1[row_mat1,], mat2[row_mat2,])
+        })
+    }))
+
+    if (name1 != "") {
+        rownames(sim_mat) = paste0(name1, 1:rows)
+    }
+
+    if (name2 != "") {
+        colnames(sim_mat) = paste0(name2, 1:rows)
+    }
+
+    return(sim_mat)
+}
+
 #' Reassign signatures in a similarity matrix
 #'
 #' @param sim_mat similarity matrix between estimated and true signatures
@@ -37,17 +84,6 @@ reassign_signatures <- function(sim_mat) {
     reassigned_sim_mat
 }
 
-#' Get similarity matrix
-#'
-#' @param est_P estimated P (signatures matrix)
-#' @param true_P true P (signatures matrix)
-#'
-#' @return matrix
-#' @export
-get_sim_mat <- function(est_P, true_P) {
-    text2vec::sim2(t(est_P), t(true_P), method = 'cosine')
-}
-
 #' Get heatmap
 #'
 #' @param est_P estimated P (signatures matrix)
@@ -56,7 +92,7 @@ get_sim_mat <- function(est_P, true_P) {
 #' @return ggplot object
 #' @export
 get_heatmap <- function(est_P, true_P) {
-    sim_mat <- get_sim_mat(est_P, true_P)
+    sim_mat <- pairwise_sim(est_P, true_P, which = 'cols')
 
     sim_mat_melted <- reshape2::melt(sim_mat) %>%
         dplyr::arrange(-value)

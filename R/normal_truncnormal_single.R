@@ -330,7 +330,7 @@ nmf_normal_truncnormal <- function(
         }
     }
     if (!is.null(true_P)) {
-        sim_mat <- get_sim_mat(res$P.mean, true_P)
+        sim_mat <- pairwise_sim(res$P.mean, true_P, which = 'cols')
         heatmap <- get_heatmap(res$P.mean, true_P)
 
         res$sim_mat <- sim_mat

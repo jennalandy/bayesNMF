@@ -16,11 +16,11 @@ Imports:
     graphics,
     grDevices,
     invgamma,
+    lsa,
     magrittr,
     RcppHungarian,
     reshape2,
     stats,
-    text2vec,
     truncnorm
 Suggests: 
     testthat (>= 3.0.0)
