@@ -1,4 +1,10 @@
 source("setup_normal.R")
+library(RcppHungarian)
+reassign_signatures <- function(sim_mat) {
+    reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
+    reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
+    reassigned_sim_mat
+}
 
 test_that("nmf_poisson_gamma works with 1 signature", {
     res <- nmf_poisson_gamma(

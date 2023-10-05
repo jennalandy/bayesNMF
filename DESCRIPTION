@@ -18,7 +18,6 @@ Imports:
     invgamma,
     lsa,
     magrittr,
-    RcppHungarian,
     reshape2,
     stats,
     truncnorm

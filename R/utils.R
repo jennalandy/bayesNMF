@@ -73,17 +73,6 @@ pairwise_sim <- function(
     return(sim_mat)
 }
 
-#' Reassign signatures in a similarity matrix
-#'
-#' @param sim_mat similarity matrix between estimated and true signatures
-#'
-#' @return matrix
-reassign_signatures <- function(sim_mat) {
-    reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
-    reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
-    reassigned_sim_mat
-}
-
 #' Get heatmap
 #'
 #' @param est_P estimated P (signatures matrix)
