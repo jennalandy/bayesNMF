@@ -193,8 +193,9 @@ nmf_poisson_gamma <- function(
             }
         }
 
-        RMSE <- c(RMSE, get_RMSE(M, Theta))
-        KL <- c(KL, get_KLDiv(M, Theta))
+        Mhat <- get_Mhat(Theta)
+        RMSE <- c(RMSE, get_RMSE(M, Mhat))
+        KL <- c(KL, get_KLDiv(M, Mhat))
         loglik <- c(loglik, get_loglik_poisson_gamma_single(M, Theta, dims, logfac))
 
         P.log[[iter]] <- Theta$P

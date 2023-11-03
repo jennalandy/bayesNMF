@@ -113,13 +113,11 @@ sample_En <- function(n, M, Theta) {
 sample_sigmasq <- function(M, Theta, dims){
     Mhat <- Theta$P %*% Theta$E
     sigmasq <- sapply(1:dims$K, function(k) {
-        m_k <- max(M[k,])
         sigmasq_k <- invgamma::rinvgamma(
             n = 1,
             shape = Theta$Alpha[k] + dims$G / 2,
             scale = Theta$Beta[k] + sum(((M - Mhat)[k,])**2) / 2
         )
-        sigmasq_k <- min(sigmasq_k, m_k)
     })
 
     return(sigmasq)
@@ -269,8 +267,9 @@ nmf_normal_exponential <- function(
         }
         Theta$sigmasq <- sample_sigmasq(M, Theta, dims)
 
-        RMSE <- c(RMSE, get_RMSE(M, Theta))
-        KL <- c(KL, get_KLDiv(M, Theta))
+        Mhat <- get_Mhat(Theta)
+        RMSE <- c(RMSE, get_RMSE(M, Mhat))
+        KL <- c(KL, get_KLDiv(M, Mhat))
         loglik <- c(loglik, get_loglik(M, Theta, dims))
 
         P.log[[iter]] <- Theta$P

@@ -2,9 +2,12 @@
 
 export("%>%")
 export(get_KLDiv)
+export(get_KLDiv_multistudy)
 export(get_RMSE)
+export(get_RMSE_multistudy)
 export(get_heatmap)
 export(nmf_normal_exponential)
+export(nmf_normal_exponential_multistudy)
 export(nmf_normal_truncnormal)
 export(nmf_poisson_gamma)
 export(pairwise_sim)

@@ -4,12 +4,10 @@
 \alias{get_KLDiv}
 \title{Get KL Divergence}
 \usage{
-get_KLDiv(M, Theta)
+get_KLDiv(M, Mhat)
 }
 \arguments{
-\item{M}{mutational catalog matrix, K x G}
-
-\item{Theta}{list of parameters}
+\item{M}{reconstructed mutational catalog matrix, K x G}
 }
 \value{
 scalar

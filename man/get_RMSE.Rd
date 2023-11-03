@@ -4,12 +4,10 @@
 \alias{get_RMSE}
 \title{get RMSE}
 \usage{
-get_RMSE(M, Theta)
+get_RMSE(M, Mhat)
 }
 \arguments{
-\item{M}{mutational catalog matrix, K x G}
-
-\item{Theta}{list of parameters}
+\item{M}{reconstructed mutational catalog matrix, K x G}
 }
 \value{
 scalar
