@@ -1,9 +1,3 @@
----
-editor_options: 
-  markdown: 
-    wrap: 72
----
-
 # bayesNMF: an R package for Bayesian NMF
 
 ## Notes
@@ -75,7 +69,7 @@ res <- nmf_normal_truncnormal(M, N = 5, file = "my_run", true_P = P)
 
 ### 1. Simulate Data
 
-Here we simulate a mutational catalog based on a subset of COSMIC signatures, available at the link below. Here, we use 5 of the COSMIC signatures.
+Here we simulate a mutational catalog based on a subset of COSMIC signatures, available at the link below. We use 5 of the COSMIC signatures as the true P matrix.
 
 ```{r}
 set.seed(123)
@@ -90,7 +84,7 @@ P <- as.matrix(P[,sigs])
 K = nrow(P)
 ```
 
-We then simulate exposure values, for example here from an exponential distribution.
+We then simulate exposure values, for example here from an exponential distribution. We generate exposures for G = 20 samples.
 
 ```{r}
 G = 20
@@ -104,6 +98,17 @@ M <- matrix(nrow = K, ncol = G)
 for (k in 1:K) {
     M[k,] <- rpois(G, P[k,]%*%E)
 }
+```
+
+Below shows the six number summary for the number of mutations per sample. We see that the central 50% of generated samples have between 2963 and 5231 mutations.
+
+```{r}
+summary(colSums(M))
+```
+
+```
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+   1699    2963    4891    5231    7410    9845
 ```
 
 ### 2. Running Methods
