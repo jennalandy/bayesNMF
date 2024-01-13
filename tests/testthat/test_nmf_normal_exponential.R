@@ -16,7 +16,8 @@ test_that("nmf_normal_exponential works with one signature", {
         file = "log_files/modelNE_dataP_N1",
         true_P = P,
         niters = niters,
-        burn_in = burn_in
+        burn_in = burn_in,
+        overwrite = TRUE
     )
 
     expect_equal(sum(is.na(res$MAP$E)), 0)
@@ -29,7 +30,8 @@ test_that("nmf_normal_exponential works with Poisson data generating function", 
         file = "log_files/modelNE_dataP_N5",
         true_P = P,
         niters = niters,
-        burn_in = burn_in
+        burn_in = burn_in,
+        overwrite = TRUE
     )
 
     expect_equal(sum(is.na(res$MAP$E)), 0)
@@ -48,7 +50,8 @@ test_that("nmf_normal_exponential works with sparse Poisson data generating func
         file = "log_files/modelNE_dataPS_N5",
         true_P = P,
         niters = niters,
-        burn_in = burn_in
+        burn_in = burn_in,
+        overwrite = TRUE
     )
 
     expect_equal(sum(is.na(res$MAP$E)), 0)
@@ -67,7 +70,8 @@ test_that("nmf_normal_exponential works with Normal data generating function", {
         file = "log_files/modelNE_dataN_N5",
         true_P = P,
         niters = niters,
-        burn_in = burn_in
+        burn_in = burn_in,
+        overwrite = TRUE
     )
 
     expect_equal(sum(is.na(res$MAP$E)), 0)
@@ -86,7 +90,8 @@ test_that("nmf_normal_exponential works with sparse Normal data generating funct
         file = "log_files/modelNE_dataNS_N5",
         true_P = P,
         niters = niters,
-        burn_in = burn_in
+        burn_in = burn_in,
+        overwrite = TRUE
     )
 
     expect_equal(sum(is.na(res$MAP$E)), 0)

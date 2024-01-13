@@ -230,13 +230,11 @@ nmf_poisson_gamma <- function(
                 true_P = true_P,
                 logs = list(
                     P = P.log,
-                    E = E.log,
-                    sigmasq = sigmasq.log
+                    E = E.log
                 ),
                 MAP = list(
                     P = Reduce(`+`, P.log[keep])/length(keep),
-                    E = Reduce(`+`, E.log[keep])/length(keep),
-                    sigmasq = Reduce(`+`, sigmasq.log[keep])/length(keep)
+                    E = Reduce(`+`, E.log[keep])/length(keep)
                 ),
                 metrics = list(
                     loglik = loglik,

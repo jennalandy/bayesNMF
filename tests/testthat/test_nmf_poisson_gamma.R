@@ -20,8 +20,8 @@ test_that("nmf_poisson_gamma works with 1 signature", {
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_values$P)), 0)
-    expect_equal(sum(is.na(res$final_values$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 })
 
 test_that("nmf_poisson_gamma works with Poisson data generating function", {
@@ -34,8 +34,8 @@ test_that("nmf_poisson_gamma works with Poisson data generating function", {
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_values$P)), 0)
-    expect_equal(sum(is.na(res$final_values$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -54,8 +54,8 @@ test_that("nmf_poisson_gamma works with sparse Poisson data generating function"
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_values$P)), 0)
-    expect_equal(sum(is.na(res$final_values$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -74,8 +74,8 @@ test_that("nmf_poisson_gamma works with Normal data generating function", {
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_values$P)), 0)
-    expect_equal(sum(is.na(res$final_values$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -94,10 +94,10 @@ test_that("nmf_poisson_gamma works with sparse Normal data generating function",
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_values$P)), 0)
-    expect_equal(sum(is.na(res$final_values$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
-    expect_gt(min(sig_sims), 0.8)libra(✿◕‿◕)
+    expect_gt(min(sig_sims), 0.8)
 })
