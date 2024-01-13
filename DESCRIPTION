@@ -11,6 +11,7 @@ License: MIT License
 Encoding: UTF-8
 LazyData: true
 Imports: 
+    coda,
     dplyr,
     ggplot2,
     graphics,
@@ -18,7 +19,9 @@ Imports:
     invgamma,
     lsa,
     magrittr,
+    RcppHungarian,
     reshape2,
+    rjags,
     stats,
     truncnorm
 Suggests: 

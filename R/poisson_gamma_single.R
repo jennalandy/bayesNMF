@@ -6,6 +6,7 @@
 #' @param Theta list of parameters
 #'
 #' @return vector length K
+#' @noRd
 sample_Pkn_poisson_gamma_single <- function(k, n, M, Theta) {
     rgamma(1, Theta$Alpha_p[k,n] + sum(Theta$Z[k,n,]), Theta$Beta_p[k,n] + sum(Theta$E[n,]))
 }
@@ -18,6 +19,7 @@ sample_Pkn_poisson_gamma_single <- function(k, n, M, Theta) {
 #' @param Theta list of parameters
 #'
 #' @return vector of length G
+#' @noRd
 sample_Eng_poisson_gamma_single <- function(n, g, M, Theta) {
     rgamma(1, Theta$Alpha_e[n,g] + sum(Theta$Z[,n,g]), Theta$Beta_e[n,g] + sum(Theta$P[,n]))
 }
@@ -31,6 +33,7 @@ sample_Eng_poisson_gamma_single <- function(n, g, M, Theta) {
 #' @param dims list of dimensions
 #'
 #' @return vector length K
+#' @noRd
 sample_Zkg_poisson_gamma_single <- function(k, g, M, Theta, dims){
     probs = sapply(1:dims$N, function(n) {
         Theta$P[k,n] * Theta$E[n,g]
@@ -46,6 +49,7 @@ sample_Zkg_poisson_gamma_single <- function(k, g, M, Theta, dims){
 #' @param dims list of dimensions
 #'
 #' @return scalar
+#' @noRd
 get_loglik_poisson_gamma_single <- function(M, Theta, dims, logfac) {
     - sum((Theta$P %*% Theta$E)) +
         sum(M * log(Theta$P %*% Theta$E)) -
@@ -245,7 +249,7 @@ nmf_poisson_gamma <- function(
             save(res, file = savefile)
         }
     }
-    if (!is.null(true_P)) {
+    if (!is.null(true_P) & dims$N > 1) {
         sim_mat <- pairwise_sim(res$P.mean, true_P, which = 'cols')
         heatmap <- get_heatmap(res$P.mean, true_P)
 

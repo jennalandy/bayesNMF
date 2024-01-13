@@ -2,18 +2,20 @@
 % Please edit documentation in R/utils.R
 \name{get_heatmap}
 \alias{get_heatmap}
-\title{Get heatmap}
+\title{Plot a heatmap of cosine similarities between two matrices}
 \usage{
-get_heatmap(est_P, true_P)
+get_heatmap(est_P, true_P, which = "cols")
 }
 \arguments{
 \item{est_P}{estimated P (signatures matrix)}
 
 \item{true_P}{true P (signatures matrix)}
+
+\item{which}{string, one of c("rows","cols")}
 }
 \value{
 ggplot object
 }
 \description{
-Get heatmap
+Plot a heatmap of cosine similarities between two matrices
 }

@@ -5,6 +5,7 @@
 #' @param Theta list of parameters
 #'
 #' @return list of two items, mu and sigmasq
+#' @noRd
 get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta) {
     Mhat_no_n <- Theta$P[, -n] %*% Theta$E[-n, ]
 
@@ -36,6 +37,7 @@ get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta) {
 #' @param Theta list of parameters
 #'
 #' @return vector length K
+#' @noRd
 sample_Pn_normal_truncnormal <- function(n, M, Theta) {
     mu_sigmasq_P <- get_mu_sigmasq_Pn_normal_truncnormal(n, M, Theta)
     mu_P = mu_sigmasq_P$mu
@@ -52,6 +54,7 @@ sample_Pn_normal_truncnormal <- function(n, M, Theta) {
 #' @param Theta list of parameters
 #'
 #' @return list of two items, mu and sigmasq
+#' @noRd
 get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta) {
     Mhat_no_n <- Theta$P[, -n] %*% Theta$E[-n, ]
 
@@ -82,6 +85,7 @@ get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta) {
 #' @param Theta list of parameters
 #'
 #' @return vector of length G
+#' @noRd
 sample_En_normal_truncnormal <- function(n, M, Theta) {
     # compute mean
     mu_sigmasq_E <- get_mu_sigmasq_En_normal_truncnormal(n, M, Theta)
@@ -99,6 +103,7 @@ sample_En_normal_truncnormal <- function(n, M, Theta) {
 #' @param dims list of dimensions
 #'
 #' @return vector length K
+#' @noRd
 sample_sigmasq_normal_truncnormal <- function(M, Theta, dims){
     Mhat <- Theta$P %*% Theta$E
     sigmasq <- sapply(1:dims$K, function(k) {
@@ -119,6 +124,7 @@ sample_sigmasq_normal_truncnormal <- function(M, Theta, dims){
 #' @param dims list of dimensions
 #'
 #' @return scalar
+#' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
     - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
         sum(sweep(
@@ -307,30 +313,31 @@ nmf_normal_truncnormal <- function(
             res <- list(
                 M = M,
                 true_P = true_P,
-                P.log = P.log,
-                E.log = E.log,
-                sigmasq.log = sigmasq.log,
-                P.mean = Reduce(`+`, P.log[keep])/length(keep),
-                E.mean = Reduce(`+`, E.log[keep])/length(keep),
-                sigmasq.mean = Reduce(`+`, sigmasq.log[keep])/length(keep),
+                logs = list(
+                    P = P.log,
+                    E = E.log,
+                    sigmasq = sigmasq.log
+                ),
+                MAP = list(
+                    P = Reduce(`+`, P.log[keep])/length(keep),
+                    E = Reduce(`+`, E.log[keep])/length(keep),
+                    sigmasq = Reduce(`+`, sigmasq.log[keep])/length(keep)
+                ),
+                metrics = list(
+                    loglik = loglik,
+                    RMSE = RMSE,
+                    KL = KL
+                ),
                 burn_in = burn_in,
-                loglik.chain = loglik,
-                RMSE.chain = RMSE,
-                KLDiv.chain = KL,
-                final_values = list(
-                    Theta = Theta,
-                    dims = dims,
-                    loglik = loglik[iter],
-                    RMSE = RMSE[iter],
-                    KLDiv = KL[iter]
-                )
+                final_Theta = Theta,
+                dims = dims
             )
             save(res, file = savefile)
         }
     }
-    if (!is.null(true_P)) {
-        sim_mat <- pairwise_sim(res$P.mean, true_P, which = 'cols')
-        heatmap <- get_heatmap(res$P.mean, true_P)
+    if (!is.null(true_P) & dims$N > 1) {
+        sim_mat <- pairwise_sim(res$MAP$P, true_P, which = 'cols')
+        heatmap <- get_heatmap(res$MAP$P, true_P)
 
         res$sim_mat <- sim_mat
         res$heatmap <- heatmap

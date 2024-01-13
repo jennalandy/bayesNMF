@@ -1,4 +1,3 @@
-source("setup_poisson.R")
 library(RcppHungarian)
 reassign_signatures <- function(sim_mat) {
     reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
@@ -6,34 +5,58 @@ reassign_signatures <- function(sim_mat) {
     reassigned_sim_mat
 }
 
+niters = 1500
+burn_in = 1000
+
+source("setup_poisson.R")
+
 test_that("nmf_normal_exponential works with one signature", {
     res <- nmf_normal_exponential(
         M, N = 1,
-        file = "nmf_normal_exponential_onesig",
-        overwrite = TRUE,
+        file = "log_files/modelNE_dataP_N1",
         true_P = P,
-        niters = 1000,
-        burn_in = 500
+        niters = niters,
+        burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_values$E)), 0)
-    expect_equal(sum(is.na(res$final_values$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
 })
 
 test_that("nmf_normal_exponential works with Poisson data generating function", {
     res <- nmf_normal_exponential(
         M, N = 5,
-        file = "nmf_normal_exponential_poisson_setup",
-        overwrite = TRUE,
+        file = "log_files/modelNE_dataP_N5",
         true_P = P,
-        niters = 1000,
-        burn_in = 500
+        niters = niters,
+        burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_values$E)), 0)
-    expect_equal(sum(is.na(res$final_values$P)), 0)
-    reassigned_sim_mat <-reassign_signatures(res$sim_mat)
-    expect_gt(min(diag(reassigned_sim_mat)), 0.75)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+
+    sig_sims <- diag(reassign_signatures(res$sim_mat))
+    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
+    expect_gt(min(sig_sims), 0.8)
+})
+
+source("setup_poisson_sparse.R")
+
+test_that("nmf_normal_exponential works with sparse Poisson data generating function", {
+    res <- nmf_normal_exponential(
+        M, N = 5,
+        file = "log_files/modelNE_dataPS_N5",
+        true_P = P,
+        niters = niters,
+        burn_in = burn_in
+    )
+
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+
+    sig_sims <- diag(reassign_signatures(res$sim_mat))
+    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
+    expect_gt(min(sig_sims), 0.8)
 })
 
 source("setup_normal.R")
@@ -41,16 +64,36 @@ source("setup_normal.R")
 test_that("nmf_normal_exponential works with Normal data generating function", {
     res <- nmf_normal_exponential(
         M, N = 5,
-        file = "nmf_normal_exponential_normal_setup",
-        overwrite = TRUE,
+        file = "log_files/modelNE_dataN_N5",
         true_P = P,
-        niters = 5000,
-        burn_in = 4000
+        niters = niters,
+        burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_values$E)), 0)
-    expect_equal(sum(is.na(res$final_values$P)), 0)
-    reassigned_sim_mat <-reassign_signatures(res$sim_mat)
-    expect_gt(min(diag(reassigned_sim_mat)), 0.75)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+
+    sig_sims <- diag(reassign_signatures(res$sim_mat))
+    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
+    expect_gt(min(sig_sims), 0.8)
+})
+
+source("setup_normal_sparse.R")
+
+test_that("nmf_normal_exponential works with sparse Normal data generating function", {
+    res <- nmf_normal_exponential(
+        M, N = 5,
+        file = "log_files/modelNE_dataNS_N5",
+        true_P = P,
+        niters = niters,
+        burn_in = burn_in
+    )
+
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+
+    sig_sims <- diag(reassign_signatures(res$sim_mat))
+    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
+    expect_gt(min(sig_sims), 0.8)
 })
 

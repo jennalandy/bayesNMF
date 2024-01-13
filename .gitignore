@@ -8,3 +8,5 @@
 tests/testthat/*.log
 tests/testthat/*.pdf
 tests/testthat/*.res
+R_Archive/*
+*multi*

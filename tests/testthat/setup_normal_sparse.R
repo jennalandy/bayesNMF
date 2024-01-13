@@ -19,7 +19,7 @@ P <- read.csv(
 # P <- read.csv("../../cosmic.csv", header = TRUE)
 # P <- read.csv("cosmic.csv", header = TRUE)
 P <- as.matrix(P[,c(2,3,4,5,6)]) #7,8,12,13,14
-P <- P * 1000
+P <- P * 10
 
 E <- matrix(nrow = dims$N, ncol = dims$G)
 for (n in 1:dims$N) {

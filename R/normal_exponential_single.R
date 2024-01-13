@@ -5,6 +5,7 @@
 #' @param Theta list of parameters
 #'
 #' @return list of two items, mu and sigmasq
+#' @noRd
 get_mu_sigmasq_Pn <- function(n, M, Theta) {
     Mhat_no_n <- Theta$P[, -n] %*% Theta$E[-n, ]
     sum_E_sq <- sum(Theta$E[n, ] ** 2)
@@ -35,6 +36,7 @@ get_mu_sigmasq_Pn <- function(n, M, Theta) {
 #' @param Theta list of parameters
 #'
 #' @return vector length K
+#' @noRd
 sample_Pn <- function(n, M, Theta) {
     tmp = Theta$P[,n]
     mu_sigmasq_P <- get_mu_sigmasq_Pn(n, M, Theta)
@@ -58,6 +60,7 @@ sample_Pn <- function(n, M, Theta) {
 #' @param Theta list of parameters
 #'
 #' @return list of two items, mu and sigmasq
+#' @noRd
 get_mu_sigmasq_En <- function(n, M, Theta) {
     Mhat_no_n <- Theta$P[, -n] %*% Theta$E[-n, ]
 
@@ -88,6 +91,7 @@ get_mu_sigmasq_En <- function(n, M, Theta) {
 #' @param Theta list of parameters
 #'
 #' @return vector of length G
+#' @noRd
 sample_En <- function(n, M, Theta) {
     # compute mean
     mu_sigmasq_E <- get_mu_sigmasq_En(n, M, Theta)
@@ -110,6 +114,7 @@ sample_En <- function(n, M, Theta) {
 #' @param dims list of dimensions
 #'
 #' @return vector length K
+#' @noRd
 sample_sigmasq <- function(M, Theta, dims){
     Mhat <- Theta$P %*% Theta$E
     sigmasq <- sapply(1:dims$K, function(k) {
@@ -121,23 +126,6 @@ sample_sigmasq <- function(M, Theta, dims){
     })
 
     return(sigmasq)
-}
-
-#' get log likelihood
-#'
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#'
-#' @return scalar
-get_loglik <- function(M, Theta, dims) {
-    - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
-    sum(sweep(
-        (M - Theta$P %*% Theta$E)**2,
-        1,
-        1/(2 * Theta$sigmasq), # Length K
-        '*'
-    ))
 }
 
 #' Run gibbs sampler for normal-exponential single-study NMF
@@ -191,6 +179,7 @@ nmf_normal_exponential <- function(
     Beta = rep(beta, dim(M)[1]),
     true_P = NULL
 ) {
+
     if (burn_in > niters) {
         message(paste0(
             "Burn in ", burn_in, " is greater than niters ",
@@ -250,13 +239,17 @@ nmf_normal_exponential <- function(
         })
     }
 
-    RMSE <- c()
-    KL <- c()
-    loglik <- c()
+    metrics = list(
+        RMSE = rep(NULL, niters),
+        KL = rep(NULL, niters),
+        loglik = rep(NULL, niters)
+    )
 
-    P.log <- list()
-    E.log <- list()
-    sigmasq.log <- list()
+    logs = list(
+        P = list(),
+        E = list(),
+        sigmasq = list()
+    )
 
     for (iter in 1:niters) {
         for (n in 1:dims$N) {
@@ -268,60 +261,57 @@ nmf_normal_exponential <- function(
         Theta$sigmasq <- sample_sigmasq(M, Theta, dims)
 
         Mhat <- get_Mhat(Theta)
-        RMSE <- c(RMSE, get_RMSE(M, Mhat))
-        KL <- c(KL, get_KLDiv(M, Mhat))
-        loglik <- c(loglik, get_loglik(M, Theta, dims))
+        metrics$RMSE[iter] <- get_RMSE(M, Mhat)
+        metrics$KL[iter] <- get_KLDiv(M, Mhat)
+        metrics$loglik[iter] <- get_loglik_normal(M, Theta, dims)
 
-        P.log[[iter]] <- Theta$P
-        E.log[[iter]] <- Theta$E
-        sigmasq.log[[iter]] <- Theta$sigmasq
+        logs$P[[iter]] <- Theta$P
+        logs$E[[iter]] <- Theta$E
+        logs$sigmasq[[iter]] <- Theta$sigmasq
 
         if (iter %% logevery == 0 | iter == niters) {
             cat(paste(iter, "/", niters, "\n"))
 
             grDevices::pdf(plotfile)
             graphics::par(mfrow = c(3,1))
-            plot(RMSE)
-            if (sum(!is.na(KL)) > 0) {
-                if (sum(KL != -Inf, na.rm = TRUE) > 0) {
-                    plot(KL)
+            plot(metrics$RMSE)
+            if (sum(!is.na(metrics$KL)) > 0) {
+                if (sum(metrics$KL != -Inf, na.rm = TRUE) > 0) {
+                    plot(metrics$KL)
                 }
             }
-            if (sum(!is.na(loglik)) > 0){
-                if (sum(loglik != -Inf, na.rm = TRUE) > 0) {
-                    plot(loglik)
+            if (sum(!is.na(metrics$loglik)) > 0){
+                if (sum(metrics$loglik != -Inf, na.rm = TRUE) > 0) {
+                    plot(metrics$loglik)
                 }
             }
             grDevices::dev.off()
 
-            keep = burn_in:length(P.log)
+            if (burn_in < iter) {
+                keep = 1:iter
+            } else {
+                keep = burn_in:iter
+            }
             res <- list(
                 M = M,
                 true_P = true_P,
-                P.log = P.log,
-                E.log = E.log,
-                sigmasq.log = sigmasq.log,
-                P.mean = Reduce(`+`, P.log[keep])/length(keep),
-                E.mean = Reduce(`+`, E.log[keep])/length(keep),
-                sigmasq.mean = Reduce(`+`, sigmasq.log[keep])/length(keep),
+                logs = logs,
+                MAP = list(
+                    P = Reduce(`+`, logs$P[keep])/length(keep),
+                    E = Reduce(`+`, logs$E[keep])/length(keep),
+                    sigmasq = Reduce(`+`, logs$sigmasq[keep])/length(keep)
+                ),
+                metrics = metrics,
                 burn_in = burn_in,
-                loglik.chain = loglik,
-                RMSE.chain = RMSE,
-                KLDiv.chain = KL,
-                final_values = list(
-		    Theta = Theta,
-		    dims = dims,
-                    loglik = loglik[iter],
-                    RMSE = RMSE[iter],
-                    KLDiv = KL[iter]
-                )
+                final_Theta = Theta,
+                dims = dims
             )
             save(res, file = savefile)
         }
     }
-    if (!is.null(true_P)) {
-        sim_mat <- pairwise_sim(res$P.mean, true_P, which = 'cols')
-        heatmap <- get_heatmap(res$P.mean, true_P)
+    if (!is.null(true_P) & dims$N > 1) {
+        sim_mat <- pairwise_sim(res$MAP$P, true_P, which = 'cols')
+        heatmap <- get_heatmap(res$MAP$P, true_P)
 
         res$sim_mat <- sim_mat
         res$heatmap <- heatmap

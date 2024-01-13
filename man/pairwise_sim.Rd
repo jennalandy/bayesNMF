@@ -11,9 +11,9 @@ pairwise_sim(mat1, mat2, name1 = "", name2 = "", which = "rows")
 
 \item{mat2}{matrix, second matrix for comparison}
 
-\item{name1}{string, to name rows of similarity matrix}
+\item{name1}{string, to name rows or cols of similarity matrix}
 
-\item{name2}{string, to name columns of similarity matrix}
+\item{name2}{string, to name rows or cols of similarity matrix}
 
 \item{which}{string, one of c("rows","cols")}
 }

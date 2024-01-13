@@ -3,6 +3,7 @@
 #' @param vec logged values
 #'
 #' @return log of summed values
+#' @noRd
 sumLog <- function(vec) {
     ord <- sort(vec, decreasing=T)
     s <- ord[1]
@@ -17,6 +18,7 @@ sumLog <- function(vec) {
 #' @param Theta list
 #'
 #' @return matrix
+#' @noRd
 get_Mhat <- function(Theta) {
     Theta$P %*% Theta$E
 }
@@ -27,6 +29,7 @@ get_Mhat <- function(Theta) {
 #' @param dims list of dimensions
 #'
 #' @return list of matrices
+#' @noRd
 get_Mhat_multistudy <- function(Theta, dims) {
     lapply(1:dims$S, function(s) {
         Theta$P %*% diag(Theta$A[s,]) %*% Theta$E[[s]]
@@ -46,12 +49,33 @@ get_RMSE <- function(M, Mhat) {
 
 #' get RMSE in multistudy setting
 #'
+#' Get gamma schedule
+#'
+#' @param len integer, number of iterations
+#'
+#' @return vector of gamma values
+#' @noRd
+get_gamma_sched <- function(len = 1000) {
+    nX = len * 15 / 1000000
+    gamma_sched <- c(
+        rep(0, round(100 * nX)),
+        c(sapply(9:5, function(x) {rep(10^(-x), round(100 * nX))})),
+        rep(10**(-4), round(800 * nX)),
+        c(sapply(4:1, function(y) {
+            c(sapply(seq(0, 8.9, by = 0.1), function(x) {
+                rep((1+x)*10**(-y), round(100 * nX))
+            }))
+        }))
+    )
+    gamma_sched <- c(gamma_sched, rep(1, len - length(gamma_sched)))
+}
+
 #' @param M list of mutational catalog matrices, length S
 #' @param Mhat list of reconstructed mutational catalog matrices, length S
 #' @param dims list of dimensions
 #'
 #' @return scalar
-#' @export
+#' @noRd
 get_RMSE_multistudy <- function(M, Mhat, dims) {
     M_wide = do.call(cbind, M)
     Mhat_wide = do.call(cbind, Mhat)
@@ -77,7 +101,7 @@ get_KLDiv <- function(M, Mhat) {
 #' @param dims list of dimensions
 #'
 #' @return scalar
-#' @export
+#' @noRd
 get_KLDiv_multistudy <- function(M, Mhat, dims) {
     M_wide = do.call(cbind, M)
     Mhat_wide = do.call(cbind, Mhat)
@@ -91,8 +115,8 @@ get_KLDiv_multistudy <- function(M, Mhat, dims) {
 #'
 #' @param mat1 matrix, first matrix for comparison
 #' @param mat2 matrix, second matrix for comparison
-#' @param name1 string, to name rows of similarity matrix
-#' @param name2 string, to name columns of similarity matrix
+#' @param name1 string, to name rows or cols of similarity matrix
+#' @param name2 string, to name rows or cols of similarity matrix
 #' @param which string, one of c("rows","cols")
 #'
 #' @return matrix
@@ -133,18 +157,20 @@ pairwise_sim <- function(
     return(sim_mat)
 }
 
-#' Get heatmap
+
+#' Plot a heatmap of cosine similarities between two matrices
 #'
 #' @param est_P estimated P (signatures matrix)
 #' @param true_P true P (signatures matrix)
+#' @param which string, one of c("rows","cols")
 #'
 #' @return ggplot object
 #' @export
-get_heatmap <- function(est_P, true_P) {
-    sim_mat <- pairwise_sim(est_P, true_P, which = 'cols')
+get_heatmap <- function(est_P, true_P, which = 'cols') {
+    sim_mat <- pairwise_sim(est_P, true_P, which = which)
+    sim_mat <- assign_signatures(sim_mat)
 
-    sim_mat_melted <- reshape2::melt(sim_mat) %>%
-        dplyr::arrange(-value)
+    sim_mat_melted <- reshape2::melt(sim_mat)
 
     heatmap <- sim_mat_melted %>%
         dplyr::mutate(
@@ -163,4 +189,16 @@ get_heatmap <- function(est_P, true_P) {
         ggplot2::labs(x = 'Estimated Signatures', y = 'True Signatures', fill = 'Cosine\nSimilarity')
 
     return(heatmap)
+}
+
+#' Assign signatures based on cosine similarities
+#'
+#' @param sim_mat similarity matrix
+#'
+#' @return matrix
+#' @export
+assign_signatures <- function(sim_mat) {
+    reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
+    reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
+    reassigned_sim_mat
 }
