@@ -10,7 +10,7 @@ nmf_normal_truncnormal(
   P = NULL,
   E = NULL,
   sigmasq = NULL,
-  niters = 10000,
+  niters = 2000,
   burn_in = round(2 * niters/3),
   logevery = 100,
   file = "nmf_normal_truncnormal",

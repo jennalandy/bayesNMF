@@ -125,7 +125,7 @@ pairwise_sim <- function(
         mat1, mat2,
         name1 = '',
         name2 = '',
-        which = 'rows'
+        which = 'cols'
 ) {
     if (which == 'cols') {
         mat1 = t(mat1)
@@ -147,11 +147,11 @@ pairwise_sim <- function(
     }))
 
     if (name1 != "") {
-        rownames(sim_mat) = paste0(name1, 1:rows)
+        rownames(sim_mat) = paste0(name1, 1:nrow(sim_mat))
     }
 
     if (name2 != "") {
-        colnames(sim_mat) = paste0(name2, 1:rows)
+        colnames(sim_mat) = paste0(name2, 1:ncol(sim_mat))
     }
 
     return(sim_mat)
@@ -168,6 +168,8 @@ pairwise_sim <- function(
 #' @export
 get_heatmap <- function(est_P, true_P, which = 'cols') {
     sim_mat <- pairwise_sim(est_P, true_P, which = which)
+    rownames(sim_mat) = as.character(1:nrow(sim_mat))
+    colnames(sim_mat) = as.character(1:ncol(sim_mat))
     sim_mat <- assign_signatures(sim_mat)
 
     sim_mat_melted <- reshape2::melt(sim_mat)

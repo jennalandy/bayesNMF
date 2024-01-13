@@ -9,7 +9,7 @@ nmf_poisson_gamma(
   N,
   P = NULL,
   E = NULL,
-  niters = 10000,
+  niters = 2000,
   burn_in = round(2 * niters/3),
   logevery = 100,
   file = "nmf_poisson_gamma",

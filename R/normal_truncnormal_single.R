@@ -177,7 +177,7 @@ nmf_normal_truncnormal <- function(
         P = NULL,
         E = NULL,
         sigmasq = NULL,
-        niters = 10000,
+        niters = 2000,
         burn_in = round(2*niters/3),
         logevery = 100,
         file = 'nmf_normal_truncnormal',
@@ -329,6 +329,7 @@ nmf_normal_truncnormal <- function(
                     KL = KL
                 ),
                 burn_in = burn_in,
+                niters = niters,
                 final_Theta = Theta,
                 dims = dims
             )
@@ -336,7 +337,11 @@ nmf_normal_truncnormal <- function(
         }
     }
     if (!is.null(true_P) & dims$N > 1) {
-        sim_mat <- pairwise_sim(res$MAP$P, true_P, which = 'cols')
+        sim_mat <- pairwise_sim(
+            res$MAP$P, true_P,
+            name1 = "estimated", name2 = "true",
+            which = "cols"
+        )
         heatmap <- get_heatmap(res$MAP$P, true_P)
 
         res$sim_mat <- sim_mat

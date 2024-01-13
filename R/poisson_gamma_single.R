@@ -90,7 +90,7 @@ nmf_poisson_gamma <- function(
         M, N,
         P = NULL,
         E = NULL,
-        niters = 10000,
+        niters = 2000,
         burn_in = round(2*niters/3),
         logevery = 100,
         file = 'nmf_poisson_gamma',
@@ -228,30 +228,36 @@ nmf_poisson_gamma <- function(
             res <- list(
                 M = M,
                 true_P = true_P,
-                P.log = P.log,
-                E.log = E.log,
-                Z.log = Z.log,
-                P.mean = Reduce(`+`, P.log[keep])/length(keep),
-                E.mean = Reduce(`+`, E.log[keep])/length(keep),
-                Z.mean = Reduce(`+`, Z.log[keep])/length(keep),
+                logs = list(
+                    P = P.log,
+                    E = E.log,
+                    sigmasq = sigmasq.log
+                ),
+                MAP = list(
+                    P = Reduce(`+`, P.log[keep])/length(keep),
+                    E = Reduce(`+`, E.log[keep])/length(keep),
+                    sigmasq = Reduce(`+`, sigmasq.log[keep])/length(keep)
+                ),
+                metrics = list(
+                    loglik = loglik,
+                    RMSE = RMSE,
+                    KL = KL
+                ),
                 burn_in = burn_in,
-                loglik.chain = loglik,
-                RMSE.chain = RMSE,
-                KLDiv.chain = KL,
-                final_metrics = list(
-		    Theta = Theta,
-		    dims = dims,
-                    loglik = loglik[iter],
-                    RMSE = RMSE[iter],
-                    KLDiv = KL[iter]
-                )
+                niters = niters,
+                final_Theta = Theta,
+                dims = dims
             )
             save(res, file = savefile)
         }
     }
     if (!is.null(true_P) & dims$N > 1) {
-        sim_mat <- pairwise_sim(res$P.mean, true_P, which = 'cols')
-        heatmap <- get_heatmap(res$P.mean, true_P)
+        sim_mat <- pairwise_sim(
+            res$MAP$P, true_P,
+            name1 = "estimated", name2 = "true",
+            which = "cols"
+        )
+        heatmap <- get_heatmap(res$MAP$P, true_P)
 
         res$sim_mat <- sim_mat
         res$heatmap <- heatmap
