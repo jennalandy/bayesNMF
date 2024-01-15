@@ -3,14 +3,15 @@
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param gamma double, tempering parameter
 #'
 #' @return list of two items, mu and sigmasq
 #' @noRd
-get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta) {
-    Mhat_no_n <- Theta$P[, -n] %*% Theta$E[-n, ]
+get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
+    Mhat_no_n <- Theta$P[, -n] %*% diag(Theta$A[1, -n]) %*% Theta$E[-n, ]
 
     # compute mean
-    mu_num_term_1 <- (1/Theta$sigmasq) * (sweep(
+    mu_num_term_1 <- gamma * Theta$A[1,n] * (1/Theta$sigmasq) * (sweep(
         (M - Mhat_no_n), # dim KxG
         2, # multiply each row by E[n,]
         Theta$E[n, ], # length G
@@ -18,7 +19,7 @@ get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta) {
     ) %>% # dim KxG
         rowSums()) # length K
     mu_num_term_2 <- Theta$Mu_p[, n] / Theta$Sigmasq_p[,n] # length K
-    denom <- (1/Theta$Sigmasq_p[,n]) + sum(Theta$E[n, ] ** 2) / Theta$sigmasq
+    denom <- (1/Theta$Sigmasq_p[,n]) + gamma * sum(Theta$A[1,n] * Theta$E[n, ] ** 2) / Theta$sigmasq
 
 
     mu_P <- (mu_num_term_1 + mu_num_term_2) / denom # length K
@@ -35,11 +36,12 @@ get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta) {
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param gamma double, tempering parameter
 #'
 #' @return vector length K
 #' @noRd
-sample_Pn_normal_truncnormal <- function(n, M, Theta) {
-    mu_sigmasq_P <- get_mu_sigmasq_Pn_normal_truncnormal(n, M, Theta)
+sample_Pn_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
+    mu_sigmasq_P <- get_mu_sigmasq_Pn_normal_truncnormal(n, M, Theta, gamma = gamma)
     mu_P = mu_sigmasq_P$mu
     sigmasq_P = mu_sigmasq_P$sigmasq
 
@@ -52,14 +54,15 @@ sample_Pn_normal_truncnormal <- function(n, M, Theta) {
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param gamma double, tempering parameter
 #'
 #' @return list of two items, mu and sigmasq
 #' @noRd
-get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta) {
-    Mhat_no_n <- Theta$P[, -n] %*% Theta$E[-n, ]
+get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
+    Mhat_no_n <- Theta$P[, -n] %*% diag(Theta$A[1, -n]) %*% Theta$E[-n, ]
 
     # compute mean
-    mu_num_term_1 <- sweep(
+    mu_num_term_1 <- gamma * Theta$A[1,n] * sweep(
         (M - Mhat_no_n), # dim KxG
         1, # multiply each column by P[,n]
         Theta$P[, n] / Theta$sigmasq, # length K
@@ -67,7 +70,7 @@ get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta) {
     ) %>% # dim KxG
         colSums() # length G
     mu_num_term_2 <- Theta$Mu_e[n, ] / Theta$Sigmasq_e[n,] # length G
-    denom <- (1/Theta$Sigmasq_e[n,]) + sum(Theta$P[, n] ** 2 / Theta$sigmasq)
+    denom <- (1/Theta$Sigmasq_e[n,]) + gamma * sum(Theta$A[1,n] * Theta$P[, n] ** 2 / Theta$sigmasq)
 
     mu_E <- (mu_num_term_1 + mu_num_term_2) / denom # length G
     sigmasq_E <- 1 / denom
@@ -83,12 +86,13 @@ get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta) {
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param gamma double, tempering parameter
 #'
 #' @return vector of length G
 #' @noRd
-sample_En_normal_truncnormal <- function(n, M, Theta) {
+sample_En_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
     # compute mean
-    mu_sigmasq_E <- get_mu_sigmasq_En_normal_truncnormal(n, M, Theta)
+    mu_sigmasq_E <- get_mu_sigmasq_En_normal_truncnormal(n, M, Theta, gamma = gamma)
     mu_E = mu_sigmasq_E$mu
     sigmasq_E = mu_sigmasq_E$sigmasq
 
@@ -104,18 +108,56 @@ sample_En_normal_truncnormal <- function(n, M, Theta) {
 #'
 #' @return vector length K
 #' @noRd
-sample_sigmasq_normal_truncnormal <- function(M, Theta, dims){
-    Mhat <- Theta$P %*% Theta$E
+sample_sigmasq_normal_truncnormal <- function(M, Theta, dims, gamma = 1){
+    Mhat <- Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E
     sigmasq <- sapply(1:dims$K, function(k) {
         sigmasq_k <- invgamma::rinvgamma(
             n = 1,
-            shape = Theta$Alpha[k] + dims$G / 2,
-            scale = Theta$Beta[k] + sum(((M - Mhat)[k,])**2) / 2
+            shape = Theta$Alpha[k] + gamma * dims$G / 2,
+            scale = Theta$Beta[k] + gamma * sum(((M - Mhat)[k,])**2) / 2
         )
     })
 
     return(sigmasq)
 }
+
+#' Sample An
+#'
+#' @param n integer, signature index
+#' @param M list of matrices
+#' @param Theta list of parameters
+#' @param dims list of dimension values
+#' @param gamma double, tempering parameter
+#'
+#' @return integer
+sample_An_normal_truncnormal <- function(n, M, Theta, dims, gamma = 1) {
+    Theta_A0 <- Theta
+    Theta_A0$A[1,n] <- 0
+    Theta_A1 <- Theta
+    Theta_A1$A[1,n] <- 1
+
+    loglik_0 <- get_loglik_normal(M, Theta_A0, dims)
+    loglik_1 <- get_loglik_normal(M, Theta_A1, dims)
+
+    log_p0 = log(1 - Theta$q[1,n]) + gamma * loglik_0
+    log_p1 = log(Theta$q[1,n]) + gamma * loglik_1
+
+    log_p = log_p1 - sumLog(c(log_p0, log_p1))
+    p = exp(log_p)
+    return(sample(c(0, 1), size = 1, prob = c(1-p, p)))
+}
+
+#' Sample qn
+#'
+#' @param n integer, signature index
+#' @param Theta list of parameters
+#' @param gamma double, tempering parameter
+#'
+#' @return double
+sample_qn_normal_truncnormal <- function(n, Theta, gamma = 1) {
+    rbeta(1, Theta$a + gamma*Theta$A[1, n], Theta$b - gamma*Theta$A[1, n] + 1)
+}
+
 
 #' get log likelihood
 #'
@@ -128,7 +170,7 @@ sample_sigmasq_normal_truncnormal <- function(M, Theta, dims){
 get_loglik_normal <- function(M, Theta, dims) {
     - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
         sum(sweep(
-            (M - Theta$P %*% Theta$E)**2,
+            (M - Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E)**2,
             1,
             1/(2 * Theta$sigmasq), # Length K
             '*'
@@ -173,7 +215,10 @@ get_loglik_normal <- function(M, Theta, dims) {
 #' @return list
 #' @export
 nmf_normal_truncnormal <- function(
-        M, N,
+        M,
+        N = NULL,
+        max_N = NULL,
+        A = NULL,
         P = NULL,
         E = NULL,
         sigmasq = NULL,
@@ -194,8 +239,25 @@ nmf_normal_truncnormal <- function(
         Alpha = rep(alpha, dim(M)[1]),
         beta = 2,
         Beta = rep(beta, dim(M)[1]),
+        a = 0.8,
+        b = 0.8,
         true_P = NULL
 ) {
+    if (is.null(N) & is.null(max_N)) {
+        stop("Either `N` or `max_N` must be provided.")
+    } else if (!is.null(N) & !is.null(max_N)) {
+        message("Both `N` and `max_N` provided, using `N`.")
+    } else if (is.null(N)) {
+        N = max_N
+    }
+
+    learn_A <- !is.null(max_N) & is.null(A)
+    if (learn_A) {
+        gamma_sched <- get_gamma_sched(len = niters)
+    } else {
+        gamma_sched <- rep(1, niters)
+    }
+
     if (burn_in > niters) {
         message(paste0(
             "Burn in ", burn_in, " is greater than niters ",
@@ -220,7 +282,8 @@ nmf_normal_truncnormal <- function(
     dims = list(
         K = dim(M)[1],
         G = dim(M)[2],
-        N = N
+        N = N,
+        S = 1
     )
 
     Theta <- list(
@@ -232,7 +295,9 @@ nmf_normal_truncnormal <- function(
         Mu_p = Mu_p,
         Sigmasq_p = Sigmasq_p,
         Mu_e = Mu_e,
-        Sigmasq_e = Sigmasq_e
+        Sigmasq_e = Sigmasq_e,
+        a = a,
+        b = b
     )
 
     if (is.null(P)) {
@@ -264,6 +329,22 @@ nmf_normal_truncnormal <- function(
             invgamma::rinvgamma(n = 1, shape = Theta$Alpha[k], scale = Theta$Beta[k])
         })
     }
+    if (learn_A) {
+        Theta$q <- matrix(
+            rbeta(dims$S * dims$N, Theta$a, Theta$b),
+            nrow = dims$S, ncol = dims$N
+        )
+        Theta$A <- matrix(
+            as.numeric(runif(dims$S * dims$N) < c(Theta$q)),
+            nrow = dims$S, ncol = dims$N
+        )
+    } else if (!is.null(A)) {
+        Theta$A <- A
+        Theta$q <- Theta$A
+    } else {
+        Theta$A <- matrix(1, nrow = dims$S, ncol = dims$N)
+        Theta$q <- Theta$A
+    }
 
     RMSE <- c()
     KL <- c()
@@ -272,17 +353,26 @@ nmf_normal_truncnormal <- function(
     P.log <- list()
     E.log <- list()
     sigmasq.log <- list()
+    A.log <- list()
+    q.log <- list()
 
     for (iter in 1:niters) {
         for (n in 1:dims$N) {
-            Theta$P[, n] <- sample_Pn_normal_truncnormal(n, M, Theta)
+            Theta$P[, n] <- sample_Pn_normal_truncnormal(n, M, Theta, gamma = gamma_sched[iter])
         }
-        for (n in 1:N) {
-            Theta$E[n, ] <- sample_En_normal_truncnormal(n, M, Theta)
+        for (n in 1:dims$N) {
+            Theta$E[n, ] <- sample_En_normal_truncnormal(n, M, Theta, gamma = gamma_sched[iter])
         }
-        Theta$sigmasq <- sample_sigmasq_normal_truncnormal(M, Theta, dims)
+        Theta$sigmasq <- sample_sigmasq_normal_truncnormal(M, Theta, dims, gamma = gamma_sched[iter])
 
-        Mhat <- get_Mhat(Theta)
+        if (learn_A) {
+            for (n in 1:dims$N) {
+                Theta$A[1, n] <- sample_An_normal_truncnormal(n, M, Theta, dims, gamma = gamma_sched[iter])
+                Theta$q[1, n] <- sample_qn_normal_truncnormal(n, Theta, gamma = gamma_sched[iter])
+            }
+        }
+
+        Mhat <- Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E
         RMSE <- c(RMSE, get_RMSE(M, Mhat))
         KL <- c(KL, get_KLDiv(M, Mhat))
         loglik <- c(loglik, get_loglik_normal(M, Theta, dims))
@@ -290,6 +380,8 @@ nmf_normal_truncnormal <- function(
         P.log[[iter]] <- Theta$P
         E.log[[iter]] <- Theta$E
         sigmasq.log[[iter]] <- Theta$sigmasq
+        A.log[[iter]] <- Theta$A
+        q.log[[iter]] <- Theta$q
 
         if (iter %% logevery == 0 | iter == niters) {
             cat(paste(iter, "/", niters, "\n"))
@@ -309,19 +401,34 @@ nmf_normal_truncnormal <- function(
             }
             grDevices::dev.off()
 
-            keep = burn_in:length(P.log)
+            if (iter > burn_in) {
+                keep = burn_in:iter
+            } else {
+                keep = 1:iter
+            }
+
+            A.map = get_mode(A.log[keep])
+            map.idx = keep[A.map$idx]
+            print(A.map$top_counts)
+
+            keep_sigs = as.logical(A.map$matrix[1, ])
+
             res <- list(
                 M = M,
                 true_P = true_P,
                 logs = list(
                     P = P.log,
                     E = E.log,
-                    sigmasq = sigmasq.log
+                    sigmasq = sigmasq.log,
+                    q = q.log,
+                    A = A.log
                 ),
                 MAP = list(
-                    P = Reduce(`+`, P.log[keep])/length(keep),
-                    E = Reduce(`+`, E.log[keep])/length(keep),
-                    sigmasq = Reduce(`+`, sigmasq.log[keep])/length(keep)
+                    A = A.map$matrix,
+                    q = get_mean(q.log[map.idx]),
+                    P = get_mean(P.log[map.idx])[, keep_sigs],
+                    E = get_mean(E.log[map.idx])[keep_sigs, ],
+                    sigmasq = get_mean(sigmasq.log[map.idx])
                 ),
                 metrics = list(
                     loglik = loglik,

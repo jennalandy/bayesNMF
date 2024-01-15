@@ -204,3 +204,36 @@ assign_signatures <- function(sim_mat) {
     reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
     reassigned_sim_mat
 }
+
+
+#' Get mode of a list of matrices
+#'
+#' @param matrix_list list of matrices
+#'
+#' @return named list with mode ('matrix') and indices ('idx')
+get_mode <- function(matrix_list) {
+    str_list <- sapply(matrix_list, function(mat) {
+        paste(c(mat), collapse = '')
+    })
+    str_counts <- table(str_list)
+    str_counts <- sort(str_counts, decreasing = TRUE)
+
+    str_mode = names(str_counts)[1]
+    idx_mode = which(str_list == str_mode)
+    matrix_mode = matrix_list[[idx_mode[1]]]
+
+    return(list(
+        'matrix' = matrix_mode,
+        'top_counts' = str_counts[1:5],
+        'idx' = idx_mode
+    ))
+}
+
+#' Get element-wise mean of a list of matrices
+#'
+#' @param matrix_list list of matrices
+#'
+#' @return matrix
+get_mean <- function(matrix_list) {
+    return(Reduce(`+`, matrix_list)/length(matrix_list))
+}

@@ -6,7 +6,9 @@
 \usage{
 nmf_normal_truncnormal(
   M,
-  N,
+  N = NULL,
+  max_N = NULL,
+  A = NULL,
   P = NULL,
   E = NULL,
   sigmasq = NULL,
@@ -27,6 +29,8 @@ nmf_normal_truncnormal(
   Alpha = rep(alpha, dim(M)[1]),
   beta = 2,
   Beta = rep(beta, dim(M)[1]),
+  a = 0.8,
+  b = 0.8,
   true_P = NULL
 )
 }

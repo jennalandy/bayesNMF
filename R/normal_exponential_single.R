@@ -84,6 +84,24 @@ get_mu_sigmasq_En <- function(n, M, Theta) {
     ))
 }
 
+#' get log likelihood
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#'
+#' @return scalar
+#' @noRd
+get_loglik_normal_exponential <- function(M, Theta, dims) {
+    - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
+        sum(sweep(
+            (M - Theta$P %*% Theta$E)**2,
+            1,
+            1/(2 * Theta$sigmasq), # Length K
+            '*'
+        ))
+}
+
 #' Sample E[n,]
 #'
 #' @param n signature index
@@ -263,7 +281,7 @@ nmf_normal_exponential <- function(
         Mhat <- get_Mhat(Theta)
         metrics$RMSE[iter] <- get_RMSE(M, Mhat)
         metrics$KL[iter] <- get_KLDiv(M, Mhat)
-        metrics$loglik[iter] <- get_loglik_normal(M, Theta, dims)
+        metrics$loglik[iter] <- get_loglik_normal_exponential(M, Theta, dims)
 
         logs$P[[iter]] <- Theta$P
         logs$E[[iter]] <- Theta$E
