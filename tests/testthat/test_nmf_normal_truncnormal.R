@@ -44,8 +44,9 @@ burn_in_maxN = 3500
 source("setup_poisson.R")
 
 test_that("nmf_normal_truncnormal works with 1 signature given N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, N = 1,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataP_N1",
         overwrite = TRUE,
         true_P = P,
@@ -53,13 +54,14 @@ test_that("nmf_normal_truncnormal works with 1 signature given N", {
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_Theta$P)), 0)
-    expect_equal(sum(is.na(res$final_Theta$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 })
 
 test_that("nmf_normal_truncnormal works with Poisson data generating function given N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, N = 5,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataP_N5",
         overwrite = TRUE,
         true_P = P,
@@ -67,8 +69,8 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_Theta$P)), 0)
-    expect_equal(sum(is.na(res$final_Theta$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -76,8 +78,9 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
 })
 
 test_that("nmf_normal_truncnormal works with Poisson data generating function given max N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, max_N = 7,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataP_maxN7",
         overwrite = TRUE,
         true_P = P,
@@ -98,8 +101,9 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
 source("setup_poisson_sparse.R")
 
 test_that("nmf_normal_truncnormal works with sparse Poisson data generating function given N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, N = 5,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataPS_N5",
         overwrite = TRUE,
         true_P = P,
@@ -107,8 +111,8 @@ test_that("nmf_normal_truncnormal works with sparse Poisson data generating func
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_Theta$P)), 0)
-    expect_equal(sum(is.na(res$final_Theta$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -116,8 +120,9 @@ test_that("nmf_normal_truncnormal works with sparse Poisson data generating func
 })
 
 test_that("nmf_normal_truncnormal works with sparse Poisson data generating function given max N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, max_N = 7,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataPS_maxN7",
         overwrite = TRUE,
         true_P = P,
@@ -138,8 +143,9 @@ test_that("nmf_normal_truncnormal works with sparse Poisson data generating func
 source("setup_normal.R")
 
 test_that("nmf_normal_truncnormal works with Normal data generating function given N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, N = 5,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataN_N5",
         overwrite = TRUE,
         true_P = P,
@@ -147,8 +153,8 @@ test_that("nmf_normal_truncnormal works with Normal data generating function giv
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_Theta$P)), 0)
-    expect_equal(sum(is.na(res$final_Theta$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -156,8 +162,9 @@ test_that("nmf_normal_truncnormal works with Normal data generating function giv
 })
 
 test_that("nmf_normal_truncnormal works with Normal data generating function given max N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, max_N = 7,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataN_maxN7",
         overwrite = TRUE,
         true_P = P,
@@ -178,8 +185,9 @@ test_that("nmf_normal_truncnormal works with Normal data generating function giv
 source("setup_normal_sparse.R")
 
 test_that("nmf_normal_truncnormal works with sparse Normal data generating function given N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, N = 5,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataNS_N5",
         overwrite = TRUE,
         true_P = P,
@@ -187,8 +195,8 @@ test_that("nmf_normal_truncnormal works with sparse Normal data generating funct
         burn_in = burn_in
     )
 
-    expect_equal(sum(is.na(res$final_Theta$P)), 0)
-    expect_equal(sum(is.na(res$final_Theta$E)), 0)
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -196,8 +204,9 @@ test_that("nmf_normal_truncnormal works with sparse Normal data generating funct
 })
 
 test_that("nmf_normal_truncnormal works with sparse Normal data generating function given max N", {
-    res <- nmf_normal_truncnormal(
+    res <- nmf_normal(
         M, max_N = 7,
+        prior = 'truncnormal',
         file = "log_files/modelNT_dataNS_maxN7",
         overwrite = TRUE,
         true_P = P,

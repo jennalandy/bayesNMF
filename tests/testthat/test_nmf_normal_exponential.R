@@ -11,8 +11,9 @@ burn_in = 1000
 source("setup_poisson.R")
 
 test_that("nmf_normal_exponential works with one signature", {
-    res <- nmf_normal_exponential(
+    res <- nmf_normal(
         M, N = 1,
+        prior = 'exponential',
         file = "log_files/modelNE_dataP_N1",
         true_P = P,
         niters = niters,
@@ -25,8 +26,9 @@ test_that("nmf_normal_exponential works with one signature", {
 })
 
 test_that("nmf_normal_exponential works with Poisson data generating function", {
-    res <- nmf_normal_exponential(
+    res <- nmf_normal(
         M, N = 5,
+        prior = 'exponential',
         file = "log_files/modelNE_dataP_N5",
         true_P = P,
         niters = niters,
@@ -45,8 +47,9 @@ test_that("nmf_normal_exponential works with Poisson data generating function", 
 source("setup_poisson_sparse.R")
 
 test_that("nmf_normal_exponential works with sparse Poisson data generating function", {
-    res <- nmf_normal_exponential(
+    res <- nmf_normal(
         M, N = 5,
+        prior = 'exponential',
         file = "log_files/modelNE_dataPS_N5",
         true_P = P,
         niters = niters,
@@ -65,8 +68,9 @@ test_that("nmf_normal_exponential works with sparse Poisson data generating func
 source("setup_normal.R")
 
 test_that("nmf_normal_exponential works with Normal data generating function", {
-    res <- nmf_normal_exponential(
+    res <- nmf_normal(
         M, N = 5,
+        prior = 'exponential',
         file = "log_files/modelNE_dataN_N5",
         true_P = P,
         niters = niters,
@@ -85,8 +89,9 @@ test_that("nmf_normal_exponential works with Normal data generating function", {
 source("setup_normal_sparse.R")
 
 test_that("nmf_normal_exponential works with sparse Normal data generating function", {
-    res <- nmf_normal_exponential(
+    res <- nmf_normal(
         M, N = 5,
+        prior = 'exponential',
         file = "log_files/modelNE_dataNS_N5",
         true_P = P,
         niters = niters,
