@@ -17,3 +17,6 @@ M <- matrix(nrow = K, ncol = G)
 for (k in 1:K) {
     M[k,] <- rpois(G, P[k,]%*%E)
 }
+
+true_P <- P
+rm(list = c('P','E','N','G','sigs'))

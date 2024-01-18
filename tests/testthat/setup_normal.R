@@ -40,3 +40,7 @@ for (g in 1:dims$G) {
 M <- round(M)
 
 M[M<=0] <- 1
+true_P <- P
+
+rm(list = c('P','E','dims','theta','r','a','b','Beta'))
+

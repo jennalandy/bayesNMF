@@ -722,11 +722,11 @@ bayesNMF <- function(
             niters = 1500
             burn_in = 1000
         } else if (likelihood == 'normal') {
-            niters_maxN = 5000
-            burn_in_maxN = 3500
-        } else if (likleihood == 'poisson') {
-            niters_maxN = 10000
-            burn_in_maxN = 7500
+            niters = 5000
+            burn_in = 3500
+        } else if (likelihood == 'poisson') {
+            niters = 10000
+            burn_in = 7500
         }
     }
 
@@ -765,13 +765,13 @@ bayesNMF <- function(
     }
 
     # set up file names
-    savefile = paste0(file, '.res')
+    savefile = paste0(file, '.RData')
     logfile = paste0(file, '.log')
     plotfile = paste0(file, '.pdf')
     tail = 0
     while (!overwrite & (file.exists(savefile) | file.exists(logfile))) {
         tail = tail + 1
-        savefile = paste0(file, '_', tail, '.res')
+        savefile = paste0(file, '_', tail, '.RData')
         logfile = paste0(file, '_', tail, '.log')
         plotfile = paste0(file, '_', tail, '.pdf')
     }
@@ -779,6 +779,7 @@ bayesNMF <- function(
     # start logging
     sink(file = logfile)
     print(Sys.time())
+    print(paste("niters =", niters, "| burn_in =", burn_in))
 
     # set up Theta
     Theta <- initialize_Theta(
