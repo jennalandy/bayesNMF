@@ -2,16 +2,18 @@
 % Please edit documentation in R/utils.R
 \name{get_RMSE}
 \alias{get_RMSE}
-\title{get RMSE}
+\title{Compute RMSE}
 \usage{
 get_RMSE(M, Mhat)
 }
 \arguments{
-\item{M}{reconstructed mutational catalog matrix, K x G}
+\item{M}{matrix, K x G}
+
+\item{Mhat}{reconstructed matrix, K x G}
 }
 \value{
 scalar
 }
 \description{
-get RMSE
+Compute RMSE
 }

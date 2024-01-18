@@ -2,16 +2,18 @@
 % Please edit documentation in R/utils.R
 \name{get_KLDiv}
 \alias{get_KLDiv}
-\title{Get KL Divergence}
+\title{Compute KL Divergence}
 \usage{
 get_KLDiv(M, Mhat)
 }
 \arguments{
-\item{M}{reconstructed mutational catalog matrix, K x G}
+\item{M}{matrix, K x G}
+
+\item{Mhat}{reconstructed matrix, K x G}
 }
 \value{
 scalar
 }
 \description{
-Get KL Divergence
+Compute KL Divergence
 }

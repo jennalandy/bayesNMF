@@ -23,23 +23,10 @@ get_Mhat <- function(Theta) {
     Theta$P %*% Theta$E
 }
 
-#' Estimate multistudy M from current values of Theta
+#' Compute RMSE
 #'
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#'
-#' @return list of matrices
-#' @noRd
-get_Mhat_multistudy <- function(Theta, dims) {
-    lapply(1:dims$S, function(s) {
-        Theta$P %*% diag(Theta$A[s,]) %*% Theta$E[[s]]
-    })
-}
-
-#' get RMSE
-#'
-#' @param M mutational catalog matrix, K x G
-#' @param M reconstructed mutational catalog matrix, K x G
+#' @param M matrix, K x G
+#' @param Mhat reconstructed matrix, K x G
 #'
 #' @return scalar
 #' @export
@@ -47,9 +34,20 @@ get_RMSE <- function(M, Mhat) {
     sqrt(mean((M - Mhat)**2))
 }
 
-#' get RMSE in multistudy setting
+#' Compute KL Divergence
 #'
-#' Get gamma schedule
+#' @param M matrix, K x G
+#' @param Mhat reconstructed matrix, K x G
+#'
+#' @return scalar
+#' @export
+get_KLDiv <- function(M, Mhat) {
+    Mhat[Mhat <= 0] <- 1
+    M[M <= 0] <- 1
+    sum(M * log(M / Mhat) - M + Mhat)
+}
+
+#' Get tempering schedule
 #'
 #' @param len integer, number of iterations
 #'
@@ -70,46 +68,6 @@ get_gamma_sched <- function(len = 1000) {
     gamma_sched <- c(gamma_sched, rep(1, len - length(gamma_sched)))
 }
 
-#' @param M list of mutational catalog matrices, length S
-#' @param Mhat list of reconstructed mutational catalog matrices, length S
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_RMSE_multistudy <- function(M, Mhat, dims) {
-    M_wide = do.call(cbind, M)
-    Mhat_wide = do.call(cbind, Mhat)
-
-    sqrt(mean((M_wide - Mhat_wide)**2))
-}
-
-#' Get KL Divergence
-#' @param M mutational catalog matrix, K x G
-#' @param M reconstructed mutational catalog matrix, K x G
-#'
-#' @return scalar
-#' @export
-get_KLDiv <- function(M, Mhat) {
-    Mhat[Mhat == 0] <- 1
-    M[M == 0] <- 1
-    sum(M * log(M / Mhat) - M + Mhat)
-}
-
-#' Get KL Divergence in the multistudy setting
-#' @param M list of mutational catalog matrices, length S
-#' @param Mhat list of reconstructed mutational catalog matrices, length S
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_KLDiv_multistudy <- function(M, Mhat, dims) {
-    M_wide = do.call(cbind, M)
-    Mhat_wide = do.call(cbind, Mhat)
-
-    Mhat_wide[Mhat_wide == 0] <- 1
-    M_wide[M_wide == 0] <- 1
-    sum(M_wide * log(M_wide / Mhat_wide) - M_wide + Mhat_wide)
-}
 
 #' Pairwise cosine similarity between rows or columns of matrices
 #'
@@ -211,6 +169,7 @@ assign_signatures <- function(sim_mat) {
 #' @param matrix_list list of matrices
 #'
 #' @return named list with mode ('matrix') and indices ('idx')
+#' @noRd
 get_mode <- function(matrix_list) {
     str_list <- sapply(matrix_list, function(mat) {
         paste(c(mat), collapse = '')
@@ -234,6 +193,57 @@ get_mode <- function(matrix_list) {
 #' @param matrix_list list of matrices
 #'
 #' @return matrix
+#' @noRd
 get_mean <- function(matrix_list) {
     return(Reduce(`+`, matrix_list)/length(matrix_list))
+}
+
+
+# ---------------
+
+
+#' Estimate multistudy M from current values of Theta
+#'
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#'
+#' @return list of matrices
+#' @noRd
+get_Mhat_multistudy <- function(Theta, dims) {
+    lapply(1:dims$S, function(s) {
+        Theta$P %*% diag(Theta$A[s,]) %*% Theta$E[[s]]
+    })
+}
+
+
+#' get RMSE in multistudy setting
+#'
+#' @param M list of mutational catalog matrices, length S
+#' @param Mhat list of reconstructed mutational catalog matrices, length S
+#' @param dims list of dimensions
+#'
+#' @return scalar
+#' @noRd
+get_RMSE_multistudy <- function(M, Mhat, dims) {
+    M_wide = do.call(cbind, M)
+    Mhat_wide = do.call(cbind, Mhat)
+
+    sqrt(mean((M_wide - Mhat_wide)**2))
+}
+
+
+#' Get KL Divergence in the multistudy setting
+#' @param M list of mutational catalog matrices, length S
+#' @param Mhat list of reconstructed mutational catalog matrices, length S
+#' @param dims list of dimensions
+#'
+#' @return scalar
+#' @noRd
+get_KLDiv_multistudy <- function(M, Mhat, dims) {
+    M_wide = do.call(cbind, M)
+    Mhat_wide = do.call(cbind, Mhat)
+
+    Mhat_wide[Mhat_wide == 0] <- 1
+    M_wide[M_wide == 0] <- 1
+    sum(M_wide * log(M_wide / Mhat_wide) - M_wide + Mhat_wide)
 }

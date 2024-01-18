@@ -1,8 +1,9 @@
-#' get mu and sigmasq for P[,n]
+#' get mu and sigmasq for P[,n] in Normal-Exponential model
 #'
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param gamma double, tempering parameter
 #'
 #' @return list of two items, mu and sigmasq
 #' @noRd
@@ -29,7 +30,7 @@ get_mu_sigmasq_Pn_normal_exponential <- function(n, M, Theta, gamma = 1) {
     ))
 }
 
-#' get mu and sigmasq for P[,n]
+#' get mu and sigmasq for P[,n] in Normal-TruncNormal model
 #'
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
@@ -62,11 +63,12 @@ get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
     ))
 }
 
-#' sample P[,n]
+#' sample P[,n] for Normal likelihood
 #'
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param prior string, one of c('truncnormal','exponential')
 #' @param gamma double, tempering parameter
 #'
 #' @return vector length K
@@ -86,11 +88,56 @@ sample_Pn_normal <- function(n, M, Theta, prior = 'truncnormal', gamma = 1) {
     truncnorm::rtruncnorm(1, mean = mu_P, sd = sqrt(sigmasq_P), a = 0, b = Inf)
 }
 
-#' Get mu and sigmasq for E[n,]
+#' sample P[,n] for Poisson likelihood
 #'
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param dims list of dimensions
+#' @param prior string, one of c('gamma','exponential')
+#' @param gamma double, tempering parameter
+#'
+#' @return vector length K
+#' @noRd
+sample_Pn_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
+    if (prior == 'gamma') {
+        sampled <- sapply(1:dims$K, function(k) {
+            rgamma(1, Theta$Alpha_p[k,n] + gamma * sum(Theta$Z[k,n,]), Theta$Beta_p[k,n] + gamma * sum(Theta$E[n,]))
+        })
+    } else if (prior == 'exponential') {
+        sampled <- sapply(1:dims$K, function(k) {
+            rgamma(1, 1 + gamma * sum(Theta$Z[k,n,]), Theta$Lambda_p[k,n] + gamma * Theta$A[1,n] * sum(Theta$E[n,]))
+        })
+    }
+    return(sampled)
+}
+
+#' sample P[,n] wrapper function
+#'
+#' @param n signature index
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#' @param likelihood string, one of c('normal','exponential')
+#' @param prior string, one of c('gamma','exponential','truncnormal')
+#' @param gamma double, tempering parameter
+#'
+#' @return vector length K
+#' @noRd
+sample_Pn <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
+    if (likelihood == 'normal') {
+        sample_Pn_normal(n, M, Theta, prior, gamma)
+    } else if (likelihood == 'poisson') {
+        sample_Pn_poisson(n, M, Theta, dims, prior, gamma)
+    }
+}
+
+#' Get mu and sigmasq for E[n,] in Normal-Exponential model
+#'
+#' @param n signature index
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param gamma double, tempering parameter
 #'
 #' @return list of two items, mu and sigmasq
 #' @noRd
@@ -117,7 +164,7 @@ get_mu_sigmasq_En_normal_exponential <- function(n, M, Theta, gamma = 1) {
     ))
 }
 
-#' Get mu and sigmasq for E[n,]
+#' Get mu and sigmasq for E[n,] in Normal-TruncNormal model
 #'
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
@@ -149,11 +196,12 @@ get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
     ))
 }
 
-#' Sample E[n,]
+#' Sample E[n,] for Normal likelihood
 #'
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param prior string, one of c('truncnormal','exponential')
 #' @param gamma double, tempering parameter
 #'
 #' @return vector of length G
@@ -171,11 +219,58 @@ sample_En_normal <- function(n, M, Theta, prior = 'truncnormal', gamma = 1) {
     truncnorm::rtruncnorm(1, mean = mu_E, sd = sqrt(sigmasq_E), a = 0, b = Inf)
 }
 
-#' sample sigmasq
+#' Sample E[n,g] for Poisson likelihood
+#'
+#' @param n signature index
+#' @param g tumor genome index
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#' @param prior string, one of c('gamma','exponential')
+#' @param gamma double, tempering parameter
+#'
+#' @return vector of length G
+#' @noRd
+sample_En_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
+    if (prior == 'gamma') {
+        sampled <- sapply(1:dims$G, function(g) {
+            rgamma(1, Theta$Alpha_e[n,g] + gamma*sum(Theta$Z[,n,g]), Theta$Beta_e[n,g] + gamma*sum(Theta$P[,n]))
+        })
+    } else if (prior == 'exponential') {
+        sampled <- sapply(1:dims$G, function(g) {
+            rgamma(1, 1 + gamma * sum(Theta$Z[,n,g]), Theta$Lambda_e[n,g] + gamma * Theta$A[1,n] * sum(Theta$P[,n]))
+        })
+    }
+    return(sampled)
+}
+
+
+#' Sample E[n,] wrapper function
+#'
+#' @param n signature index
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#' @param likelihood string, one of c('normal','poisson')
+#' @param prior string, one of c('truncnormal','exponential','gamma')
+#' @param gamma double, tempering parameter
+#'
+#' @return vector of length G
+#' @noRd
+sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
+    if (likelihood == 'normal') {
+        sample_En_normal(n, M, Theta, prior = prior, gamma = gamma)
+    } else if (likelihood == 'poisson') {
+        sample_En_poisson(n, M, Theta, dims, prior = prior, gamma = gamma)
+    }
+}
+
+#' sample sigmasq for Normal likelihood
 #'
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
 #' @param dims list of dimensions
+#' @param gamma double, tempering parameter
 #'
 #' @return vector length K
 #' @noRd
@@ -192,23 +287,50 @@ sample_sigmasq_normal <- function(M, Theta, dims, gamma = 1){
     return(sigmasq)
 }
 
+
+#' sample Z[k,,g] for Poisson likelihood
+#'
+#' @param k mutation type index
+#' @param g tumor genome index
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#'
+#' @return vector length K
+#' @noRd
+sample_Zkg_poisson <- function(k, g, M, Theta, dims){
+    probs = sapply(1:dims$N, function(n) {
+        Theta$P[k,n] * Theta$E[n,g]
+    })
+    probs = probs/sum(probs)
+    rmultinom(1, size = M[k,g], prob = probs)
+}
+
 #' Sample An
 #'
 #' @param n integer, signature index
 #' @param M list of matrices
 #' @param Theta list of parameters
 #' @param dims list of dimension values
+#' @param logfac vector, logfac[i] = log(i!), only needed for `likelihood = 'poisson'`
+#' @param likelihood string, one of c('normal','poisson')
 #' @param gamma double, tempering parameter
 #'
 #' @return integer
-sample_An_normal <- function(n, M, Theta, dims, gamma = 1) {
+#' @noRd
+sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', gamma = 1) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
     Theta_A1 <- Theta
     Theta_A1$A[1,n] <- 1
 
-    loglik_0 <- get_loglik_normal(M, Theta_A0, dims)
-    loglik_1 <- get_loglik_normal(M, Theta_A1, dims)
+    if (likelihood == 'normal') {
+        loglik_0 <- get_loglik_normal(M, Theta_A0, dims)
+        loglik_1 <- get_loglik_normal(M, Theta_A1, dims)
+    } else if (likelihood == 'poisson') {
+        loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
+        loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
+    }
 
     log_p0 = log(1 - Theta$q[1,n]) + gamma * loglik_0
     log_p1 = log(Theta$q[1,n]) + gamma * loglik_1
@@ -225,12 +347,13 @@ sample_An_normal <- function(n, M, Theta, dims, gamma = 1) {
 #' @param gamma double, tempering parameter
 #'
 #' @return double
-sample_qn_normal <- function(n, Theta, gamma = 1) {
+#' @noRd
+sample_qn <- function(n, Theta, gamma = 1) {
     rbeta(1, Theta$a + gamma*Theta$A[1, n], Theta$b - gamma*Theta$A[1, n] + 1)
 }
 
 
-#' get log likelihood
+#' get Normal log likelihood
 #'
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
@@ -248,9 +371,26 @@ get_loglik_normal <- function(M, Theta, dims) {
         ))
 }
 
-#' Title
+
+#' get Poisson log likelihood
 #'
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#' @param logfac vector, logfac[i] = log(i!)
 #'
+#' @return scalar
+#' @noRd
+get_loglik_poisson <- function(M, Theta, dims, logfac) {
+    - sum((Theta$P %*% Theta$E)) +
+        sum(M * log(Theta$P %*% Theta$E)) -
+        sum(logfac[M])
+}
+
+
+#' Set prior parameters for Truncated Normal prior
+#'
+#' @param dims named list of dimensions N, K, G
 #' @param mu_p see `Mu_p`
 #' @param Mu_p mean for the truncated normal prior on `P`, matrix
 #' size K x N. Defaults to all same value `mu_p`
@@ -270,11 +410,9 @@ get_loglik_normal <- function(M, Theta, dims) {
 #' @param Beta rate parameter for the inverse-gamma prior on `sigmasq`,
 #' length K. Defaults to all same value `beta`
 #'
-#' @return
+#' @return named list of prior parameters
 #' @export
-#'
-#' @examples
-get_truncnorm_prior_parameters <- function(
+set_truncnorm_prior_parameters <- function(
     dims,
     mu_p = sqrt(100/dims$N),
     Mu_p = matrix(mu_p, nrow = dims$K, ncol = dims$N),
@@ -303,8 +441,9 @@ get_truncnorm_prior_parameters <- function(
     )
 }
 
-#' Title
+#' Set prior parameters for Exponential prior
 #'
+#' @param dims named list of dimensions N, K, G
 #' @param lambda_p see `Lambda_p`
 #' @param Lambda_p rate parameter for the exponential prior on `P`, matrix
 #' size K x N. Defaults to all same value `lambda_p`
@@ -318,43 +457,104 @@ get_truncnorm_prior_parameters <- function(
 #' @param Beta rate parameter for the inverse-gamma prior on `sigmasq`,
 #' length K. Defaults to all same value `beta`
 #'
-#' @return
+#' @return named list of prior parameters
 #' @export
-#'
-#' @examples
-get_exponential_prior_parameters <- function(
+set_exponential_prior_parameters <- function(
     dims,
     lambda_p = sqrt(dims$N/100),
     Lambda_p = matrix(lambda_p, nrow = dims$K, ncol = dims$N),
-    lambda_e = sqrt(N/100),
+    lambda_e = sqrt(dims$N/100),
     Lambda_e = matrix(lambda_e, nrow = dims$N, ncol = dims$G),
     alpha = 0.1,
     Alpha = rep(alpha, dims$K),
     beta = 2,
-    Beta = rep(beta, dims$K)
+    Beta = rep(beta, dims$K),
+    a = 0.8,
+    b = 0.8
 ) {
     list(
         Lambda_p = Lambda_p,
         Lambda_e = Lambda_e,
         Alpha = Alpha,
-        Beta = Beta
+        Beta = Beta,
+        a = a,
+        b = b
     )
 }
 
-initialize_Theta <- function(prior, prior_parameters, learn_A, dims, P, E, sigmasq, A) {
+#' Set prior parameters for Gamma prior
+#'
+#' @param dims named list of dimensions N, K, G
+#' @param alpha_p see `Alpha_p`
+#' @param Alpha_p shape parameter for the gamma prior on `P`, matrix
+#' size K x N. Defaults to all same value `alpha_p`
+#' @param beta_p see `Beta_p`
+#' @param Beta_p rate parameter for the gamma prior on `P`, matrix
+#' size K x N. Defaults to all same value `beta_p`
+#' @param alpha_e see `Alpha_e`
+#' @param Alpha_e shape parameter for the gamma prior on `E`, matrix
+#' size N x G. Defaults to all same value `alpha_e`
+#' @param beta_e see `Beta_e`
+#' @param Beta_e rate parameter for the gamma prior on `E`, matrix
+#' size N x G. Defaults to all same value `beta_e`
+#' #'
+#' @return named list of prior parameters
+#' @export
+set_gamma_prior_parameters <- function(
+    dims,
+    alpha_p = 10,
+    Alpha_p = matrix(alpha_p, nrow = dims$K, ncol = dims$N),
+    beta_p = sqrt(dims$N),
+    Beta_p = matrix(beta_p, nrow = dims$K, ncol = dims$N),
+    alpha_e = 10,
+    Alpha_e = matrix(alpha_e, nrow = dims$N, ncol = dims$G),
+    beta_e = sqrt(dims$N),
+    Beta_e = matrix(beta_e, nrow = dims$N, ncol = dims$G),
+    a = 0.8,
+    b = 0.8
+) {
+    list(
+        Alpha_p = Alpha_p,
+        Beta_p = Beta_p,
+        Alpha_e = Alpha_e,
+        Beta_e = Beta_e,
+        a = a,
+        b = b
+    )
+}
+
+#' initialize Theta
+#'
+#' @param likelihood string, one of c('poisson','normal')
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#' @param learn_A boolean, whether A will be learned or will be fixed
+#' @param dims named list of dimensions
+#' @param inits list of initial values, optional
+#' @param prior_parameters list of named prior parameters, optional
+#'
+#' @return named list of initialized unknowns
+#' @noRd
+initialize_Theta <- function(
+    likelihood, prior,
+    learn_A, dims,
+    inits = NULL,
+    prior_parameters = NULL
+) {
     # prior parameters
     if (is.null(prior_parameters)) {
         if (prior == 'truncnormal') {
-            Theta = get_truncnorm_prior_parameters(dims)
+            Theta = set_truncnorm_prior_parameters(dims)
         } else if (prior == 'exponential') {
-            Theta = get_exponential_prior_parameters(dims)
+            Theta = set_exponential_prior_parameters(dims)
+        } else if (prior == 'gamma') {
+            Theta = set_gamma_prior_parameters(dims)
         }
     } else {
         Theta = prior_parameters
     }
 
     # signatures P
-    if (is.null(P)) {
+    if (is.null(inits$P)) {
         Theta$P <- matrix(nrow = dims$K, ncol = dims$N)
         for (k in 1:dims$K) {
             for (n in 1:dims$N) {
@@ -366,16 +566,17 @@ initialize_Theta <- function(prior, prior_parameters, learn_A, dims, P, E, sigma
                     )
                 } else if (prior == 'exponential') {
                     Theta$P[k,n] <- stats::rexp(1, Theta$Lambda_p[k,n])
+                } else if (prior == 'gamma') {
+                    Theta$P[k,n] <- stats::rgamma(1, Theta$Alpha_p[k,n], Theta$Beta_p[k,n])
                 }
-
             }
         }
     } else {
-        Theta$P <- P
+        Theta$P <- inits$P
     }
 
     # exposures E
-    if (is.null(E)) {
+    if (is.null(inits$E)) {
         Theta$E <- matrix(nrow = dims$N, ncol = dims$G)
         for (n in 1:dims$N) {
             for (g in 1:dims$G) {
@@ -385,22 +586,33 @@ initialize_Theta <- function(prior, prior_parameters, learn_A, dims, P, E, sigma
                         mean = Theta$Mu_e[n,g],
                         sd = sqrt(Theta$Sigmasq_e[n,g])
                     )
-                } else {
+                } else if (prior == 'exponential') {
                     Theta$E[n,g] <- stats::rexp(1, Theta$Lambda_e[n,g])
+                } else if (prior == 'gamma') {
+                    Theta$E[n,g] <- stats::rgamma(1, Theta$Alpha_e[n,g], Theta$Beta_e[n,g])
                 }
             }
         }
     } else {
-        Theta$E <- E
+        Theta$E <- inits$E
     }
 
     # variance sigmasq
-    if (is.null(sigmasq)) {
-        Theta$sigmasq <- sapply(1:dims$K, function(k) {
-            invgamma::rinvgamma(n = 1, shape = Theta$Alpha[k], scale = Theta$Beta[k])
-        })
-    } else {
-        Theta$sigmasq <- sigmasq
+    if (likelihood == 'normal') {
+        if (is.null(inits$sigmasq)) {
+            Theta$sigmasq <- sapply(1:dims$K, function(k) {
+                invgamma::rinvgamma(n = 1, shape = Theta$Alpha[k], scale = Theta$Beta[k])
+            })
+        } else {
+            Theta$sigmasq <- inits$sigmasq
+        }
+    } else if (likelihood == 'poisson') {
+        Theta$Z <- array(dim = c(dims$K, dims$N, dims$G))
+        for (k in 1:dims$K) {
+            for (g in 1:dims$G) {
+                Theta$Z[k,,g] <- sample_Zkg_poisson(k, g, M, Theta, dims)
+            }
+        }
     }
 
     # signature assignment A
@@ -413,9 +625,9 @@ initialize_Theta <- function(prior, prior_parameters, learn_A, dims, P, E, sigma
             as.numeric(runif(dims$S * dims$N) < c(Theta$q)),
             nrow = dims$S, ncol = dims$N
         )
-    } else if (!is.null(A)) {
-        Theta$A <- A
-        Theta$q <- Theta$A
+    } else if (!is.null(inits$A)) {
+        Theta$A <- inits$A
+        Theta$q <- inits$A
     } else {
         Theta$A <- matrix(1, nrow = dims$S, ncol = dims$N)
         Theta$q <- Theta$A
@@ -424,7 +636,8 @@ initialize_Theta <- function(prior, prior_parameters, learn_A, dims, P, E, sigma
     return(Theta)
 }
 
-#' Run gibbs sampler for single-study NMF with normal likelihood
+#' Perform single-study Bayesian NMF with the provided likelihood and prior
+#' combination. Exact rank `N` or maximum rank `max_N` must be provided.
 #'
 #' @param M mutational catalog matrix, K x G
 #' @param N number of signatures
@@ -444,23 +657,39 @@ initialize_Theta <- function(prior, prior_parameters, learn_A, dims, P, E, sigma
 #'
 #' @return list
 #' @export
-nmf_normal <- function(
+bayesNMF <- function(
         M,
         N = NULL,
         max_N = NULL,
-        A = NULL,
-        P = NULL,
-        E = NULL,
-        sigmasq = NULL,
+        inits = NULL,
+        likelihood = "normal",
         prior = "truncnormal",
         prior_parameters = NULL,
-        niters = 2000,
-        burn_in = round(2*niters/3),
         logevery = 100,
-        file = paste0('nmf_normal_', prior),
+        file = paste0('nmf_', likelihood, '_', prior),
         overwrite = FALSE,
-        true_P = NULL
+        true_P = NULL,
+        niters = NULL,
+        burn_in = NULL
 ) {
+
+    if (likelihood == 'normal' & prior == 'exponential' & !is.null(max_N)) {
+        warning(paste0(
+            "Cannot learn N for Normal-Exponential model,",
+            "setting N = ", max_N
+        ))
+        N = max_N
+        max_N = NULL
+    }
+
+    if (likelihood == 'poisson' & prior == 'exponential' & !is.null(max_N)) {
+        warning(paste0(
+            "Cannot learn N for Poisson-Exponential model,",
+            "setting N = ", max_N
+        ))
+        N = max_N
+        max_N = NULL
+    }
 
     # check N/max_N combination is valid
     if (is.null(N) & is.null(max_N)) {
@@ -471,9 +700,51 @@ nmf_normal <- function(
         N = max_N
     }
 
-    # check prior is valid
-    if (!(prior %in% c('truncnormal','exponential'))) {
-        stop("prior must be one of c('truncnormal','exponential')")
+    # check prior and likelihood are valid
+    if (!(likelihood %in% c('normal', 'poisson'))) {
+        stop("likelihood must be one of c('normal')")
+    } else if (likelihood == 'normal') {
+        if (!(prior %in% c('truncnormal','exponential'))) {
+            stop("prior must be one of c('truncnormal','exponential') with `likelihood = 'normal'`")
+        }
+    } else if (likelihood == 'poisson') {
+        if (!(prior %in% c('gamma','exponential'))) {
+            stop("prior must be one of c('gamma','exponential') with `likelihood = 'poisson'`")
+        }
+    }
+
+    # check whether A is given or learned
+    learn_A <- !is.null(max_N) & is.null(inits$A)
+
+    # number of iterations depends on whether we're learning A and likelihood
+    if (is.null(niters)) {
+        if (!learn_A) {
+            niters = 1500
+            burn_in = 1000
+        } else if (likelihood == 'normal') {
+            niters_maxN = 5000
+            burn_in_maxN = 3500
+        } else if (likleihood == 'poisson') {
+            niters_maxN = 10000
+            burn_in_maxN = 7500
+        }
+    }
+
+    # set up tempering schedule
+    if (learn_A) {
+        gamma_sched <- get_gamma_sched(len = niters)
+    } else {
+        gamma_sched <- rep(1, niters)
+    }
+
+    if (likelihood == 'poisson') {
+        logfac = vector(length = max(M))
+        logfac[1] = 0
+        for (i in 2:length(logfac)) {
+            logfac[i] = log(i) + logfac[i-1]
+        }
+    } else {
+        logfac = NULL
     }
 
     # set up dimensions
@@ -483,14 +754,6 @@ nmf_normal <- function(
         N = N,
         S = 1
     )
-
-    # check whether A is given or learned
-    learn_A <- !is.null(max_N) & is.null(A)
-    if (learn_A) {
-        gamma_sched <- get_gamma_sched(len = niters)
-    } else {
-        gamma_sched <- rep(1, niters)
-    }
 
     # check burn_in is valid
     if (burn_in > niters) {
@@ -518,7 +781,12 @@ nmf_normal <- function(
     print(Sys.time())
 
     # set up Theta
-    Theta <- initialize_Theta(prior, prior_parameters, learn_A, dims, P, E, sigmasq, A)
+    Theta <- initialize_Theta(
+        likelihood, prior,
+        learn_A, dims,
+        inits = inits,
+        prior_parameters = prior_parameters
+    )
 
     # set up logs
     RMSE <- c()
@@ -536,22 +804,33 @@ nmf_normal <- function(
 
         # update P
         for (n in 1:dims$N) {
-            Theta$P[, n] <- sample_Pn_normal(n, M, Theta, prior = prior, gamma = gamma_sched[iter])
+            Theta$P[, n] <- sample_Pn(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
         }
 
         # update E
         for (n in 1:dims$N) {
-            Theta$E[n, ] <- sample_En_normal(n, M, Theta, prior = prior, gamma = gamma_sched[iter])
+            Theta$E[n, ] <- sample_En(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
         }
 
-        # update sigmasq
-        Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, gamma = gamma_sched[iter])
+        # if Normal likelihood, update sigmasq
+        if (likelihood == 'normal') {
+            Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, gamma = gamma_sched[iter])
+        }
+
+        # if Poisson likelihood, update latent counts Z
+        if (likelihood == 'poisson') {
+            for (k in 1:dims$K) {
+                for (g in 1:dims$G) {
+                    Theta$Z[k,,g] <- sample_Zkg_poisson(k, g, M, Theta, dims)
+                }
+            }
+        }
 
         # update A and q if learn_A = TRUE
         if (learn_A) {
             for (n in 1:dims$N) {
-                Theta$A[1, n] <- sample_An_normal(n, M, Theta, dims, gamma = gamma_sched[iter])
-                Theta$q[1, n] <- sample_qn_normal(n, Theta, gamma = gamma_sched[iter])
+                Theta$A[1, n] <- sample_An(n, M, Theta, dims, logfac, likelihood = likelihood, gamma = gamma_sched[iter])
+                Theta$q[1, n] <- sample_qn(n, Theta, gamma = gamma_sched[iter])
             }
         }
 
@@ -559,7 +838,11 @@ nmf_normal <- function(
         Mhat <- Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E
         RMSE <- c(RMSE, get_RMSE(M, Mhat))
         KL <- c(KL, get_KLDiv(M, Mhat))
-        loglik <- c(loglik, get_loglik_normal(M, Theta, dims))
+        if (likelihood == 'normal') {
+            loglik <- c(loglik, get_loglik_normal(M, Theta, dims))
+        } else if (likelihood == 'poisson') {
+            loglik <- c(loglik, get_loglik_poisson(M, Theta, dims, logfac))
+        }
 
         P.log[[iter]] <- Theta$P
         E.log[[iter]] <- Theta$E
@@ -597,7 +880,9 @@ nmf_normal <- function(
             # get MAP of A matrix (fine to do even if learn_A = FALSE)
             A.map = get_mode(A.log[keep])
             map.idx = keep[A.map$idx]
-            print(A.map$top_counts)
+            if (learn_A) {
+                print(A.map$top_counts)
+            }
 
             # only keep signatures present in MAP A matrix
             keep_sigs = as.logical(A.map$matrix[1, ])
