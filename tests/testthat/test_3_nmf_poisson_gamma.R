@@ -42,9 +42,7 @@ test_that("nmf_poisson_gamma works with sparse Poisson data generating function"
         prior = 'gamma',
         file = "log_files/modelPG_dataPS_N5",
         overwrite = TRUE,
-        true_P = true_P,
-        niters = niters,
-        burn_in = burn_in
+        true_P = true_P
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)

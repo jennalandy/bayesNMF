@@ -672,6 +672,7 @@ bayesNMF <- function(
         niters = NULL,
         burn_in = NULL
 ) {
+    START = Sys.time()
 
     if (likelihood == 'normal' & prior == 'exponential' & !is.null(max_N)) {
         warning(paste0(
@@ -776,11 +777,6 @@ bayesNMF <- function(
         plotfile = paste0(file, '_', tail, '.pdf')
     }
 
-    # start logging
-    sink(file = logfile)
-    print(Sys.time())
-    print(paste("niters =", niters, "| burn_in =", burn_in))
-
     # set up Theta
     Theta <- initialize_Theta(
         likelihood, prior,
@@ -799,6 +795,14 @@ bayesNMF <- function(
     sigmasq.log <- list()
     A.log <- list()
     q.log <- list()
+
+    # start logging
+    sink(file = logfile)
+    print(START)
+    print(paste("niters =", niters, "| burn_in =", burn_in))
+    PREV = Sys.time()
+    print(paste("starting iterations,", PREV))
+    avg_time = 0
 
     # Gibbs sampler: sample niters times
     for (iter in 1:niters) {
@@ -853,7 +857,11 @@ bayesNMF <- function(
 
         # periodically save every logevery iters and at the end
         if (iter %% logevery == 0 | iter == niters) {
-            cat(paste(iter, "/", niters, "\n"))
+            NOW = Sys.time()
+            diff = as.numeric(difftime(NOW, PREV, units = "secs"))
+            avg_time = (avg_time * (iter - logevery) + diff)/iter
+            PREV = NOW
+            cat(paste(iter, "/", niters, "-", diff, "seconds", "\n"))
 
             # plot metrics
             grDevices::pdf(plotfile)
@@ -914,7 +922,11 @@ bayesNMF <- function(
                 burn_in = burn_in,
                 niters = niters,
                 final_Theta = Theta,
-                dims = dims
+                dims = dims,
+                time = list(
+                    "avg_secs_per_iter" = avg_time,
+                    "total_secs" = as.numeric(difftime(NOW, START, units = "secs"))
+                )
             )
             save(res, file = savefile)
         }
