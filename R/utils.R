@@ -23,6 +23,25 @@ get_Mhat <- function(Theta) {
     Theta$P %*% Theta$E
 }
 
+#' Estimate M from current values of Theta excluding signature N
+#'
+#' @param Theta list
+#' @param dims list of dimensions
+#' @param n integer, signature to exclude
+#'
+#' @return matrix
+#' @noRd
+get_Mhat_no_n <- function(Theta, dims, n) {
+    if (dims$N > 2) {
+        Mhat_no_n = Theta$P[, -n] %*% diag(Theta$A[1, -n]) %*% Theta$E[-n, ]
+    } else if (dims$N == 2) {
+        Mhat_no_n = matrix(Theta$P[, -n], ncol = 1) %*% diag(Theta$A[1, -n]) %*% matrix(Theta$E[-n, ], nrow = 1)
+    } else if (dims$N == 1) {
+        Mhat_no_n = matrix(0, nrow = dims$K, ncol = dims$G)
+    }
+    return(Mhat_no_n)
+}
+
 #' Compute RMSE
 #'
 #' @param M matrix, K x G

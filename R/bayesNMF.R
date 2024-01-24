@@ -3,12 +3,13 @@
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param dims
 #' @param gamma double, tempering parameter
 #'
 #' @return list of two items, mu and sigmasq
 #' @noRd
-get_mu_sigmasq_Pn_normal_exponential <- function(n, M, Theta, gamma = 1) {
-    Mhat_no_n <- Theta$P[, -n] %*% Theta$E[-n, ]
+get_mu_sigmasq_Pn_normal_exponential <- function(n, M, Theta, dims, gamma = 1) {
+    Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
     sum_E_sq <- gamma * sum(Theta$E[n, ] ** 2)
 
     # compute mean
@@ -35,12 +36,13 @@ get_mu_sigmasq_Pn_normal_exponential <- function(n, M, Theta, gamma = 1) {
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param dims
 #' @param gamma double, tempering parameter
 #'
 #' @return list of two items, mu and sigmasq
 #' @noRd
-get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
-    Mhat_no_n <- Theta$P[, -n] %*% diag(Theta$A[1, -n]) %*% Theta$E[-n, ]
+get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta, dims, gamma = 1) {
+    Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
 
     # compute mean
     mu_num_term_1 <- gamma * Theta$A[1,n] * (1/Theta$sigmasq) * (sweep(
@@ -68,16 +70,17 @@ get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param dims
 #' @param prior string, one of c('truncnormal','exponential')
 #' @param gamma double, tempering parameter
 #'
 #' @return vector length K
 #' @noRd
-sample_Pn_normal <- function(n, M, Theta, prior = 'truncnormal', gamma = 1) {
+sample_Pn_normal <- function(n, M, Theta, dims, prior = 'truncnormal', gamma = 1) {
     if (prior == 'truncnormal') {
-        mu_sigmasq_P <- get_mu_sigmasq_Pn_normal_truncnormal(n, M, Theta, gamma = gamma)
+        mu_sigmasq_P <- get_mu_sigmasq_Pn_normal_truncnormal(n, M, Theta, dims, gamma = gamma)
     } else if (prior == 'exponential') {
-        mu_sigmasq_P <- get_mu_sigmasq_Pn_normal_exponential(n, M, Theta, gamma = gamma)
+        mu_sigmasq_P <- get_mu_sigmasq_Pn_normal_exponential(n, M, Theta, dims, gamma = gamma)
     }
 
 
@@ -126,7 +129,7 @@ sample_Pn_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
 #' @noRd
 sample_Pn <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
     if (likelihood == 'normal') {
-        sample_Pn_normal(n, M, Theta, prior, gamma)
+        sample_Pn_normal(n, M, Theta, dims, prior, gamma)
     } else if (likelihood == 'poisson') {
         sample_Pn_poisson(n, M, Theta, dims, prior, gamma)
     }
@@ -137,12 +140,13 @@ sample_Pn <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncno
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param dims
 #' @param gamma double, tempering parameter
 #'
 #' @return list of two items, mu and sigmasq
 #' @noRd
-get_mu_sigmasq_En_normal_exponential <- function(n, M, Theta, gamma = 1) {
-    Mhat_no_n <- Theta$P[, -n] %*% Theta$E[-n, ]
+get_mu_sigmasq_En_normal_exponential <- function(n, M, Theta, dims, gamma = 1) {
+    Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
 
     # compute mean
     mu_num_term_1 <- gamma * sweep(
@@ -169,12 +173,13 @@ get_mu_sigmasq_En_normal_exponential <- function(n, M, Theta, gamma = 1) {
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param dims
 #' @param gamma double, tempering parameter
 #'
 #' @return list of two items, mu and sigmasq
 #' @noRd
-get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
-    Mhat_no_n <- Theta$P[, -n] %*% diag(Theta$A[1, -n]) %*% Theta$E[-n, ]
+get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta, dims, gamma = 1) {
+    Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
 
     # compute mean
     mu_num_term_1 <- gamma * Theta$A[1,n] * sweep(
@@ -201,16 +206,17 @@ get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta, gamma = 1) {
 #' @param n signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
+#' @param dims
 #' @param prior string, one of c('truncnormal','exponential')
 #' @param gamma double, tempering parameter
 #'
 #' @return vector of length G
 #' @noRd
-sample_En_normal <- function(n, M, Theta, prior = 'truncnormal', gamma = 1) {
+sample_En_normal <- function(n, M, Theta, dims, prior = 'truncnormal', gamma = 1) {
     if (prior == 'truncnormal') {
-        mu_sigmasq_E <- get_mu_sigmasq_En_normal_truncnormal(n, M, Theta, gamma = gamma)
+        mu_sigmasq_E <- get_mu_sigmasq_En_normal_truncnormal(n, M, Theta, dims, gamma = gamma)
     } else if (prior == 'exponential') {
-        mu_sigmasq_E <- get_mu_sigmasq_En_normal_exponential(n, M, Theta, gamma = gamma)
+        mu_sigmasq_E <- get_mu_sigmasq_En_normal_exponential(n, M, Theta, dims, gamma = gamma)
     }
     mu_E = mu_sigmasq_E$mu
     sigmasq_E = mu_sigmasq_E$sigmasq
@@ -259,7 +265,7 @@ sample_En_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
 #' @noRd
 sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
     if (likelihood == 'normal') {
-        sample_En_normal(n, M, Theta, prior = prior, gamma = gamma)
+        sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
     } else if (likelihood == 'poisson') {
         sample_En_poisson(n, M, Theta, dims, prior = prior, gamma = gamma)
     }

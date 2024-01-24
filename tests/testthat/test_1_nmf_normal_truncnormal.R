@@ -15,6 +15,20 @@ test_that("nmf_normal_truncnormal works with 1 signature given N", {
     expect_equal(sum(is.na(res$MAP$E)), 0)
 })
 
+test_that("nmf_normal_truncnormal works with 2 signatures given N", {
+    res <- bayesNMF(
+        M, N = 2,
+        likelihood = 'normal',
+        prior = 'truncnormal',
+        file = "log_files/modelNT_dataP_N2",
+        overwrite = TRUE,
+        true_P = true_P
+    )
+
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+})
+
 test_that("nmf_normal_truncnormal works with Poisson data generating function given N", {
     res <- bayesNMF(
         M, N = 5,
