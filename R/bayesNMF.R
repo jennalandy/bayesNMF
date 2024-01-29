@@ -315,7 +315,7 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims){
 #' Sample An
 #'
 #' @param n integer, signature index
-#' @param M list of matrices
+#' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
 #' @param dims list of dimension values
 #' @param logfac vector, logfac[i] = log(i!), only needed for `likelihood = 'poisson'`
@@ -357,42 +357,6 @@ sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', gamma = 
 sample_qn <- function(n, Theta, gamma = 1) {
     rbeta(1, Theta$a + gamma*Theta$A[1, n], Theta$b - gamma*Theta$A[1, n] + 1)
 }
-
-
-#' get Normal log likelihood
-#'
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_loglik_normal <- function(M, Theta, dims) {
-    - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
-        sum(sweep(
-            (M - Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E)**2,
-            1,
-            1/(2 * Theta$sigmasq), # Length K
-            '*'
-        ))
-}
-
-
-#' get Poisson log likelihood
-#'
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#' @param logfac vector, logfac[i] = log(i!)
-#'
-#' @return scalar
-#' @noRd
-get_loglik_poisson <- function(M, Theta, dims, logfac) {
-    - sum((Theta$P %*% Theta$E)) +
-        sum(M * log(Theta$P %*% Theta$E)) -
-        sum(logfac[M])
-}
-
 
 #' Set prior parameters for Truncated Normal prior
 #'
@@ -795,6 +759,7 @@ bayesNMF <- function(
     RMSE <- c()
     KL <- c()
     loglik <- c()
+    logpost <- c()
 
     P.log <- list()
     E.log <- list()
@@ -851,8 +816,17 @@ bayesNMF <- function(
         KL <- c(KL, get_KLDiv(M, Mhat))
         if (likelihood == 'normal') {
             loglik <- c(loglik, get_loglik_normal(M, Theta, dims))
+            logpost <- c(logpost, get_proportional_log_posterior(
+                Theta, M, Theta$P, Theta$E,
+                sigmasq = Theta$sigmasq,
+                likelihood = likelihood, prior = prior
+            ))
         } else if (likelihood == 'poisson') {
             loglik <- c(loglik, get_loglik_poisson(M, Theta, dims, logfac))
+            logpost <- c(logpost, get_proportional_log_posterior(
+                Theta, M, Theta$P, Theta$E,
+                likelihood = likelihood, prior = prior
+            ))
         }
 
         P.log[[iter]] <- Theta$P
@@ -881,6 +855,11 @@ bayesNMF <- function(
             if (sum(!is.na(loglik)) > 0){
                 if (sum(loglik != -Inf, na.rm = TRUE) > 0) {
                     plot(loglik)
+                }
+            }
+            if (sum(!is.na(logpost)) > 0) {
+                if (sum(logpost != -Inf, na.rm = TRUE) > 0) {
+                    plot(logpost)
                 }
             }
             grDevices::dev.off()
@@ -922,6 +901,7 @@ bayesNMF <- function(
                 ),
                 metrics = list(
                     loglik = loglik,
+                    logpost = logpost,
                     RMSE = RMSE,
                     KL = KL
                 ),

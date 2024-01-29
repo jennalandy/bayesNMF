@@ -42,6 +42,137 @@ get_Mhat_no_n <- function(Theta, dims, n) {
     return(Mhat_no_n)
 }
 
+#' Compute (proportional) log posterior p(P, E | M)
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param P signatures matrix, K x N
+#' @param E exposures matrix, N x G
+#' @param Theta list of parameters
+#' @param sigmasq variances, K x 1, required if `likelihood = "normal"`
+#' @param likelihood string, one of c('poisson','normal')
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#'
+#' @return scalar
+#' @noRd
+get_proportional_log_posterior <- function(
+    Theta, M, P, E,
+    sigmasq = NULL,
+    likelihood = 'normal',
+    prior = 'exponential'
+) {
+    if (likelihood == 'normal' & prior == 'exponential') {
+        log_pP = sum(-1*P * Theta$Lambda_p)
+
+        log_pE = sum(-1*E * Theta$Lambda_e)
+
+        log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
+        for (k in 1:nrow(M)) {
+            for (g in 1:ncol(M)) {
+                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k])
+            }
+        }
+        log_pM = sum(log_pM)
+    } else if (likelihood == 'normal' & prior == 'truncnormal') {
+        log_pP = matrix(nrow = nrow(P), ncol = ncol(P))
+        for (k in 1:nrow(P)) {
+            for (n in 1:ncol(P)) {
+                log_pP[k,n] <- -1 * (P[k,n] - Theta$Mu_p[k,n])**2 / (2*Theta$Sigmasq_p[k,n])
+            }
+        }
+        log_pP = sum(log_pP)
+
+        log_pE = matrix(nrow = nrow(E), ncol = ncol(E))
+        for (n in 1:nrow(E)) {
+            for (g in 1:ncol(E)) {
+                log_pE[n,g] <- -1 * (E[n,g] - Theta$Mu_e[n,g])**2 / (2*Theta$Sigmasq_e[n,g])
+            }
+        }
+        log_pE = sum(log_pE)
+
+        log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
+        for (k in 1:nrow(M)) {
+            for (g in 1:ncol(M)) {
+                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k])
+            }
+        }
+        log_pM = sum(log_pM)
+
+    } else if (likelihood == 'poisson' & prior == 'gamma') {
+        log_pP = matrix(nrow = nrow(P), ncol = ncol(P))
+        for (k in 1:nrow(P)) {
+            for (n in 1:ncol(P)) {
+                log_pP[k,n] <- P[k,n]**(Theta$Alpha_p[k,n] - 1) * exp(-P[k,n]/Theta$Beta_p[k,n])
+            }
+        }
+        log_pP = sum(log_pP)
+
+        log_pE = matrix(nrow = nrow(E), ncol = ncol(E))
+        for (n in 1:nrow(E)) {
+            for (g in 1:ncol(E)) {
+                log_pE[n,g] <- E[n,g]**(Theta$Alpha_e[n,g] - 1) * exp(-E[n,g]/Theta$Beta_e[n,g])
+            }
+        }
+        log_pE = sum(log_pE)
+
+        log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
+        for (k in 1:nrow(M)) {
+            for (g in 1:ncol(M)) {
+                log_pM[k,g] <- -1*(P%*%E)[k,g] + (M[k,g]) * log((P%*%E)[k,g])
+            }
+        }
+        log_pM = sum(log_pM)
+
+    } else if (likelihood == 'poisson' & prior == 'exponential') {
+        log_pP = sum(-1*P * Theta$Lambda_p)
+
+        log_pE = sum(-1*E * Theta$Lambda_e)
+
+        log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
+        for (k in 1:nrow(M)) {
+            for (g in 1:ncol(M)) {
+                log_pM[k,g] <- -1*(P%*%E)[k,g] + (M[k,g]) * log((P%*%E)[k,g])
+            }
+        }
+        log_pM = sum(log_pM)
+    }
+
+    return(log_pM + log_pE + log_pP)
+}
+
+#' get Normal log likelihood
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#'
+#' @return scalar
+#' @noRd
+get_loglik_normal <- function(M, Theta, dims) {
+    - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
+        sum(sweep(
+            (M - Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E)**2,
+            1,
+            1/(2 * Theta$sigmasq), # Length K
+            '*'
+        ))
+}
+
+
+#' get Poisson log likelihood
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#' @param logfac vector, logfac[i] = log(i!)
+#'
+#' @return scalar
+#' @noRd
+get_loglik_poisson <- function(M, Theta, dims, logfac) {
+    - sum((Theta$P %*% Theta$E)) +
+        sum(M * log(Theta$P %*% Theta$E)) -
+        sum(logfac[M])
+}
+
 #' Compute RMSE
 #'
 #' @param M matrix, K x G

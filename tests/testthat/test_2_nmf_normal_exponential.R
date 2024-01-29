@@ -31,6 +31,17 @@ test_that("nmf_normal_exponential works with Poisson data generating function", 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
     expect_gt(min(sig_sims), 0.8)
+
+    log_post <- get_proportional_log_posterior(
+        Theta = res$final_Theta,
+        M = M,
+        P = res$MAP$P,
+        E = res$MAP$E,
+        sigmasq = res$MAP$sigmasq,
+        likelihood = 'normal',
+        prior = 'exponential'
+    )
+    expect_true(!is.na(log_post))
 })
 
 source("setup_poisson_sparse.R")

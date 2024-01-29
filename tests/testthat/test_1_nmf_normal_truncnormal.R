@@ -27,6 +27,21 @@ test_that("nmf_normal_truncnormal works with 2 signatures given N", {
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
+
+    expect_equal(ncol(res$MAP$P), 2)
+    expect_equal(nrow(res$MAP$P), 96)
+    expect_equal(nrow(res$MAP$E), 2)
+
+    log_post <- get_proportional_log_posterior(
+        Theta = res$final_Theta,
+        M = M,
+        P = res$MAP$P,
+        E = res$MAP$E,
+        sigmasq = res$MAP$sigmasq,
+        likelihood = 'normal',
+        prior = 'truncnormal'
+    )
+    expect_true(!is.na(log_post))
 })
 
 test_that("nmf_normal_truncnormal works with Poisson data generating function given N", {
@@ -41,6 +56,10 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
+
+    expect_equal(ncol(res$MAP$P), 5)
+    expect_equal(nrow(res$MAP$P), 96)
+    expect_equal(nrow(res$MAP$E), 5)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
