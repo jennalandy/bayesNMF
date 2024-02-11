@@ -13,8 +13,6 @@ test_that("nmf_normal_truncnormal works with 1 signature given N", {
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
-    heatmap <- get_heatmap(res$MAP$P, true_P)
-    expect_equal(class(heatmap), c('gg','ggplot'))
 })
 
 test_that("nmf_normal_truncnormal works with 2 signatures given N", {

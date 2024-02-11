@@ -310,6 +310,11 @@ get_heatmap <- function(est_P, true_P, which = 'cols') {
 assign_signatures <- function(sim_mat) {
     reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
     reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
+    if (nrow(sim_mat) == 1 | ncol(sim_mat) == 1) {
+        reassigned_sim_mat = matrix(reassigned_sim_mat)
+        colnames(reassigned_sim_mat) = colnames(sim_mat)[reassignment$pairs[,2]]
+        rownames(reassigned_sim_mat) = rownames(sim_mat)
+    }
     reassigned_sim_mat
 }
 
