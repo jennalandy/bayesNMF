@@ -5,6 +5,7 @@
 \title{Set prior parameters for Gamma prior}
 \usage{
 set_gamma_prior_parameters(
+  Theta,
   dims,
   alpha_p = 10,
   Alpha_p = matrix(alpha_p, nrow = dims$K, ncol = dims$N),

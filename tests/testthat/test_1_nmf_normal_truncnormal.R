@@ -88,6 +88,28 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
     expect_gt(min(sig_sims), 0.8)
 })
 
+test_that("nmf_normal_truncnormal works with Poisson data generating function given max N and custom a, b", {
+    res <- bayesNMF(
+        M, max_N = 7,
+        likelihood = 'normal',
+        prior = 'truncnormal',
+        file = "log_files/modelNT_dataP_maxN7_customab",
+        overwrite = TRUE,
+        true_P = true_P,
+        prior_parameters = list('a' = 0.8, 'b' = 0.4)
+    )
+
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+
+    expect_lt(abs(sum(res$MAP$A) - 5), 2)
+
+    sig_sims <- diag(reassign_signatures(res$sim_mat))
+    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
+    expect_gt(min(sig_sims), 0.8)
+})
+
+
 source("setup_poisson_sparse.R")
 
 test_that("nmf_normal_truncnormal works with sparse Poisson data generating function given N", {

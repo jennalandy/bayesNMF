@@ -360,6 +360,7 @@ sample_qn <- function(n, Theta, gamma = 1) {
 
 #' Set prior parameters for Truncated Normal prior
 #'
+#' @param Theta
 #' @param dims named list of dimensions N, K, G
 #' @param mu_p see `Mu_p`
 #' @param Mu_p mean for the truncated normal prior on `P`, matrix
@@ -383,6 +384,7 @@ sample_qn <- function(n, Theta, gamma = 1) {
 #' @return named list of prior parameters
 #' @export
 set_truncnorm_prior_parameters <- function(
+    Theta,
     dims,
     mu_p = sqrt(100/dims$N),
     Mu_p = matrix(mu_p, nrow = dims$K, ncol = dims$N),
@@ -399,7 +401,7 @@ set_truncnorm_prior_parameters <- function(
     a = 0.8,
     b = 0.8
 ) {
-    list(
+    fill_list(Theta, list(
         Mu_p = Mu_p,
         Sigmasq_p = Sigmasq_p,
         Mu_e = Mu_e,
@@ -408,11 +410,12 @@ set_truncnorm_prior_parameters <- function(
         Beta = Beta,
         a = a,
         b = b
-    )
+    ))
 }
 
 #' Set prior parameters for Exponential prior
 #'
+#' @param Theta
 #' @param dims named list of dimensions N, K, G
 #' @param lambda_p see `Lambda_p`
 #' @param Lambda_p rate parameter for the exponential prior on `P`, matrix
@@ -430,6 +433,7 @@ set_truncnorm_prior_parameters <- function(
 #' @return named list of prior parameters
 #' @export
 set_exponential_prior_parameters <- function(
+    Theta,
     dims,
     lambda_p = sqrt(dims$N/100),
     Lambda_p = matrix(lambda_p, nrow = dims$K, ncol = dims$N),
@@ -442,18 +446,19 @@ set_exponential_prior_parameters <- function(
     a = 0.8,
     b = 0.8
 ) {
-    list(
+    fill_list(Theta, list(
         Lambda_p = Lambda_p,
         Lambda_e = Lambda_e,
         Alpha = Alpha,
         Beta = Beta,
         a = a,
         b = b
-    )
+    ))
 }
 
 #' Set prior parameters for Gamma prior
 #'
+#' @param Theta
 #' @param dims named list of dimensions N, K, G
 #' @param alpha_p see `Alpha_p`
 #' @param Alpha_p shape parameter for the gamma prior on `P`, matrix
@@ -471,6 +476,7 @@ set_exponential_prior_parameters <- function(
 #' @return named list of prior parameters
 #' @export
 set_gamma_prior_parameters <- function(
+    Theta,
     dims,
     alpha_p = 10,
     Alpha_p = matrix(alpha_p, nrow = dims$K, ncol = dims$N),
@@ -483,14 +489,23 @@ set_gamma_prior_parameters <- function(
     a = 0.8,
     b = 0.8
 ) {
-    list(
+    fill_list(Theta, list(
         Alpha_p = Alpha_p,
         Beta_p = Beta_p,
         Alpha_e = Alpha_e,
         Beta_e = Beta_e,
         a = a,
         b = b
-    )
+    ))
+}
+
+fill_list <- function(list, fill_with) {
+    for (name in names(fill_with)) {
+        if (!(name %in% names(list))) {
+            list[[name]] = fill_with[[name]]
+        }
+    }
+    return(list)
 }
 
 #' initialize Theta
@@ -511,16 +526,13 @@ initialize_Theta <- function(
     prior_parameters = NULL
 ) {
     # prior parameters
-    if (is.null(prior_parameters)) {
-        if (prior == 'truncnormal') {
-            Theta = set_truncnorm_prior_parameters(dims)
-        } else if (prior == 'exponential') {
-            Theta = set_exponential_prior_parameters(dims)
-        } else if (prior == 'gamma') {
-            Theta = set_gamma_prior_parameters(dims)
-        }
-    } else {
-        Theta = prior_parameters
+    Theta = prior_parameters
+    if (prior == 'truncnormal') {
+        Theta = set_truncnorm_prior_parameters(Theta, dims)
+    } else if (prior == 'exponential') {
+        Theta = set_exponential_prior_parameters(Theta, dims)
+    } else if (prior == 'gamma') {
+        Theta = set_gamma_prior_parameters(Theta, dims)
     }
 
     # signatures P

@@ -5,6 +5,7 @@
 \title{Set prior parameters for Truncated Normal prior}
 \usage{
 set_truncnorm_prior_parameters(
+  Theta,
   dims,
   mu_p = sqrt(100/dims$N),
   Mu_p = matrix(mu_p, nrow = dims$K, ncol = dims$N),

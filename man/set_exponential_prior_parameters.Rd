@@ -5,6 +5,7 @@
 \title{Set prior parameters for Exponential prior}
 \usage{
 set_exponential_prior_parameters(
+  Theta,
   dims,
   lambda_p = sqrt(dims$N/100),
   Lambda_p = matrix(lambda_p, nrow = dims$K, ncol = dims$N),
