@@ -20,7 +20,7 @@ sumLog <- function(vec) {
 #' @return matrix
 #' @noRd
 get_Mhat <- function(Theta) {
-    Theta$P %*% Theta$E
+    Theta$P %*% diag(Theta$A[1,]) %*% Theta$E
 }
 
 #' Estimate M from current values of Theta excluding signature N
@@ -148,6 +148,7 @@ get_proportional_log_posterior <- function(
 #' @return scalar
 #' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
+    Mhat = get_Mhat(Theta)
     - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
         sum(sweep(
             (M - Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E)**2,

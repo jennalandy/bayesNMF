@@ -355,7 +355,7 @@ sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', gamma = 
 #' @return double
 #' @noRd
 sample_qn <- function(n, Theta, gamma = 1) {
-    rbeta(1, Theta$a + gamma*Theta$A[1, n], Theta$b - gamma*Theta$A[1, n] + 1)
+    rbeta(1, Theta$a + gamma*Theta$A[1, n], Theta$b + gamma*(1 - Theta$A[1, n]))
 }
 
 #' Set prior parameters for Truncated Normal prior
