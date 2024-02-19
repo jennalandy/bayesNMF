@@ -35,7 +35,7 @@ get_Mhat_no_n <- function(Theta, dims, n) {
     if (dims$N > 2) {
         Mhat_no_n = Theta$P[, -n] %*% diag(Theta$A[1, -n]) %*% Theta$E[-n, ]
     } else if (dims$N == 2) {
-        Mhat_no_n = matrix(Theta$P[, -n], ncol = 1) %*% diag(Theta$A[1, -n]) %*% matrix(Theta$E[-n, ], nrow = 1)
+        Mhat_no_n = Theta$A[1, -n] * matrix(Theta$P[, -n], ncol = 1) %*% matrix(Theta$E[-n, ], nrow = 1)
     } else if (dims$N == 1) {
         Mhat_no_n = matrix(0, nrow = dims$K, ncol = dims$G)
     }
@@ -327,14 +327,14 @@ assign_signatures <- function(sim_mat) {
 #' @return named list with mode ('matrix') and indices ('idx')
 #' @noRd
 get_mode <- function(matrix_list) {
-    str_list <- sapply(matrix_list, function(mat) {
+    top_counts <- sapply(matrix_list, function(mat) {
         paste(c(mat), collapse = '')
     })
-    str_counts <- table(str_list)
+    str_counts <- table(top_counts)
     str_counts <- sort(str_counts, decreasing = TRUE)
 
     str_mode = names(str_counts)[1]
-    idx_mode = which(str_list == str_mode)
+    idx_mode = which(top_counts == str_mode)
     matrix_mode = matrix_list[[idx_mode[1]]]
 
     return(list(

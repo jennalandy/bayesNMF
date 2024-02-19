@@ -46,9 +46,13 @@ Three files will be created and updated every 100 iterations by default (can be 
 
 The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `rank5_results$MAP$P` and `rank5_results$MAP$E`. The full Gibbs sampler chains are stored in `rank5_results$logs`. The reconstruction errors and log likelihood for each iteration are stored in `rank5_results$metrics`.
 
+### Iterations to Convergence
+
+By default, we run models for 1500 samples with the first 1000 as burn-in. Note that the models with Poisson likelihoods take much longer per iteration than those with Normal likelihoods. This can be changed manual with the `niters` and `burn_in` parameters.
+
 ### Learning Rank
 
-For models with conjugacy (Normal - Truncated Normal and Poisson - Gamma), we have also implemented an option to *learn the rank* provided `max_N` instead.
+We have also implemented an option to *learn the rank* as a part of the Bayesian model when `max_N` is provided instead of `N`. Note that this takes many more samples to converge than the model with a fixed `N`. We are still working to find the best number of samples for convergence. Right now, we (by default) run models with Normal likelihoods for 5000 samples (3500 for burn-in) and Poisson likelihoods for 10000 samples (7500 for burn-in).
 
 ```{r}
 learned_rank_results <- bayesNMF(
@@ -61,7 +65,7 @@ learned_rank_results <- bayesNMF(
 
 Here, an additional matrix $A$ is estimated, which determines which latent factors are included in the final model. `learned_rank_results$MAP$A` is dimension 1 by `max_N`. For each position $n$, a 1 indicates factor $n$ is included, while a 0 indicates the factor was dropped. Dropped factors have already been removed from `learned_rank_results$MAP$P` and `learned_rank_results$MAP$E`.
 
-### Compare to True Signatures
+### Compare to True or Literature Signatures
 
 We also include commands to compare estimated signatures to the true signatures matrix to evaluate simulation studies. This could also be a set of signatures from literature that we wish to use as a baseline.
 
