@@ -2,13 +2,14 @@
 
 ## Notes
 
-Hello! This package is a **work in progress**. I will be adding more models, but so far, I have 
+Hello! This package is a **work in progress** and new features will be added periodically.
 
-- Poisson - Gamma: $M \sim Poisson(PE)$, $P$ and $E$ follow gamma priors
-- Normal - Exponential: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Exponential priors, $\sigma^2_k$ follows an Inverse-Gamma prior 
+The following likelihood - prior combinations have been implemented:
+
+- Poisson - Gamma: $M \sim Poisson(PE)$, $P$ and $E$ follow Gamma priors
+- Poisson - Exponential: $M \sim Poisson(PE)$, $P$ and $E$ follow Exponential priors
 - Normal - Truncated Normal: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Truncated-Normal priors, $\sigma^2_k$ follows an Inverse-Gamma prior
-
-I also plan to add markdown files with full model specifications and derivations of the Gibbs updates used in these implementations.
+- Normal - Exponential: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Exponential priors, $\sigma^2_k$ follows an Inverse-Gamma prior 
 
 While language and simulation examples are in the context of mutational signatures analysis, this package can be used for any application of NMF.
 
@@ -24,33 +25,49 @@ library(bayesNMF)
 
 ### Use
 
-The functions for each model are:
+The main function is `bayesNMF`, which runs a Gibbs sampler and reports the MAP estimates.
 
--   `nmf_poisson_gamma`
--   `nmf_normal_exponential`
--   `nmf_normal_truncnormal`
-
-All functions have the same structure, so I will just use
-`nmf_normal_truncnormal` for the tutorial.
-
-Running the Normal-Truncated Normal model requires a mutational catalog matrix $M$ and the number of signatures or latent factors $N$. We also recommend setting the file name to something related to your analysis. The default file name will be "nmf_normal_truncnormal".
+As with standard NMF, `bayesNMF` requires the latent rank `N` be provided.
 
 ```{r}
-res <- nmf_normal_truncnormal(M, N = 5, file = "my_run")
+rank5_results <- bayesNMF(
+    M, N = 5, 
+    likelihood = "normal", 
+    prior = "truncnormal", 
+    file = "my_run_rank5"
+)
 ```
 
 Three files will be created and updated every 100 iterations by default (can be controlled with the `logevery` parameter) 
 
-- `my_run.log` will note the current iteration the method is on, which is useful to estimate the total run time if using a large dataset or a lot of iterations. 
-- `my_run.save` holds the current results in a R data file, which can be useful if your run is cut short or you need to access final results at a later time. 
-- `my_run.pdf` has three plots: RMSE, KL Divergence, and log likelihood over iterations. Note that log likelihood is specific to the likelihood model, so values from the Poisson-Gamma model are not comparable to those from either of the Normal models.
+- `my_run_rank5.log` will log the start time and the progress of the Gibbs sampler, which is useful to estimate the total run time if using a large dataset or a lot of iterations. 
+- `my_run_rank5.RData` records the current results, which is be useful if your run is cut short (the dreaded OOM error). Once the function is complete, this records complete results for future access. 
+- `my_run_rank5.pdf` updates three plots: RMSE, KL Divergence, and log likelihood over iterations. Note that log likelihood is specific to the likelihood used, so values from the Poisson models are not comparable to those from Normal models.
 
-The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `res$MAP$P` and `res$MAP$E`. The full Gibbs sampler chains are stored in `res$logs`. The reconstruction errors and log likelihood for each iteration are stored in `res$metrics`.
+The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `rank5_results$MAP$P` and `rank5_results$MAP$E`. The full Gibbs sampler chains are stored in `rank5_results$logs`. The reconstruction errors and log likelihood for each iteration are stored in `rank5_results$metrics`.
 
-### Compare to True Signatures
+### Iterations to Convergence
 
-We also include commands to compare estimated signatures to the true
-signatures matrix to evaluate simulation studies. This could also be a set of signatures from literature that we wish to use as a baseline.
+By default, we run models for 1500 samples with the first 1000 as burn-in. Note that the models with Poisson likelihoods take much longer per iteration than those with Normal likelihoods. This can be changed manual with the `niters` and `burn_in` parameters.
+
+### Learning Rank
+
+We have also implemented an option to *learn the rank* as a part of the Bayesian model when `max_N` is provided instead of `N`. Note that this takes many more samples to converge than the model with a fixed `N`. We are still working to find the best number of samples for convergence. Right now, we (by default) run models with Normal likelihoods for 5000 samples (3500 for burn-in) and Poisson likelihoods for 10000 samples (7500 for burn-in).
+
+```{r}
+learned_rank_results <- bayesNMF(
+    M, max_N = 7, 
+    likelihood = "normal", 
+    prior = "truncnormal", 
+    file = "my_run_learned_rank"
+)
+```
+
+Here, an additional matrix $A$ is estimated, which determines which latent factors are included in the final model. `learned_rank_results$MAP$A` is dimension 1 by `max_N`. For each position $n$, a 1 indicates factor $n$ is included, while a 0 indicates the factor was dropped. Dropped factors have already been removed from `learned_rank_results$MAP$P` and `learned_rank_results$MAP$E`.
+
+### Compare to True or Literature Signatures
+
+We also include commands to compare estimated signatures to the true signatures matrix to evaluate simulation studies. This could also be a set of signatures from literature that we wish to use as a baseline.
 
 The following functions provide a similarity matrix between the true and estimated $P$ matrices, as well as a heatmap to visualize this.
 
@@ -59,10 +76,16 @@ sim_mat <- pairwise_sim(res$MAP$P, true_P)
 heatmap <- get_heatmap(est_P = res$MAP$P, true_P = true_P)
 ```
 
-You can also do this all in one call. If `true_P` is provided to `nmf_normal_truncnormal`, then the similarity matrix and heatmap are stored in `res$sim_mat` and `res$heatmap`, respectively.
+You can also do this all in one call. If `true_P` is provided to `bayesNMF`, then the similarity matrix and heatmap are stored in `res$sim_mat` and `res$heatmap`, respectively.
 
 ```{r}
-res <- nmf_normal_truncnormal(M, N = 5, file = "my_run", true_P = P)
+rank5_results <- bayesNMF(
+    M, N = 5, 
+    likelihood = "normal", 
+    prior = "truncnormal", 
+    file = "my_run_rank5",
+    true_P = true_P
+)
 ```
 
 ## Simulated Example
@@ -116,8 +139,10 @@ summary(colSums(M))
 Now we can run the Normal-Exponential model of Bayesain NMF.
 
 ```{r}
-res <- nmf_normal_truncnormal(
+res <- bayesNMF(
   M, N = 5,
+  likelihood = "normal",
+  prior = "truncnormal",
   file = "my_run",
   true_P = P
 )
@@ -132,8 +157,8 @@ data.frame(res$metrics)[res$niters,]
 ```
 
 ```        
-         loglik     RMSE      KL
-2000 -272791295 5.701652 794.889
+         loglik     RMSE       KL
+1500 -191938493 5.679985 792.8074
 ```
 
 The similarity matrix and corresponding heatmap are only provided if
@@ -144,12 +169,12 @@ res$sim_mat
 ```
 
 ```         
-                true1     true2     true3      true4     true5
-estimated1 0.02639892 0.9993882 0.1246383 0.06637452 0.2701752
-estimated2 0.95782867 0.2929271 0.1467035 0.06537255 0.3256951
-estimated3 0.12814808 0.7505440 0.5363341 0.24709673 0.8122917
-estimated4 0.04909267 0.0153710 0.6617648 0.99525126 0.4061263
-estimated5 0.12320290 0.2215279 0.9806191 0.65717947 0.8239119
+                true1      true2     true3      true4     true5
+estimated1 0.02424170 0.99924989 0.1298875 0.06788912 0.2774230
+estimated2 0.95511900 0.30313309 0.1460383 0.06711596 0.3237289
+estimated3 0.14618485 0.63629489 0.6070845 0.30329985 0.8874797
+estimated4 0.06009177 0.01311398 0.6603101 0.99498287 0.4026305
+estimated5 0.12359146 0.21950484 0.9810274 0.64979449 0.8274775
 ```
 
 ```{r}
@@ -160,7 +185,7 @@ res$heatmap
 
 Notice that signatures are reordered on the heatmap, assigned using the
 Hungarian algorithm. To see this assignment on the similarity matrix,
-you can use the `assign_signatures` function.
+you can use the `assign_signatures` function. Here, we can see that our estimated factor 1 was assigned matches best to the true factor 2.
 
 ```{r}
 assigned_sim_mat = assign_signatures(res$sim_mat)
@@ -168,10 +193,10 @@ assigned_sim_mat
 ```
 
 ```
-               true2      true1     true5      true4     true3
-estimated1 0.9993882 0.02639892 0.2701752 0.06637452 0.1246383
-estimated2 0.2929271 0.95782867 0.3256951 0.06537255 0.1467035
-estimated3 0.7505440 0.12814808 0.8122917 0.24709673 0.5363341
-estimated4 0.0153710 0.04909267 0.4061263 0.99525126 0.6617648
-estimated5 0.2215279 0.12320290 0.8239119 0.65717947 0.9806191
+                true2      true1     true5      true4     true3
+estimated1 0.99924989 0.02424170 0.2774230 0.06788912 0.1298875
+estimated2 0.30313309 0.95511900 0.3237289 0.06711596 0.1460383
+estimated3 0.63629489 0.14618485 0.8874797 0.30329985 0.6070845
+estimated4 0.01311398 0.06009177 0.4026305 0.99498287 0.6603101
+estimated5 0.21950484 0.12359146 0.8274775 0.64979449 0.9810274
 ```

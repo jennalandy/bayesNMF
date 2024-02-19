@@ -20,26 +20,164 @@ sumLog <- function(vec) {
 #' @return matrix
 #' @noRd
 get_Mhat <- function(Theta) {
-    Theta$P %*% Theta$E
+    Theta$P %*% diag(Theta$A[1,]) %*% Theta$E
 }
 
-#' Estimate multistudy M from current values of Theta
+#' Estimate M from current values of Theta excluding signature N
 #'
+#' @param Theta list
+#' @param dims list of dimensions
+#' @param n integer, signature to exclude
+#'
+#' @return matrix
+#' @noRd
+get_Mhat_no_n <- function(Theta, dims, n) {
+    if (dims$N > 2) {
+        Mhat_no_n = Theta$P[, -n] %*% diag(Theta$A[1, -n]) %*% Theta$E[-n, ]
+    } else if (dims$N == 2) {
+        Mhat_no_n = Theta$A[1, -n] * matrix(Theta$P[, -n], ncol = 1) %*% matrix(Theta$E[-n, ], nrow = 1)
+    } else if (dims$N == 1) {
+        Mhat_no_n = matrix(0, nrow = dims$K, ncol = dims$G)
+    }
+    return(Mhat_no_n)
+}
+
+#' Compute (proportional) log posterior p(P, E | M)
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param P signatures matrix, K x N
+#' @param E exposures matrix, N x G
+#' @param Theta list of parameters
+#' @param sigmasq variances, K x 1, required if `likelihood = "normal"`
+#' @param likelihood string, one of c('poisson','normal')
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#'
+#' @return scalar
+#' @noRd
+get_proportional_log_posterior <- function(
+    Theta, M, P, E,
+    sigmasq = NULL,
+    likelihood = 'normal',
+    prior = 'exponential'
+) {
+    if (likelihood == 'normal' & prior == 'exponential') {
+        log_pP = sum(-1*P * Theta$Lambda_p)
+
+        log_pE = sum(-1*E * Theta$Lambda_e)
+
+        log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
+        for (k in 1:nrow(M)) {
+            for (g in 1:ncol(M)) {
+                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k])
+            }
+        }
+        log_pM = sum(log_pM)
+    } else if (likelihood == 'normal' & prior == 'truncnormal') {
+        log_pP = matrix(nrow = nrow(P), ncol = ncol(P))
+        for (k in 1:nrow(P)) {
+            for (n in 1:ncol(P)) {
+                log_pP[k,n] <- -1 * (P[k,n] - Theta$Mu_p[k,n])**2 / (2*Theta$Sigmasq_p[k,n])
+            }
+        }
+        log_pP = sum(log_pP)
+
+        log_pE = matrix(nrow = nrow(E), ncol = ncol(E))
+        for (n in 1:nrow(E)) {
+            for (g in 1:ncol(E)) {
+                log_pE[n,g] <- -1 * (E[n,g] - Theta$Mu_e[n,g])**2 / (2*Theta$Sigmasq_e[n,g])
+            }
+        }
+        log_pE = sum(log_pE)
+
+        log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
+        for (k in 1:nrow(M)) {
+            for (g in 1:ncol(M)) {
+                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k])
+            }
+        }
+        log_pM = sum(log_pM)
+
+    } else if (likelihood == 'poisson' & prior == 'gamma') {
+        log_pP = matrix(nrow = nrow(P), ncol = ncol(P))
+        for (k in 1:nrow(P)) {
+            for (n in 1:ncol(P)) {
+                log_pP[k,n] <- P[k,n]**(Theta$Alpha_p[k,n] - 1) * exp(-P[k,n]/Theta$Beta_p[k,n])
+            }
+        }
+        log_pP = sum(log_pP)
+
+        log_pE = matrix(nrow = nrow(E), ncol = ncol(E))
+        for (n in 1:nrow(E)) {
+            for (g in 1:ncol(E)) {
+                log_pE[n,g] <- E[n,g]**(Theta$Alpha_e[n,g] - 1) * exp(-E[n,g]/Theta$Beta_e[n,g])
+            }
+        }
+        log_pE = sum(log_pE)
+
+        log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
+        for (k in 1:nrow(M)) {
+            for (g in 1:ncol(M)) {
+                log_pM[k,g] <- -1*(P%*%E)[k,g] + (M[k,g]) * log((P%*%E)[k,g])
+            }
+        }
+        log_pM = sum(log_pM)
+
+    } else if (likelihood == 'poisson' & prior == 'exponential') {
+        log_pP = sum(-1*P * Theta$Lambda_p)
+
+        log_pE = sum(-1*E * Theta$Lambda_e)
+
+        log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
+        for (k in 1:nrow(M)) {
+            for (g in 1:ncol(M)) {
+                log_pM[k,g] <- -1*(P%*%E)[k,g] + (M[k,g]) * log((P%*%E)[k,g])
+            }
+        }
+        log_pM = sum(log_pM)
+    }
+
+    return(log_pM + log_pE + log_pP)
+}
+
+#' get Normal log likelihood
+#'
+#' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
 #' @param dims list of dimensions
 #'
-#' @return list of matrices
+#' @return scalar
 #' @noRd
-get_Mhat_multistudy <- function(Theta, dims) {
-    lapply(1:dims$S, function(s) {
-        Theta$P %*% diag(Theta$A[s,]) %*% Theta$E[[s]]
-    })
+get_loglik_normal <- function(M, Theta, dims) {
+    Mhat = get_Mhat(Theta)
+    - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
+        sum(sweep(
+            (M - Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E)**2,
+            1,
+            1/(2 * Theta$sigmasq), # Length K
+            '*'
+        ))
 }
 
-#' get RMSE
+
+#' get Poisson log likelihood
 #'
 #' @param M mutational catalog matrix, K x G
-#' @param M reconstructed mutational catalog matrix, K x G
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#' @param logfac vector, logfac[i] = log(i!)
+#'
+#' @return scalar
+#' @noRd
+get_loglik_poisson <- function(M, Theta, dims, logfac) {
+    - sum((Theta$P %*% Theta$E)) +
+        sum(M * log(Theta$P %*% Theta$E)) -
+        sum(logfac[M])
+}
+
+#' Compute RMSE
+#'
+#' @param M matrix, K x G
+#' @param Mhat reconstructed matrix, K x G
 #'
 #' @return scalar
 #' @export
@@ -47,9 +185,20 @@ get_RMSE <- function(M, Mhat) {
     sqrt(mean((M - Mhat)**2))
 }
 
-#' get RMSE in multistudy setting
+#' Compute KL Divergence
 #'
-#' Get gamma schedule
+#' @param M matrix, K x G
+#' @param Mhat reconstructed matrix, K x G
+#'
+#' @return scalar
+#' @export
+get_KLDiv <- function(M, Mhat) {
+    Mhat[Mhat <= 0] <- 1
+    M[M <= 0] <- 1
+    sum(M * log(M / Mhat) - M + Mhat)
+}
+
+#' Get tempering schedule
 #'
 #' @param len integer, number of iterations
 #'
@@ -70,46 +219,6 @@ get_gamma_sched <- function(len = 1000) {
     gamma_sched <- c(gamma_sched, rep(1, len - length(gamma_sched)))
 }
 
-#' @param M list of mutational catalog matrices, length S
-#' @param Mhat list of reconstructed mutational catalog matrices, length S
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_RMSE_multistudy <- function(M, Mhat, dims) {
-    M_wide = do.call(cbind, M)
-    Mhat_wide = do.call(cbind, Mhat)
-
-    sqrt(mean((M_wide - Mhat_wide)**2))
-}
-
-#' Get KL Divergence
-#' @param M mutational catalog matrix, K x G
-#' @param M reconstructed mutational catalog matrix, K x G
-#'
-#' @return scalar
-#' @export
-get_KLDiv <- function(M, Mhat) {
-    Mhat[Mhat == 0] <- 1
-    M[M == 0] <- 1
-    sum(M * log(M / Mhat) - M + Mhat)
-}
-
-#' Get KL Divergence in the multistudy setting
-#' @param M list of mutational catalog matrices, length S
-#' @param Mhat list of reconstructed mutational catalog matrices, length S
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_KLDiv_multistudy <- function(M, Mhat, dims) {
-    M_wide = do.call(cbind, M)
-    Mhat_wide = do.call(cbind, Mhat)
-
-    Mhat_wide[Mhat_wide == 0] <- 1
-    M_wide[M_wide == 0] <- 1
-    sum(M_wide * log(M_wide / Mhat_wide) - M_wide + Mhat_wide)
-}
 
 #' Pairwise cosine similarity between rows or columns of matrices
 #'
@@ -202,5 +311,95 @@ get_heatmap <- function(est_P, true_P, which = 'cols') {
 assign_signatures <- function(sim_mat) {
     reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
     reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
+    if (nrow(sim_mat) == 1 | ncol(sim_mat) == 1) {
+        reassigned_sim_mat = matrix(reassigned_sim_mat)
+        colnames(reassigned_sim_mat) = colnames(sim_mat)[reassignment$pairs[,2]]
+        rownames(reassigned_sim_mat) = rownames(sim_mat)
+    }
     reassigned_sim_mat
+}
+
+
+#' Get mode of a list of matrices
+#'
+#' @param matrix_list list of matrices
+#'
+#' @return named list with mode ('matrix') and indices ('idx')
+#' @noRd
+get_mode <- function(matrix_list) {
+    top_counts <- sapply(matrix_list, function(mat) {
+        paste(c(mat), collapse = '')
+    })
+    str_counts <- table(top_counts)
+    str_counts <- sort(str_counts, decreasing = TRUE)
+
+    str_mode = names(str_counts)[1]
+    idx_mode = which(top_counts == str_mode)
+    matrix_mode = matrix_list[[idx_mode[1]]]
+
+    return(list(
+        'matrix' = matrix_mode,
+        'top_counts' = str_counts[1:5],
+        'idx' = idx_mode
+    ))
+}
+
+#' Get element-wise mean of a list of matrices
+#'
+#' @param matrix_list list of matrices
+#'
+#' @return matrix
+#' @noRd
+get_mean <- function(matrix_list) {
+    return(Reduce(`+`, matrix_list)/length(matrix_list))
+}
+
+
+# ---------------
+
+
+#' Estimate multistudy M from current values of Theta
+#'
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#'
+#' @return list of matrices
+#' @noRd
+get_Mhat_multistudy <- function(Theta, dims) {
+    lapply(1:dims$S, function(s) {
+        Theta$P %*% diag(Theta$A[s,]) %*% Theta$E[[s]]
+    })
+}
+
+
+#' get RMSE in multistudy setting
+#'
+#' @param M list of mutational catalog matrices, length S
+#' @param Mhat list of reconstructed mutational catalog matrices, length S
+#' @param dims list of dimensions
+#'
+#' @return scalar
+#' @noRd
+get_RMSE_multistudy <- function(M, Mhat, dims) {
+    M_wide = do.call(cbind, M)
+    Mhat_wide = do.call(cbind, Mhat)
+
+    sqrt(mean((M_wide - Mhat_wide)**2))
+}
+
+
+#' Get KL Divergence in the multistudy setting
+#' @param M list of mutational catalog matrices, length S
+#' @param Mhat list of reconstructed mutational catalog matrices, length S
+#' @param dims list of dimensions
+#'
+#' @return scalar
+#' @noRd
+get_KLDiv_multistudy <- function(M, Mhat, dims) {
+    M_wide = do.call(cbind, M)
+    Mhat_wide = do.call(cbind, Mhat)
+
+    Mhat_wide[Mhat_wide == 0] <- 1
+    M_wide[M_wide == 0] <- 1
+    sum(M_wide * log(M_wide / Mhat_wide) - M_wide + Mhat_wide)
 }

@@ -5,6 +5,8 @@
 *.log
 *.res
 *.pdf
+*.RData
+tests/testthat/log_files/
 tests/testthat/*.log
 tests/testthat/*.pdf
 tests/testthat/*.res
