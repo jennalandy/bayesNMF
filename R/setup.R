@@ -220,7 +220,7 @@ sample_prior_sigmasq <- function(Theta, dims) {
 #' @return named list of initialized unknowns
 #' @noRd
 initialize_Theta <- function(
-        likelihood, prior,
+        M, likelihood, prior,
         learn_A, dims,
         inits = NULL,
         prior_parameters = NULL

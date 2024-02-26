@@ -102,7 +102,7 @@ bayesNMF <- function(
 
     # set up Theta
     Theta <- initialize_Theta(
-        likelihood, prior,
+        M, likelihood, prior,
         learn_A, dims,
         inits = inits,
         prior_parameters = prior_parameters
