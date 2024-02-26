@@ -109,6 +109,7 @@ bayesNMF <- function(
     )
 
     # set up logs
+    sample_idx <- c()
     RMSE <- c()
     KL <- c()
     loglik <- c()
@@ -140,7 +141,8 @@ bayesNMF <- function(
     iter = 1
     done = FALSE
     first_MAP = TRUE
-    while (iter <= convergence_control$maxiters) {
+    stop = NULL
+    while (iter <= convergence_control$maxiters & !done) {
 
         # update P
         for (n in 1:dims$N) {
@@ -211,6 +213,7 @@ bayesNMF <- function(
                 sigmasq = sigmasq_MAP
             )
             Mhat_MAP <- get_Mhat(Theta_MAP)
+            sample_idx <- c(sample_idx, iter)
             RMSE <- c(RMSE, get_RMSE(M_truescale, Mhat_MAP))
             KL <- c(KL, get_KLDiv(M_truescale, Mhat_MAP))
             if (likelihood == 'normal') {
@@ -229,22 +232,6 @@ bayesNMF <- function(
             )
             first_MAP = FALSE
 
-            # plot metrics
-            grDevices::pdf(plotfile)
-            graphics::par(mfrow = c(3,1))
-            plot(RMSE)
-            if (sum(!is.na(KL)) > 0) {
-                if (sum(KL != -Inf, na.rm = TRUE) > 0) {
-                    plot(KL)
-                }
-            }
-            if (sum(!is.na(loglik)) > 0){
-                if (sum(loglik != -Inf, na.rm = TRUE) > 0) {
-                    plot(loglik)
-                }
-            }
-            grDevices::dev.off()
-
             NOW = Sys.time()
             diff = as.numeric(difftime(NOW, PREV, units = "secs"))
             PREV = NOW
@@ -261,6 +248,63 @@ bayesNMF <- function(
                 cat("\n")
             }
 
+            if (convergence_status$converged){
+                cat(paste("\n\nCONVERGED"))
+                if (convergence_status$why %in% c("no best", "max iters")) {
+                    cat(paste("\nNo best MAP since sample", convergence_status$best_iter, "\n\n"))
+                    stop = convergence_status$best_iter
+
+                    #re-compute MAP at stop
+                    # get MAP over past convergence_control$MAP_over iterations
+                    burn_in <- stop - convergence_control$MAP_over
+                    keep <- burn_in:stop
+                    # get MAP of A matrix (fine to do even if learn_A = FALSE)
+                    A_MAP = get_mode(A.log[keep])
+                    map.idx = keep[A_MAP$idx]
+
+                    # only keep signatures present in MAP A matrix
+                    keep_sigs = as.logical(A_MAP$matrix[1, ])
+                    # get MAP of P, E conditional on MAP of A
+                    P_MAP <- get_mean(P.log[map.idx])
+                    E_MAP <- get_mean(E.log[map.idx])
+                    q_MAP <- get_mean(q.log[map.idx])
+                    sigmasq_MAP <- get_mean(sigmasq.log[map.idx])
+
+                } else {
+                    cat(paste(
+                        "\nNo change in MAP over past",
+                        convergence_control$Ninarow_nochange,
+                        "samples\n\n"
+                    ))
+                    stop = iter
+                }
+                done = TRUE
+            }
+
+            # plot metrics
+            grDevices::pdf(plotfile)
+            graphics::par(mfrow = c(3,1))
+            plot(sample_idx, RMSE)
+            if (!is.null(stop)) {
+                abline(v = stop, col = 'blue')
+            }
+            if (sum(!is.na(KL)) > 0) {
+                if (sum(KL != -Inf, na.rm = TRUE) > 0) {
+                    plot(sample_idx, KL)
+                    if (!is.null(stop)) {
+                        abline(v = stop, col = 'blue')
+                    }
+                }
+            }
+            if (sum(!is.na(loglik)) > 0){
+                if (sum(loglik != -Inf, na.rm = TRUE) > 0) {
+                    plot(sample_idx, loglik)
+                    if (!is.null(stop)) {
+                        abline(v = stop, col = 'blue')
+                    }
+                }
+            }
+            grDevices::dev.off()
 
             # save results
             res <- list(
@@ -274,6 +318,7 @@ bayesNMF <- function(
                     sigmasq = sigmasq_MAP
                 ),
                 metrics = list(
+                    sample_idx = sample_idx,
                     loglik = loglik,
                     logpost = logpost,
                     RMSE = RMSE,
@@ -297,19 +342,6 @@ bayesNMF <- function(
                 )
             }
             save(res, file = savefile)
-        }
-        if (convergence_status$converged & !done){
-            cat(paste("\n\nCONVERGED at sample", convergence_status$burn_in, convergence_status$why))
-            if (convergence_status$why %in% c("no best", "max iters")) {
-                cat(paste("\nNo best MAP since sample", convergence_status$best_iter))
-                cat(paste("\nReturning Theta to state at sample", convergence_status$best_iter))
-                Theta = convergence_status$best_Theta
-            }
-
-            cat(paste("\nFinal MAP estimates to be computed over next",
-                      convergence_control$MAP_over, "samples\n\n"))
-            convergence_control$maxiters = iter + convergence_control$MAP_over
-            done = TRUE
         }
 
         iter = iter + 1
