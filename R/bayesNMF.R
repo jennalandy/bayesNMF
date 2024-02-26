@@ -325,6 +325,8 @@ bayesNMF <- function(
                     KL = KL
                 ),
                 convergence_control = convergence_control,
+                totaliters = iter,
+                converged_at = stop,
                 final_Theta = Theta,
                 dims = dims,
                 time = list(
