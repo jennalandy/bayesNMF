@@ -403,3 +403,20 @@ get_KLDiv_multistudy <- function(M, Mhat, dims) {
     M_wide[M_wide == 0] <- 1
     sum(M_wide * log(M_wide / Mhat_wide) - M_wide + Mhat_wide)
 }
+
+#' Any named item in `fill_with` that is not specified in `list` gets
+#' transfered into `list`. Final `list` is returned.
+#'
+#' @param list list of user specified values
+#' @param fill_with list of default values
+#'
+#' @return updated list
+#' @noRd
+fill_list <- function(list, fill_with) {
+    for (name in names(fill_with)) {
+        if (!(name %in% names(list))) {
+            list[[name]] = fill_with[[name]]
+        }
+    }
+    return(list)
+}

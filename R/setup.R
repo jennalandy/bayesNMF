@@ -28,15 +28,15 @@ set_truncnorm_prior_parameters <- function(
         dims,
         mu_p = sqrt(100/dims$N),
         Mu_p = matrix(mu_p, nrow = dims$K, ncol = dims$N),
-        sigmasq_p = mu_p, #mu_p/10,
+        sigmasq_p = mu_p*2, #mu_p/10,
         Sigmasq_p = matrix(sigmasq_p, nrow = dims$K, ncol = dims$N),
         mu_e = sqrt(100/dims$N), #mean(colSums(M))/(N*100),
         Mu_e = matrix(mu_e, nrow = dims$N, ncol = dims$G),
-        sigmasq_e = mu_e, #mu_e/10,
+        sigmasq_e = mu_e*2, #mu_e/10,
         Sigmasq_e = matrix(sigmasq_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.1,
+        alpha = 0.8,
         Alpha = rep(alpha, dims$K),
-        beta = 2,
+        beta = 5,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
@@ -79,9 +79,9 @@ set_exponential_prior_parameters <- function(
         Lambda_p = matrix(lambda_p, nrow = dims$K, ncol = dims$N),
         lambda_e = sqrt(dims$N/100),
         Lambda_e = matrix(lambda_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.1,
+        alpha = 0.8,
         Alpha = rep(alpha, dims$K),
-        beta = 2,
+        beta = 5,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
@@ -139,13 +139,73 @@ set_gamma_prior_parameters <- function(
     ))
 }
 
-fill_list <- function(list, fill_with) {
-    for (name in names(fill_with)) {
-        if (!(name %in% names(list))) {
-            list[[name]] = fill_with[[name]]
+#' Sample from prior distribution of P
+#'
+#' @param Theta list of parameters
+#' @param dims named list of dimensions N, K, G
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#'
+#' @return matrix, prior sample of P
+#' @noRd
+sample_prior_P <- function(Theta, dims, prior) {
+    P <- matrix(nrow = dims$K, ncol = dims$N)
+    for (k in 1:dims$K) {
+        for (n in 1:dims$N) {
+            if (prior == 'truncnormal') {
+                P[k,n] <- truncnorm::rtruncnorm(
+                    1, a = 0, b = Inf,
+                    mean = Theta$Mu_p[k,n],
+                    sd = sqrt(Theta$Sigmasq_p[k,n])
+                )
+            } else if (prior == 'exponential') {
+                P[k,n] <- stats::rexp(1, Theta$Lambda_p[k,n])
+            } else if (prior == 'gamma') {
+                P[k,n] <- stats::rgamma(1, Theta$Alpha_p[k,n], Theta$Beta_p[k,n])
+            }
         }
     }
-    return(list)
+    return(P)
+}
+
+#' Sample from prior distribution of E
+#'
+#' @param Theta list of parameters
+#' @param dims named list of dimensions N, K, G
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#'
+#' @return matrix, prior sample of E
+#' @noRd
+sample_prior_E <- function(Theta, dims, prior) {
+    E <- matrix(nrow = dims$N, ncol = dims$G)
+    for (n in 1:dims$N) {
+        for (g in 1:dims$G) {
+            if (prior == 'truncnormal') {
+                E[n,g] <- truncnorm::rtruncnorm(
+                    1, a = 0, b = Inf,
+                    mean = Theta$Mu_e[n,g],
+                    sd = sqrt(Theta$Sigmasq_e[n,g])
+                )
+            } else if (prior == 'exponential') {
+                E[n,g] <- stats::rexp(1, Theta$Lambda_e[n,g])
+            } else if (prior == 'gamma') {
+                E[n,g] <- stats::rgamma(1, Theta$Alpha_e[n,g], Theta$Beta_e[n,g])
+            }
+        }
+    }
+    return(E)
+}
+
+#' Sample from prior distribution of sigmasq
+#'
+#' @param Theta list of parameters
+#' @param dims named list of dimensions N, K, G
+#'
+#' @return matrix, prior sample of sigmasq
+#' @noRd
+sample_prior_sigmasq <- function(Theta, dims) {
+    sapply(1:dims$K, function(k) {
+        invgamma::rinvgamma(n = 1, shape = Theta$Alpha[k], scale = Theta$Beta[k])
+    })
 }
 
 #' initialize Theta
@@ -177,44 +237,14 @@ initialize_Theta <- function(
 
     # signatures P
     if (is.null(inits$P)) {
-        Theta$P <- matrix(nrow = dims$K, ncol = dims$N)
-        for (k in 1:dims$K) {
-            for (n in 1:dims$N) {
-                if (prior == 'truncnormal') {
-                    Theta$P[k,n] <- truncnorm::rtruncnorm(
-                        1, a = 0, b = Inf,
-                        mean = Theta$Mu_p[k,n],
-                        sd = sqrt(Theta$Sigmasq_p[k,n])
-                    )
-                } else if (prior == 'exponential') {
-                    Theta$P[k,n] <- stats::rexp(1, Theta$Lambda_p[k,n])
-                } else if (prior == 'gamma') {
-                    Theta$P[k,n] <- stats::rgamma(1, Theta$Alpha_p[k,n], Theta$Beta_p[k,n])
-                }
-            }
-        }
+        Theta$P <- sample_prior_P(Theta, dims, prior)
     } else {
         Theta$P <- inits$P
     }
 
     # exposures E
     if (is.null(inits$E)) {
-        Theta$E <- matrix(nrow = dims$N, ncol = dims$G)
-        for (n in 1:dims$N) {
-            for (g in 1:dims$G) {
-                if (prior == 'truncnormal') {
-                    Theta$E[n,g] <- truncnorm::rtruncnorm(
-                        1, a = 0, b = Inf,
-                        mean = Theta$Mu_e[n,g],
-                        sd = sqrt(Theta$Sigmasq_e[n,g])
-                    )
-                } else if (prior == 'exponential') {
-                    Theta$E[n,g] <- stats::rexp(1, Theta$Lambda_e[n,g])
-                } else if (prior == 'gamma') {
-                    Theta$E[n,g] <- stats::rgamma(1, Theta$Alpha_e[n,g], Theta$Beta_e[n,g])
-                }
-            }
-        }
+        Theta$E <- sample_prior_E(Theta, dims, prior)
     } else {
         Theta$E <- inits$E
     }
@@ -222,9 +252,7 @@ initialize_Theta <- function(
     # variance sigmasq
     if (likelihood == 'normal') {
         if (is.null(inits$sigmasq)) {
-            Theta$sigmasq <- sapply(1:dims$K, function(k) {
-                invgamma::rinvgamma(n = 1, shape = Theta$Alpha[k], scale = Theta$Beta[k])
-            })
+            Theta$sigmasq <- sample_prior_sigmasq(Theta, dims)
         } else {
             Theta$sigmasq <- inits$sigmasq
         }

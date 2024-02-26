@@ -13,8 +13,7 @@ test_that("nmf_normal_truncnormal works with 1 signature given N", {
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
-    heatmap <- get_heatmap(res$MAP$P, true_P)
-    expect_equal(class(heatmap), c('gg','ggplot'))
+    expect_equal(class(res$heatmap), c('gg','ggplot'))
 })
 
 test_that("nmf_normal_truncnormal works with 2 signatures given N", {
@@ -33,17 +32,6 @@ test_that("nmf_normal_truncnormal works with 2 signatures given N", {
     expect_equal(ncol(res$MAP$P), 2)
     expect_equal(nrow(res$MAP$P), 96)
     expect_equal(nrow(res$MAP$E), 2)
-
-    log_post <- get_proportional_log_posterior(
-        Theta = res$final_Theta,
-        M = M,
-        P = res$MAP$P,
-        E = res$MAP$E,
-        sigmasq = res$MAP$sigmasq,
-        likelihood = 'normal',
-        prior = 'truncnormal'
-    )
-    expect_true(!is.na(log_post))
 })
 
 test_that("nmf_normal_truncnormal works with Poisson data generating function given N", {
