@@ -249,7 +249,7 @@ bayesNMF <- function(
             }
 
             if (convergence_status$converged){
-                cat(paste("\n\nCONVERGED"))
+                cat(paste("\n\nCONVERGED at", convergence_status$best_iter))
                 if (convergence_status$why %in% c("no best", "max iters")) {
                     cat(paste("\nNo best MAP since sample", convergence_status$best_iter, "\n\n"))
                     stop = convergence_status$best_iter
@@ -276,7 +276,7 @@ bayesNMF <- function(
                         convergence_control$Ninarow_nochange,
                         "samples\n\n"
                     ))
-                    stop = iter
+                    stop = convergence_status$best_iter
                 }
                 done = TRUE
             }
