@@ -10,7 +10,8 @@ new_convergence_control(
   tol = 0.001,
   Ninarow_nochange = 10,
   Ninarow_nobest = 20,
-  maxiters = 10000
+  maxiters = 10000,
+  metric = "loglikelihood"
 )
 }
 \arguments{
@@ -19,12 +20,14 @@ new_convergence_control(
 \item{MAP_every}{integer, how often (in samples) to compute MAP for evaluation}
 
 \item{tol}{numeric, tolerance for what is a meaninful "percent change"
-in MAP RMSE}
+in MAP metric}
 
 \item{Ninarow_nobest}{integer, convergence may be determined by the number
 of MAPs in a row with no new "best"}
 
 \item{maxiters}{integer, absolute maximum number of samples to explore}
+
+\item{metric}{string, one of c('loglikelihood','RMSE','KL')}
 
 \item{Ninarow_change}{integer, convergence may be determined by the number
 of MAPs in a row with no change}

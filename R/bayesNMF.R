@@ -225,10 +225,14 @@ bayesNMF <- function(
             # check convergence
             convergence_status <- check_converged(
                 iter, gamma_sched[iter],
-                Mhat_MAP, M_truescale, Theta,
+                Mhat_MAP, M_truescale,
                 convergence_status,
                 convergence_control,
-                first_MAP
+                first_MAP,
+                Theta = Theta_MAP,
+                likelihood = likelihood,
+                dims = dims,
+                logfac = logfac
             )
             first_MAP = FALSE
 
