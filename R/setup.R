@@ -34,9 +34,9 @@ set_truncnorm_prior_parameters <- function(
         Mu_e = matrix(mu_e, nrow = dims$N, ncol = dims$G),
         sigmasq_e = mu_e*2, #mu_e/10,
         Sigmasq_e = matrix(sigmasq_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.8,
+        alpha = 2,
         Alpha = rep(alpha, dims$K),
-        beta = 5,
+        beta = 0.5,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
@@ -79,9 +79,9 @@ set_exponential_prior_parameters <- function(
         Lambda_p = matrix(lambda_p, nrow = dims$K, ncol = dims$N),
         lambda_e = sqrt(dims$N/100),
         Lambda_e = matrix(lambda_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.8,
+        alpha = 2,
         Alpha = rep(alpha, dims$K),
-        beta = 5,
+        beta = 0.5,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8

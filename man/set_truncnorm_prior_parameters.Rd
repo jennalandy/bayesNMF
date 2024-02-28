@@ -15,9 +15,9 @@ set_truncnorm_prior_parameters(
   Mu_e = matrix(mu_e, nrow = dims$N, ncol = dims$G),
   sigmasq_e = mu_e * 2,
   Sigmasq_e = matrix(sigmasq_e, nrow = dims$N, ncol = dims$G),
-  alpha = 0.8,
+  alpha = 2,
   Alpha = rep(alpha, dims$K),
-  beta = 5,
+  beta = 0.5,
   Beta = rep(beta, dims$K),
   a = 0.8,
   b = 0.8
