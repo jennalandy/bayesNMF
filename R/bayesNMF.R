@@ -253,23 +253,6 @@ bayesNMF <- function(
                 if (convergence_status$why %in% c("no best", "max iters")) {
                     cat(paste("\nNo best MAP since sample", convergence_status$best_iter, "\n\n"))
                     stop = convergence_status$best_iter
-
-                    #re-compute MAP at stop
-                    # get MAP over past convergence_control$MAP_over iterations
-                    burn_in <- stop - convergence_control$MAP_over
-                    keep <- burn_in:stop
-                    # get MAP of A matrix (fine to do even if learn_A = FALSE)
-                    A_MAP = get_mode(A.log[keep])
-                    map.idx = keep[A_MAP$idx]
-
-                    # only keep signatures present in MAP A matrix
-                    keep_sigs = as.logical(A_MAP$matrix[1, ])
-                    # get MAP of P, E conditional on MAP of A
-                    P_MAP <- get_mean(P.log[map.idx])
-                    E_MAP <- get_mean(E.log[map.idx])
-                    q_MAP <- get_mean(q.log[map.idx])
-                    sigmasq_MAP <- get_mean(sigmasq.log[map.idx])
-
                 } else {
                     cat(paste(
                         "\nNo change in MAP over past",
@@ -279,6 +262,22 @@ bayesNMF <- function(
                     stop = convergence_status$best_iter
                 }
                 done = TRUE
+
+                #re-compute MAP at stop
+                # get MAP over past convergence_control$MAP_over iterations
+                burn_in <- stop - convergence_control$MAP_over
+                keep <- burn_in:stop
+                # get MAP of A matrix (fine to do even if learn_A = FALSE)
+                A_MAP = get_mode(A.log[keep])
+                map.idx = keep[A_MAP$idx]
+
+                # only keep signatures present in MAP A matrix
+                keep_sigs = as.logical(A_MAP$matrix[1, ])
+                # get MAP of P, E conditional on MAP of A
+                P_MAP <- get_mean(P.log[map.idx])
+                E_MAP <- get_mean(E.log[map.idx])
+                q_MAP <- get_mean(q.log[map.idx])
+                sigmasq_MAP <- get_mean(sigmasq.log[map.idx])
             }
 
             # plot metrics
