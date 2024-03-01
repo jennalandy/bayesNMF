@@ -56,6 +56,52 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
     expect_gt(min(sig_sims), 0.8)
 })
 
+test_that("nmf_normal_truncnormal works with Poisson data generating function given N, invgamma", {
+    res <- bayesNMF(
+        M, N = 5,
+        likelihood = 'normal',
+        prior = 'truncnormal',
+        file = "log_files/modelNT_dataP_N5_invgamma",
+        overwrite = TRUE,
+        true_P = true_P,
+        sigmasq_type = 'invgamma'
+    )
+
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+
+    expect_equal(ncol(res$MAP$P), 5)
+    expect_equal(nrow(res$MAP$P), 96)
+    expect_equal(nrow(res$MAP$E), 5)
+
+    sig_sims <- diag(reassign_signatures(res$sim_mat))
+    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
+    expect_gt(min(sig_sims), 0.8)
+})
+
+test_that("nmf_normal_truncnormal works with Poisson data generating function given N, noninformative", {
+    res <- bayesNMF(
+        M, N = 5,
+        likelihood = 'normal',
+        prior = 'truncnormal',
+        file = "log_files/modelNT_dataP_N5_noninformative",
+        overwrite = TRUE,
+        true_P = true_P,
+        sigmasq_type = 'invgamma'
+    )
+
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+
+    expect_equal(ncol(res$MAP$P), 5)
+    expect_equal(nrow(res$MAP$P), 96)
+    expect_equal(nrow(res$MAP$E), 5)
+
+    sig_sims <- diag(reassign_signatures(res$sim_mat))
+    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
+    expect_gt(min(sig_sims), 0.8)
+})
+
 test_that("nmf_normal_truncnormal works with Poisson data generating function given max N", {
     res <- bayesNMF(
         M, max_N = 7,
@@ -63,7 +109,15 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
         prior = 'truncnormal',
         file = "log_files/modelNT_dataP_maxN7",
         overwrite = TRUE,
-        true_P = true_P
+        true_P = true_P,
+        store_logs = TRUE,
+        prior_parameters = list(
+            alpha = 0.01,
+            beta = 0.01
+        ),
+        convergence_control = new_convergence_control(
+            maxiters = 5000
+        )
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)

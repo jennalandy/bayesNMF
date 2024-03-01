@@ -26,17 +26,23 @@
 set_truncnorm_prior_parameters <- function(
         Theta,
         dims,
-        mu_p = sqrt(100/dims$N),
+        mean_p = sqrt(100/dims$N),
+        mu_p = uniroot(function(x) {
+            x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - mean_p
+        }, interval = c(0, 100))$root,
         Mu_p = matrix(mu_p, nrow = dims$K, ncol = dims$N),
-        sigmasq_p = mu_p*2, #mu_p/10,
+        sigmasq_p = mu_p, #mu_p/10,
         Sigmasq_p = matrix(sigmasq_p, nrow = dims$K, ncol = dims$N),
-        mu_e = sqrt(100/dims$N), #mean(colSums(M))/(N*100),
+        mean_e = sqrt(100/dims$N),
+        mu_e = uniroot(function(x) {
+            x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - mean_e
+        }, interval = c(0, 100))$root,
         Mu_e = matrix(mu_e, nrow = dims$N, ncol = dims$G),
-        sigmasq_e = mu_e*2, #mu_e/10,
+        sigmasq_e = mu_e, #mu_e/10,
         Sigmasq_e = matrix(sigmasq_e, nrow = dims$N, ncol = dims$G),
-        alpha = 2,
+        alpha = 6,
         Alpha = rep(alpha, dims$K),
-        beta = 0.5,
+        beta = 10,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
@@ -79,9 +85,9 @@ set_exponential_prior_parameters <- function(
         Lambda_p = matrix(lambda_p, nrow = dims$K, ncol = dims$N),
         lambda_e = sqrt(dims$N/100),
         Lambda_e = matrix(lambda_e, nrow = dims$N, ncol = dims$G),
-        alpha = 2,
+        alpha = 6,
         Alpha = rep(alpha, dims$K),
-        beta = 0.5,
+        beta = 10,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
@@ -202,10 +208,17 @@ sample_prior_E <- function(Theta, dims, prior) {
 #'
 #' @return matrix, prior sample of sigmasq
 #' @noRd
-sample_prior_sigmasq <- function(Theta, dims) {
-    sapply(1:dims$K, function(k) {
-        invgamma::rinvgamma(n = 1, shape = Theta$Alpha[k], scale = Theta$Beta[k])
-    })
+sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
+    if (sigmasq_type == 'invgamma') {
+        sapply(1:dims$K, function(k) {
+            1/rgamma(n = 1, shape = Theta$Alpha[k], rate = 1/Theta$Beta[k])
+        })
+    } else if (sigmasq_type == 'noninformative') {
+        armspp::arms(n_samples = dims$K, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)
+    } else if (sigmasq_type == 'eq_mu') {
+        rowMeans(get_Mhat(Theta))
+    }
+
 }
 
 #' initialize Theta
@@ -222,6 +235,7 @@ sample_prior_sigmasq <- function(Theta, dims) {
 initialize_Theta <- function(
         M, likelihood, prior,
         learn_A, dims,
+        sigmasq_type,
         inits = NULL,
         prior_parameters = NULL
 ) {
@@ -249,22 +263,6 @@ initialize_Theta <- function(
         Theta$E <- inits$E
     }
 
-    # variance sigmasq
-    if (likelihood == 'normal') {
-        if (is.null(inits$sigmasq)) {
-            Theta$sigmasq <- sample_prior_sigmasq(Theta, dims)
-        } else {
-            Theta$sigmasq <- inits$sigmasq
-        }
-    } else if (likelihood == 'poisson') {
-        Theta$Z <- array(dim = c(dims$K, dims$N, dims$G))
-        for (k in 1:dims$K) {
-            for (g in 1:dims$G) {
-                Theta$Z[k,,g] <- sample_Zkg_poisson(k, g, M, Theta, dims)
-            }
-        }
-    }
-
     # signature assignment A
     if (learn_A) {
         Theta$q <- matrix(
@@ -281,6 +279,21 @@ initialize_Theta <- function(
     } else {
         Theta$A <- matrix(1, nrow = dims$S, ncol = dims$N)
         Theta$q <- Theta$A
+    }
+
+    if (likelihood == 'normal') {
+        if (is.null(inits$sigmasq)) {
+            Theta$sigmasq <- sample_prior_sigmasq(Theta, dims, sigmasq_type)
+        } else {
+            Theta$sigmasq <- inits$sigmasq
+        }
+    } else if (likelihood == 'poisson') {
+        Theta$Z <- array(dim = c(dims$K, dims$N, dims$G))
+        for (k in 1:dims$K) {
+            for (g in 1:dims$G) {
+                Theta$Z[k,,g] <- sample_Zkg_poisson(k, g, M, Theta, dims)
+            }
+        }
     }
 
     return(Theta)

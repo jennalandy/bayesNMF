@@ -35,11 +35,12 @@ new_convergence_control <- function(
 
 #' Get metric
 #'
-#' @param metric string, one of c('loglikelihood','RMSE','KL')
+#' @param metric string, one of c('loglikelihood','logposterior',RMSE','KL')
 #' @param Mhat matrix, reconstructed mutational catalog
 #' @param M matrix, true mutational catalog
 #' @param Theta list, current values of all unkowns
 #' @param likelihood string, one of c("normal", "poisson")
+#' @param prior string, one of c("truncnormal","exponential","gamma")
 #' @param dims list, named list of dimensions
 #' @param logfac vector
 #'
@@ -49,15 +50,20 @@ get_metric <- function(
     metric, Mhat, M,
     Theta = NULL,
     likelihood = NULL,
+    prior = NULL,
     dims = NULL,
-    logfac = NULL
+    logfac = NULL,
+    sigmasq_eq_mu = FALSE
 ) {
-    if (metric == 'loglikelihood') {
+    if (metric %in% c('loglikelihood', 'logposterior')) {
         if (likelihood == 'normal') {
-            -1*get_loglik_normal(M, Theta, dims)
+            loglik = get_loglik_normal(M, Theta, dims)
         } else if (likelihood == 'poisson') {
-            -1*get_loglik_poisson(M, Theta, dims, logfac)
+            loglik = get_loglik_poisson(M, Theta, dims, logfac)
         }
+        if (metric == 'loglikelihood') {return(-1 * loglik)}
+        logpost = loglik + get_logprior(Theta, likelihood, prior, sigmasq_eq_mu)
+        return(-1 * logpost)
     } else if (metric == 'RMSE') {
         get_RMSE(M, Mhat)
     } else if (metric == 'KL') {
@@ -77,6 +83,7 @@ get_metric <- function(
 #' @param first_MAP boolean, whether this is the first MAP computed
 #' @param metric string, one of c('loglikelihood','RMSE','KL')
 #' @param likelihood string, one of c("normal", "poisson")
+#' @param prior string, one of c("truncnormal","exponential","gamma")
 #' @param dims list, named list of dimensions
 #' @param logfac vector
 #'
@@ -87,15 +94,16 @@ check_converged <- function(
     convergence_status,
     convergence_control,
     first_MAP,
-    metric = 'loglikelihood',
     Theta = NULL,
     likelihood = NULL,
+    prior = NULL,
     dims = NULL,
-    logfac = NULL
+    logfac = NULL,
+    sigmasq_eq_mu = FALSE
 ) {
     MAP_metric = get_metric(
-        metric, Mhat, M,
-        Theta, likelihood, dims, logfac
+        convergence_control$metric, Mhat, M,
+        Theta, likelihood, prior, dims, logfac
     )
 
     # for first one, force % change < 0
@@ -111,8 +119,8 @@ check_converged <- function(
     convergence_status$prev_percent_change = percent_change
     convergence_status$prev_MAP_metric = MAP_metric
 
-    # if NA percent change, no way it's converged
-    if (is.na(percent_change)) {
+    # if NA percent change or gamma < 1, no way it's converged
+    if (is.na(percent_change) | gamma < 1) {
         convergence_status$inarow_no_change = 0
         convergence_status$inarow_no_best = 0
         convergence_status$inarow_na = convergence_status$inarow_na + 1
@@ -138,8 +146,10 @@ check_converged <- function(
     }
 
     # stop if
-    # (no change for Ninarow or no best for Ninarow)
+    # (no change for Ninarow)
+    # OR (no best for Ninarow AND iter is at least 5000)
     # OR (change is less than mintol AND iter is at least 1000)
+    # OR (iter hit maxiters)
     if (
         gamma == 1 &
         convergence_status$inarow_no_change >= convergence_control$Ninarow_nochange

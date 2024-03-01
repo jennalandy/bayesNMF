@@ -42,6 +42,60 @@ get_Mhat_no_n <- function(Theta, dims, n) {
     return(Mhat_no_n)
 }
 
+#' Compute log prior
+#'
+#' @param Theta list of parameters
+#' @param likelihood string, one of c('poisson','normal')
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#' @param sigmasq_eq_mu boolean
+#'
+#' @return scalar
+#' @noRd
+get_logprior <- function(
+    Theta, likelihood, prior, sigmasq_eq_mu
+) {
+    logprior = 0
+    if (prior == 'truncnormal') {
+        logprior <- logprior +
+            sum(log(
+                truncnorm::dtruncnorm(
+                    Theta$P, a = 0, b = Inf,
+                    mean = Theta$Mu_p, sd = sqrt(Theta$Sigmasq_p)
+                )
+            )) +
+            sum(log(
+                truncnorm::dtruncnorm(
+                    Theta$E, a = 0, b = Inf,
+                    mean = Theta$Mu_e, sd = sqrt(Theta$Sigmasq_e)
+                )
+            ))
+    } else if (prior == 'exponential') {
+        logprior <- logprior +
+            sum(log(
+                dexp(Theta$P, Theta$Lambda_p)
+            )) +
+            sum(log(
+                dexp(Theta$E, Theta$Lambda_e)
+            ))
+    } else if (prior == 'gamma') {
+        logprior <- logprior +
+            sum(log(
+                dgamma(Theta$P, Theta$Alpha_p, Theta$Beta_p)
+            )) +
+            sum(log(
+                dexp(Theta$E, Theta$Alpha_e, Theta$Beta_p)
+            ))
+    }
+
+    if (likelihood == 'normal' & !sigmasq_eq_mu) {
+        logprior <- logprior +
+            sum(log(
+                invgamma::dinvgamma(Theta$sigmasq, shape = Theta$Alpha, scale = Theta$Beta)
+            ))
+    }
+    return(logprior)
+}
+
 #' Compute (proportional) log posterior p(P, E | M)
 #'
 #' @param M mutational catalog matrix, K x G

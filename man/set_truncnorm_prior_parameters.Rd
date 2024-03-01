@@ -7,17 +7,25 @@
 set_truncnorm_prior_parameters(
   Theta,
   dims,
-  mu_p = sqrt(100/dims$N),
+  mean_p = sqrt(100/dims$N),
+  mu_p = uniroot(function(x) {
+     x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) -
+    mean_p
+ }, interval = c(0, 100))$root,
   Mu_p = matrix(mu_p, nrow = dims$K, ncol = dims$N),
-  sigmasq_p = mu_p * 2,
+  sigmasq_p = mu_p,
   Sigmasq_p = matrix(sigmasq_p, nrow = dims$K, ncol = dims$N),
-  mu_e = sqrt(100/dims$N),
+  mean_e = sqrt(100/dims$N),
+  mu_e = uniroot(function(x) {
+     x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) -
+    mean_e
+ }, interval = c(0, 100))$root,
   Mu_e = matrix(mu_e, nrow = dims$N, ncol = dims$G),
-  sigmasq_e = mu_e * 2,
+  sigmasq_e = mu_e,
   Sigmasq_e = matrix(sigmasq_e, nrow = dims$N, ncol = dims$G),
-  alpha = 2,
+  alpha = 6,
   Alpha = rep(alpha, dims$K),
-  beta = 0.5,
+  beta = 10,
   Beta = rep(beta, dims$K),
   a = 0.8,
   b = 0.8

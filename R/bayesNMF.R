@@ -8,6 +8,7 @@
 #' if `likelihood = "normal"`
 #' @param likelihood string, one of c('normal','poisson')
 #' @param prior string, one of c('truncnormal','exponential')
+#' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
 #' @param prior_parameters list, optional specification of prior parameters
 #' @param file file name without extension of log, save, and plot files
 #' @param overwrite if `overwrite = TRUE`, the log, safe, and plot files of
@@ -26,6 +27,7 @@ bayesNMF <- function(
         inits = NULL,
         likelihood = "normal",
         prior = "truncnormal",
+        sigmasq_type = "invgamma",
         prior_parameters = NULL,
         file = paste0('nmf_', likelihood, '_', prior),
         overwrite = FALSE,
@@ -104,6 +106,7 @@ bayesNMF <- function(
     Theta <- initialize_Theta(
         M, likelihood, prior,
         learn_A, dims,
+        sigmasq_type = sigmasq_type,
         inits = inits,
         prior_parameters = prior_parameters
     )
@@ -156,7 +159,11 @@ bayesNMF <- function(
 
         # if Normal likelihood, update sigmasq
         if (likelihood == 'normal') {
-            Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, gamma = gamma_sched[iter])
+            if (sigmasq_type == 'eq_mu') {
+                Theta$sigmasq <- rowMeans(get_Mhat(Theta))
+            } else {
+                Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, sigmasq_type, gamma = gamma_sched[iter])
+            }
         }
 
         # if Poisson likelihood, update latent counts Z
@@ -205,23 +212,25 @@ bayesNMF <- function(
             sigmasq_MAP <- get_mean(sigmasq.log[map.idx])
 
             # log metrics
-            Theta_MAP <- list(
-                P = P_MAP,
-                E = E_MAP,
-                A = A_MAP$matrix,
-                q = q_MAP,
-                sigmasq = sigmasq_MAP
-            )
+            Theta_MAP <- Theta
+            Theta_MAP$P = P_MAP
+            Theta_MAP$E = E_MAP
+            Theta_MAP$A = A_MAP$matrix
+            Theta_MAP$q = q_MAP
+            Theta_MAP$sigmasq = sigmasq_MAP
+
             Mhat_MAP <- get_Mhat(Theta_MAP)
             sample_idx <- c(sample_idx, iter)
             RMSE <- c(RMSE, get_RMSE(M_truescale, Mhat_MAP))
             KL <- c(KL, get_KLDiv(M_truescale, Mhat_MAP))
             if (likelihood == 'normal') {
-                loglik <- c(loglik, get_loglik_normal(M_truescale, Theta_MAP, dims))
+                this_loglik <- get_loglik_normal(M_truescale, Theta_MAP, dims)
+                loglik <- c(loglik, this_loglik)
             } else if (likelihood == 'poisson') {
-                loglik <- c(loglik, get_loglik_poisson(M_truescale, Theta_MAP, dims, logfac))
+                this_loglik <- get_loglik_poisson(M_truescale, Theta_MAP, dims, logfac)
+                loglik <- c(loglik, this_loglik)
             }
-
+            logpost <- c(logpost, this_loglik + get_logprior(Theta_MAP, likelihood, prior, sigmasq_type == 'eq_mu'))
             # check convergence
             convergence_status <- check_converged(
                 iter, gamma_sched[iter],
@@ -231,8 +240,10 @@ bayesNMF <- function(
                 first_MAP,
                 Theta = Theta_MAP,
                 likelihood = likelihood,
+                prior = prior,
                 dims = dims,
-                logfac = logfac
+                logfac = logfac,
+                sigmasq_eq_mu = sigmasq_type == 'eq_mu'
             )
             first_MAP = FALSE
 
@@ -243,8 +254,12 @@ bayesNMF <- function(
                 iter, "/", ifelse(done, "", "(up to)"), convergence_control$maxiters,
                 "-", round(diff, 4), "seconds",
                 "-", paste0(round(convergence_status$prev_percent_change * 100, 4), "% change"),
-                "-", convergence_status$inarow_no_best, "no best",
-                "-", convergence_status$inarow_no_change, "no change",
+                ifelse(
+                    gamma_sched[iter] == 1,
+                    paste("-", convergence_status$inarow_no_best, "no best",
+                         "-", convergence_status$inarow_no_change, "no change"),
+                    ""
+                ),
                 "\n"
             ))
             if (learn_A) {
@@ -291,11 +306,17 @@ bayesNMF <- function(
             if (!is.null(stop)) {
                 abline(v = stop, col = 'blue')
             }
+            if (learn_A & gamma_sched[iter] == 1) {
+                abline(v = which(gamma_sched == 1)[1], col = 'green')
+            }
             if (sum(!is.na(KL)) > 0) {
                 if (sum(KL != -Inf, na.rm = TRUE) > 0) {
                     plot(sample_idx, KL)
                     if (!is.null(stop)) {
                         abline(v = stop, col = 'blue')
+                    }
+                    if (learn_A & gamma_sched[iter] == 1) {
+                        abline(v = which(gamma_sched == 1)[1], col = 'green')
                     }
                 }
             }
@@ -304,6 +325,20 @@ bayesNMF <- function(
                     plot(sample_idx, loglik)
                     if (!is.null(stop)) {
                         abline(v = stop, col = 'blue')
+                    }
+                    if (learn_A & gamma_sched[iter] == 1) {
+                        abline(v = which(gamma_sched == 1)[1], col = 'green')
+                    }
+                }
+            }
+            if (sum(!is.na(logpost)) > 0){
+                if (sum(logpost != -Inf, na.rm = TRUE) > 0) {
+                    plot(sample_idx, logpost)
+                    if (!is.null(stop)) {
+                        abline(v = stop, col = 'blue')
+                    }
+                    if (learn_A & gamma_sched[iter] == 1) {
+                        abline(v = which(gamma_sched == 1)[1], col = 'green')
                     }
                 }
             }

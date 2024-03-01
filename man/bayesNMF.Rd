@@ -12,6 +12,7 @@ bayesNMF(
   inits = NULL,
   likelihood = "normal",
   prior = "truncnormal",
+  sigmasq_type = "invgamma",
   prior_parameters = NULL,
   file = paste0("nmf_", likelihood, "_", prior),
   overwrite = FALSE,
@@ -33,6 +34,8 @@ if `likelihood = "normal"`}
 \item{likelihood}{string, one of c('normal','poisson')}
 
 \item{prior}{string, one of c('truncnormal','exponential')}
+
+\item{sigmasq_type}{string, one of c('eq_mu','invgamma','noninformative')}
 
 \item{prior_parameters}{list, optional specification of prior parameters}
 
