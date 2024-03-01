@@ -12,13 +12,14 @@ bayesNMF(
   inits = NULL,
   likelihood = "normal",
   prior = "truncnormal",
-  sigmasq_type = "invgamma",
+  sigmasq_type = "noninformative",
   prior_parameters = NULL,
   file = paste0("nmf_", likelihood, "_", prior),
   overwrite = FALSE,
   true_P = NULL,
   convergence_control = new_convergence_control(),
-  store_logs = FALSE
+  store_logs = FALSE,
+  temper = FALSE
 )
 }
 \arguments{

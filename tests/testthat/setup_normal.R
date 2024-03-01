@@ -7,7 +7,7 @@ dims = list(
 
 a = 10
 b = 5
-Beta = matrix(0.1, nrow = dims$N, ncol = dims$G)
+Beta = matrix(1/1000, nrow = dims$N, ncol = dims$G)
 r = rep(3, dims$K)
 theta = rep(10, dims$K)
 
@@ -19,7 +19,7 @@ P <- read.csv(
 # P <- read.csv("../../cosmic.csv", header = TRUE)
 # P <- read.csv("cosmic.csv", header = TRUE)
 P <- as.matrix(P[,c(2,3,4,5,6)]) #7,8,12,13,14
-P <- P * 1000
+P <- P
 
 E <- matrix(nrow = dims$N, ncol = dims$G)
 for (n in 1:dims$N) {

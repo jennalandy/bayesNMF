@@ -27,13 +27,14 @@ bayesNMF <- function(
         inits = NULL,
         likelihood = "normal",
         prior = "truncnormal",
-        sigmasq_type = "invgamma",
+        sigmasq_type = "noninformative",
         prior_parameters = NULL,
         file = paste0('nmf_', likelihood, '_', prior),
         overwrite = FALSE,
         true_P = NULL,
         convergence_control = new_convergence_control(),
-        store_logs = FALSE
+        store_logs = FALSE,
+        temper = FALSE
 ) {
     START = Sys.time()
     rescale_by = mean(M)/100
@@ -66,7 +67,7 @@ bayesNMF <- function(
     learn_A <- !is.null(max_N) & is.null(inits$A)
 
     # set up tempering schedule
-    if (learn_A) {
+    if (learn_A | temper) {
         gamma_sched <- get_gamma_sched(len = convergence_control$maxiters)
     } else {
         gamma_sched <- rep(1, convergence_control$maxiters)

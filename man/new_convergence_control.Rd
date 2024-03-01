@@ -10,6 +10,7 @@ new_convergence_control(
   tol = 0.001,
   Ninarow_nochange = 10,
   Ninarow_nobest = 20,
+  miniters = 2000,
   maxiters = 10000,
   metric = "loglikelihood"
 )

@@ -19,6 +19,7 @@ new_convergence_control <- function(
     tol = 0.001,
     Ninarow_nochange = 10,
     Ninarow_nobest = 20,
+    miniters = 2000,
     maxiters = 10000,
     metric = "loglikelihood"
 ) {
@@ -28,6 +29,7 @@ new_convergence_control <- function(
         tol = tol,
         Ninarow_nochange = Ninarow_nochange,
         Ninarow_nobest = Ninarow_nobest,
+        miniters = miniters,
         maxiters = maxiters,
         metric = metric
     )
@@ -119,8 +121,8 @@ check_converged <- function(
     convergence_status$prev_percent_change = percent_change
     convergence_status$prev_MAP_metric = MAP_metric
 
-    # if NA percent change or gamma < 1, no way it's converged
-    if (is.na(percent_change) | gamma < 1) {
+    # if NA percent change, no way it's converged
+    if (is.na(percent_change)) {
         convergence_status$inarow_no_change = 0
         convergence_status$inarow_no_best = 0
         convergence_status$inarow_na = convergence_status$inarow_na + 1
@@ -146,32 +148,32 @@ check_converged <- function(
     }
 
     # stop if
-    # (no change for Ninarow)
-    # OR (no best for Ninarow AND iter is at least 5000)
-    # OR (change is less than mintol AND iter is at least 1000)
-    # OR (iter hit maxiters)
-    if (
-        gamma == 1 &
-        convergence_status$inarow_no_change >= convergence_control$Ninarow_nochange
-    ) {
-        convergence_status$converged = TRUE
-        convergence_status$burn_in = iter
-        convergence_status$why = "no change"
-    } else if (
-        gamma == 1 &
-        convergence_status$inarow_no_best >= convergence_control$Ninarow_nobest &
-        iter > 5000
-    ) {
-        convergence_status$converged = TRUE
-        convergence_status$burn_in = convergence_status$best_iter
-        convergence_status$why = "no best"
-    } else if (
-        iter >= convergence_control$maxiters
-    ) {
-        convergence_status$converged = TRUE
-        convergence_status$burn_in = convergence_status$best_iter
-        convergence_status$why = "max iters"
+    # gamma == 1 AND iter is at least miniters
+    # AND
+    #   (no change for Ninarow)
+    #   OR (no best for Ninarow)
+    #   OR (change is less than mintol)
+    #   OR (iter hit maxiters)
+    if (gamma == 1 & iter > miniters) {
+        if (convergence_status$inarow_no_change >=
+            convergence_control$Ninarow_nochange
+        ) {
+            convergence_status$converged = TRUE
+            convergence_status$burn_in = iter
+            convergence_status$why = "no change"
+        } else if (convergence_status$inarow_no_best >=
+                   convergence_control$Ninarow_nobest
+        ) {
+            convergence_status$converged = TRUE
+            convergence_status$burn_in = convergence_status$best_iter
+            convergence_status$why = "no best"
+        } else if (iter >= convergence_control$maxiters) {
+            convergence_status$converged = TRUE
+            convergence_status$burn_in = convergence_status$best_iter
+            convergence_status$why = "max iters"
+        }
     }
+
 
     return(convergence_status)
 }

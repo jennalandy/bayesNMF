@@ -42,7 +42,10 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
         file = "log_files/modelNT_dataP_N5",
         overwrite = TRUE,
         true_P = true_P,
-        store_logs = TRUE
+        store_logs = TRUE,
+        convergence_control = new_convergence_control(
+            metric = 'logposterior'
+        )
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
@@ -88,7 +91,7 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
         file = "log_files/modelNT_dataP_N5_noninformative",
         overwrite = TRUE,
         true_P = true_P,
-        sigmasq_type = 'invgamma'
+        sigmasq_type = 'noninformative'
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
