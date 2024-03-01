@@ -211,7 +211,7 @@ sample_prior_E <- function(Theta, dims, prior) {
 sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
     if (sigmasq_type == 'invgamma') {
         sapply(1:dims$K, function(k) {
-            1/rgamma(n = 1, shape = Theta$Alpha[k], rate = 1/Theta$Beta[k])
+            1/rgamma(n = 1, shape = Theta$Alpha[k], rate = Theta$Beta[k])
         })
     } else if (sigmasq_type == 'noninformative') {
         armspp::arms(n_samples = dims$K, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)

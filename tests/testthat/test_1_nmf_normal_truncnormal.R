@@ -41,7 +41,8 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
         prior = 'truncnormal',
         file = "log_files/modelNT_dataP_N5",
         overwrite = TRUE,
-        true_P = true_P
+        true_P = true_P,
+        store_logs = TRUE
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
@@ -56,15 +57,15 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
     expect_gt(min(sig_sims), 0.8)
 })
 
-test_that("nmf_normal_truncnormal works with Poisson data generating function given N, invgamma", {
+test_that("nmf_normal_truncnormal works with Poisson data generating function given N, eq_mu", {
     res <- bayesNMF(
         M, N = 5,
         likelihood = 'normal',
         prior = 'truncnormal',
-        file = "log_files/modelNT_dataP_N5_invgamma",
+        file = "log_files/modelNT_dataP_N5_eq_mu",
         overwrite = TRUE,
         true_P = true_P,
-        sigmasq_type = 'invgamma'
+        sigmasq_type = 'eq_mu'
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
