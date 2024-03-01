@@ -13,8 +13,8 @@ sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
         sigmasq <- sapply(1:dims$K, function(k) {
             1/rgamma(
                 n = 1,
-                shape = gamma * dims$G / 2,
-                rate = 1/(gamma * sum(((M - Mhat)[k,])**2) / 2)
+                shape = Theta$Alpha[k] + gamma * dims$G / 2,
+                rate = Theta$Beta[k] + 1/(gamma * sum(((M - Mhat)[k,])**2) / 2)
             )
         })
     } else if (sigmasq_type == 'noninformative') {
