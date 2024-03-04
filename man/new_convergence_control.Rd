@@ -11,7 +11,8 @@ new_convergence_control(
   Ninarow_nochange = 10,
   Ninarow_nobest = 20,
   miniters = 1000,
-  maxiters = 10000
+  maxiters = 10000,
+  metric = "loglikelihood"
 )
 }
 \arguments{
@@ -27,10 +28,10 @@ of MAPs in a row with no new "best"}
 
 \item{maxiters}{integer, absolute maximum number of samples to explore}
 
+\item{metric}{string, one of c('loglikelihood','logposterior','RMSE','KL')}
+
 \item{Ninarow_change}{integer, convergence may be determined by the number
 of MAPs in a row with no change}
-
-\item{metric}{string, one of c('loglikelihood','RMSE','KL')}
 }
 \value{
 list
