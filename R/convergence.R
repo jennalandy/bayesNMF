@@ -19,7 +19,7 @@ new_convergence_control <- function(
     tol = 0.001,
     Ninarow_nochange = 10,
     Ninarow_nobest = 20,
-    miniters = 2000,
+    miniters = 1000,
     maxiters = 10000,
     metric = "loglikelihood"
 ) {
@@ -154,7 +154,7 @@ check_converged <- function(
     #   OR (no best for Ninarow)
     #   OR (change is less than mintol)
     #   OR (iter hit maxiters)
-    if (gamma == 1 & iter > miniters) {
+    if (gamma == 1 & iter > convergence_control$miniters) {
         if (convergence_status$inarow_no_change >=
             convergence_control$Ninarow_nochange
         ) {
