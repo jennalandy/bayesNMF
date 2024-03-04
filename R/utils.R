@@ -47,12 +47,12 @@ get_Mhat_no_n <- function(Theta, dims, n) {
 #' @param Theta list of parameters
 #' @param likelihood string, one of c('poisson','normal')
 #' @param prior string, one of c('exponential','truncnormal','gamma')
-#' @param sigmasq_eq_mu boolean
+#' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
 #'
 #' @return scalar
 #' @noRd
 get_logprior <- function(
-    Theta, likelihood, prior, sigmasq_eq_mu
+    Theta, likelihood, prior, sigmasq_type
 ) {
     logprior = 0
     if (prior == 'truncnormal') {
@@ -87,11 +87,15 @@ get_logprior <- function(
             ))
     }
 
-    if (likelihood == 'normal' & !sigmasq_eq_mu) {
-        logprior <- logprior +
-            sum(log(
-                invgamma::dinvgamma(Theta$sigmasq, shape = Theta$Alpha, scale = Theta$Beta)
-            ))
+    if (likelihood == 'normal') {
+        if (sigmasq_type == 'invgamma') {
+            logprior <- logprior +
+                sum(log(
+                    invgamma::dinvgamma(Theta$sigmasq, shape = Theta$Alpha, scale = Theta$Beta)
+                ))
+        } else if (sigmasq_type == 'noninformative') {
+            logprior <- logprior - sum(log(Theta$sigmasq))
+        }
     }
     return(logprior)
 }

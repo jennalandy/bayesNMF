@@ -20,8 +20,7 @@ new_convergence_control <- function(
     Ninarow_nochange = 10,
     Ninarow_nobest = 20,
     miniters = 1000,
-    maxiters = 10000,
-    metric = "loglikelihood"
+    maxiters = 10000
 ) {
     list(
         MAP_over = MAP_over,
