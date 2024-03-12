@@ -47,6 +47,24 @@ set_truncnorm_prior_parameters <- function(
         a = 0.8,
         b = 0.8
 ) {
+    if ("mu_p" %in% names(Theta) & !("Mu_p" %in% names(Theta))) {
+        Theta$Mu_p = matrix(Theta$mu_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("mu_e" %in% names(Theta) & !("Mu_e" %in% names(Theta))) {
+        Theta$Mu_e = matrix(Theta$mu_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("sigmasq_p" %in% names(Theta) & !("Sigmasq_p" %in% names(Theta))) {
+        Theta$Sigmasq_p = matrix(Theta$sigmasq_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("sigmasq_e" %in% names(Theta) & !("Sigmasq_e" %in% names(Theta))) {
+        Theta$Sigmasq_e = matrix(Theta$sigmasq_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
+        Theta$Alpha = rep(Theta$alpha, dims$K)
+    }
+    if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
+        Theta$Beta = rep(Theta$beta, dims$K)
+    }
     fill_list(Theta, list(
         Mu_p = Mu_p,
         Sigmasq_p = Sigmasq_p,
@@ -92,6 +110,18 @@ set_exponential_prior_parameters <- function(
         a = 0.8,
         b = 0.8
 ) {
+    if ("lambda_p" %in% names(Theta) & !("Lambda_p" %in% names(Theta))) {
+        Theta$Lambda_p = matrix(Theta$lambda_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("lambda_e" %in% names(Theta) & !("Lambda_e" %in% names(Theta))) {
+        Theta$Lambda_e = matrix(Theta$lambda_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
+        Theta$Alpha = rep(Theta$alpha, dims$K)
+    }
+    if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
+        Theta$Beta = rep(Theta$beta, dims$K)
+    }
     fill_list(Theta, list(
         Lambda_p = Lambda_p,
         Lambda_e = Lambda_e,
@@ -135,6 +165,18 @@ set_gamma_prior_parameters <- function(
         a = 0.8,
         b = 0.8
 ) {
+    if ("alpha_p" %in% names(Theta) & !("Alpha_p" %in% names(Theta))) {
+        Theta$Alpha_p = matrix(Theta$alpha_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("beta_p" %in% names(Theta) & !("Beta_p" %in% names(Theta))) {
+        Theta$Beta_p = matrix(Theta$beta_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("alpha_e" %in% names(Theta) & !("Alpha_e" %in% names(Theta))) {
+        Theta$Alpha_e = matrix(Theta$alpha_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("beta_e" %in% names(Theta) & !("Beta_e" %in% names(Theta))) {
+        Theta$Beta_e = matrix(Theta$beta_e, nrow = dims$N, ncol = dims$G)
+    }
     fill_list(Theta, list(
         Alpha_p = Alpha_p,
         Beta_p = Beta_p,
