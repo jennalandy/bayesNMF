@@ -4,12 +4,16 @@
 \alias{get_heatmap}
 \title{Plot a heatmap of cosine similarities between two matrices}
 \usage{
-get_heatmap(est_P, true_P, which = "cols")
+get_heatmap(est_P, true_P, est_names = NULL, true_names = NULL, which = "cols")
 }
 \arguments{
 \item{est_P}{estimated P (signatures matrix)}
 
 \item{true_P}{true P (signatures matrix)}
+
+\item{est_names}{names of estimated signatures}
+
+\item{true_names}{names of true signatures}
 
 \item{which}{string, one of c("rows","cols")}
 }

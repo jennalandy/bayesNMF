@@ -220,26 +220,33 @@ bayesNMF <- function(
             Theta_MAP$q = q_MAP
             Theta_MAP$sigmasq = sigmasq_MAP
 
+            Theta_MAP_rescaled <- Theta_MAP
+            Theta_MAP_rescaled$E = E_MAP/rescale_by
+            Theta_MAP_rescaled$sigmasq = sigmasq_MAP/(rescale_by**2)
+
             Mhat_MAP <- get_Mhat(Theta_MAP)
+            Mhat_MAP_rescaled <- get_Mhat(Theta_MAP_rescaled)
             sample_idx <- c(sample_idx, iter)
             RMSE <- c(RMSE, get_RMSE(M_truescale, Mhat_MAP))
             KL <- c(KL, get_KLDiv(M_truescale, Mhat_MAP))
             if (likelihood == 'normal') {
-                this_loglik <- get_loglik_normal(M_truescale, Theta_MAP, dims)
+                this_loglik <- get_loglik_normal(M, Theta_MAP_rescaled, dims)
                 loglik <- c(loglik, this_loglik)
             } else if (likelihood == 'poisson') {
-                this_loglik <- get_loglik_poisson(M_truescale, Theta_MAP, dims, logfac)
+                this_loglik <- get_loglik_poisson(M, Theta_MAP_rescaled, dims, logfac)
                 loglik <- c(loglik, this_loglik)
             }
-            logpost <- c(logpost, this_loglik + get_logprior(Theta_MAP, likelihood, prior, sigmasq_type == 'eq_mu'))
+            logpost <- c(logpost, this_loglik + get_logprior(
+                Theta_MAP_rescaled, likelihood, prior, sigmasq_type == 'eq_mu'
+            ))
             # check convergence
             convergence_status <- check_converged(
                 iter, gamma_sched[iter],
-                Mhat_MAP, M_truescale,
+                Mhat_MAP_rescaled, M,
                 convergence_status,
                 convergence_control,
                 first_MAP,
-                Theta = Theta_MAP,
+                Theta = Theta_MAP_rescaled,
                 likelihood = likelihood,
                 prior = prior,
                 dims = dims,
