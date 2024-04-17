@@ -4,7 +4,7 @@
 \alias{pairwise_sim}
 \title{Pairwise cosine similarity between rows or columns of matrices}
 \usage{
-pairwise_sim(mat1, mat2, name1 = "", name2 = "", which = "cols")
+pairwise_sim(mat1, mat2, name1 = NULL, name2 = NULL, which = "cols")
 }
 \arguments{
 \item{mat1}{matrix, first matrix for comparison}

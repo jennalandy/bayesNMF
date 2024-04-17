@@ -13,7 +13,7 @@ set_exponential_prior_parameters(
   Lambda_e = matrix(lambda_e, nrow = dims$N, ncol = dims$G),
   alpha = 0.1,
   Alpha = rep(alpha, dims$K),
-  beta = 2,
+  beta = 0.1,
   Beta = rep(beta, dims$K),
   a = 0.8,
   b = 0.8

@@ -26,21 +26,45 @@
 set_truncnorm_prior_parameters <- function(
         Theta,
         dims,
-        mu_p = sqrt(100/dims$N),
+        mean_p = sqrt(100/dims$N),
+        mu_p = uniroot(function(x) {
+            x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - mean_p
+        }, interval = c(0, 100))$root,
         Mu_p = matrix(mu_p, nrow = dims$K, ncol = dims$N),
         sigmasq_p = mu_p, #mu_p/10,
         Sigmasq_p = matrix(sigmasq_p, nrow = dims$K, ncol = dims$N),
-        mu_e = sqrt(100/dims$N), #mean(colSums(M))/(N*100),
+        mean_e = sqrt(100/dims$N),
+        mu_e = uniroot(function(x) {
+            x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - mean_e
+        }, interval = c(0, 100))$root,
         Mu_e = matrix(mu_e, nrow = dims$N, ncol = dims$G),
         sigmasq_e = mu_e, #mu_e/10,
         Sigmasq_e = matrix(sigmasq_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
         Alpha = rep(alpha, dims$K),
-        beta = 2,
+        beta = 0.1,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
 ) {
+    if ("mu_p" %in% names(Theta) & !("Mu_p" %in% names(Theta))) {
+        Theta$Mu_p = matrix(Theta$mu_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("mu_e" %in% names(Theta) & !("Mu_e" %in% names(Theta))) {
+        Theta$Mu_e = matrix(Theta$mu_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("sigmasq_p" %in% names(Theta) & !("Sigmasq_p" %in% names(Theta))) {
+        Theta$Sigmasq_p = matrix(Theta$sigmasq_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("sigmasq_e" %in% names(Theta) & !("Sigmasq_e" %in% names(Theta))) {
+        Theta$Sigmasq_e = matrix(Theta$sigmasq_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
+        Theta$Alpha = rep(Theta$alpha, dims$K)
+    }
+    if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
+        Theta$Beta = rep(Theta$beta, dims$K)
+    }
     fill_list(Theta, list(
         Mu_p = Mu_p,
         Sigmasq_p = Sigmasq_p,
@@ -81,11 +105,23 @@ set_exponential_prior_parameters <- function(
         Lambda_e = matrix(lambda_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
         Alpha = rep(alpha, dims$K),
-        beta = 2,
+        beta = 0.1,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
 ) {
+    if ("lambda_p" %in% names(Theta) & !("Lambda_p" %in% names(Theta))) {
+        Theta$Lambda_p = matrix(Theta$lambda_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("lambda_e" %in% names(Theta) & !("Lambda_e" %in% names(Theta))) {
+        Theta$Lambda_e = matrix(Theta$lambda_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
+        Theta$Alpha = rep(Theta$alpha, dims$K)
+    }
+    if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
+        Theta$Beta = rep(Theta$beta, dims$K)
+    }
     fill_list(Theta, list(
         Lambda_p = Lambda_p,
         Lambda_e = Lambda_e,
@@ -129,6 +165,18 @@ set_gamma_prior_parameters <- function(
         a = 0.8,
         b = 0.8
 ) {
+    if ("alpha_p" %in% names(Theta) & !("Alpha_p" %in% names(Theta))) {
+        Theta$Alpha_p = matrix(Theta$alpha_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("beta_p" %in% names(Theta) & !("Beta_p" %in% names(Theta))) {
+        Theta$Beta_p = matrix(Theta$beta_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("alpha_e" %in% names(Theta) & !("Alpha_e" %in% names(Theta))) {
+        Theta$Alpha_e = matrix(Theta$alpha_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("beta_e" %in% names(Theta) & !("Beta_e" %in% names(Theta))) {
+        Theta$Beta_e = matrix(Theta$beta_e, nrow = dims$N, ncol = dims$G)
+    }
     fill_list(Theta, list(
         Alpha_p = Alpha_p,
         Beta_p = Beta_p,
@@ -139,13 +187,80 @@ set_gamma_prior_parameters <- function(
     ))
 }
 
-fill_list <- function(list, fill_with) {
-    for (name in names(fill_with)) {
-        if (!(name %in% names(list))) {
-            list[[name]] = fill_with[[name]]
+#' Sample from prior distribution of P
+#'
+#' @param Theta list of parameters
+#' @param dims named list of dimensions N, K, G
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#'
+#' @return matrix, prior sample of P
+#' @noRd
+sample_prior_P <- function(Theta, dims, prior) {
+    P <- matrix(nrow = dims$K, ncol = dims$N)
+    for (k in 1:dims$K) {
+        for (n in 1:dims$N) {
+            if (prior == 'truncnormal') {
+                P[k,n] <- truncnorm::rtruncnorm(
+                    1, a = 0, b = Inf,
+                    mean = Theta$Mu_p[k,n],
+                    sd = sqrt(Theta$Sigmasq_p[k,n])
+                )
+            } else if (prior == 'exponential') {
+                P[k,n] <- stats::rexp(1, Theta$Lambda_p[k,n])
+            } else if (prior == 'gamma') {
+                P[k,n] <- stats::rgamma(1, Theta$Alpha_p[k,n], Theta$Beta_p[k,n])
+            }
         }
     }
-    return(list)
+    return(P)
+}
+
+#' Sample from prior distribution of E
+#'
+#' @param Theta list of parameters
+#' @param dims named list of dimensions N, K, G
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#'
+#' @return matrix, prior sample of E
+#' @noRd
+sample_prior_E <- function(Theta, dims, prior) {
+    E <- matrix(nrow = dims$N, ncol = dims$G)
+    for (n in 1:dims$N) {
+        for (g in 1:dims$G) {
+            if (prior == 'truncnormal') {
+                E[n,g] <- truncnorm::rtruncnorm(
+                    1, a = 0, b = Inf,
+                    mean = Theta$Mu_e[n,g],
+                    sd = sqrt(Theta$Sigmasq_e[n,g])
+                )
+            } else if (prior == 'exponential') {
+                E[n,g] <- stats::rexp(1, Theta$Lambda_e[n,g])
+            } else if (prior == 'gamma') {
+                E[n,g] <- stats::rgamma(1, Theta$Alpha_e[n,g], Theta$Beta_e[n,g])
+            }
+        }
+    }
+    return(E)
+}
+
+#' Sample from prior distribution of sigmasq
+#'
+#' @param Theta list of parameters
+#' @param dims named list of dimensions N, K, G
+#'
+#' @return matrix, prior sample of sigmasq
+#' @noRd
+sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
+    if (sigmasq_type == 'invgamma') {
+        sapply(1:dims$K, function(k) {
+            1/rgamma(n = 1, shape = Theta$Alpha[k], rate = Theta$Beta[k])
+        })
+    } else if (sigmasq_type == 'noninformative') {
+        armspp::arms(n_samples = dims$K, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)
+    } else if (sigmasq_type == 'eq_mu') {
+        rowMeans(get_Mhat(Theta))
+    }
+
 }
 
 #' initialize Theta
@@ -160,11 +275,14 @@ fill_list <- function(list, fill_with) {
 #' @return named list of initialized unknowns
 #' @noRd
 initialize_Theta <- function(
-        likelihood, prior,
-        learn_A, dims,
+        M, likelihood, prior, learn_A,
+        dims, sigmasq_type,
         inits = NULL,
+        fixed = NULL,
         prior_parameters = NULL
 ) {
+    is_fixed = list(A = !learn_A)
+
     # prior parameters
     Theta = prior_parameters
     if (prior == 'truncnormal') {
@@ -176,57 +294,70 @@ initialize_Theta <- function(
     }
 
     # signatures P
-    if (is.null(inits$P)) {
-        Theta$P <- matrix(nrow = dims$K, ncol = dims$N)
-        for (k in 1:dims$K) {
-            for (n in 1:dims$N) {
-                if (prior == 'truncnormal') {
-                    Theta$P[k,n] <- truncnorm::rtruncnorm(
-                        1, a = 0, b = Inf,
-                        mean = Theta$Mu_p[k,n],
-                        sd = sqrt(Theta$Sigmasq_p[k,n])
-                    )
-                } else if (prior == 'exponential') {
-                    Theta$P[k,n] <- stats::rexp(1, Theta$Lambda_p[k,n])
-                } else if (prior == 'gamma') {
-                    Theta$P[k,n] <- stats::rgamma(1, Theta$Alpha_p[k,n], Theta$Beta_p[k,n])
-                }
-            }
-        }
-    } else {
+    if (!is.null(fixed$P)) {
+        Theta$P <- fixed$P
+        is_fixed$P <- TRUE
+    } else if (!is.null(inits$P)) {
         Theta$P <- inits$P
+        is_fixed$P <- FALSE
+    } else {
+        Theta$P <- sample_prior_P(Theta, dims, prior)
+        is_fixed$P <- FALSE
     }
 
     # exposures E
-    if (is.null(inits$E)) {
-        Theta$E <- matrix(nrow = dims$N, ncol = dims$G)
-        for (n in 1:dims$N) {
-            for (g in 1:dims$G) {
-                if (prior == 'truncnormal') {
-                    Theta$E[n,g] <- truncnorm::rtruncnorm(
-                        1, a = 0, b = Inf,
-                        mean = Theta$Mu_e[n,g],
-                        sd = sqrt(Theta$Sigmasq_e[n,g])
-                    )
-                } else if (prior == 'exponential') {
-                    Theta$E[n,g] <- stats::rexp(1, Theta$Lambda_e[n,g])
-                } else if (prior == 'gamma') {
-                    Theta$E[n,g] <- stats::rgamma(1, Theta$Alpha_e[n,g], Theta$Beta_e[n,g])
-                }
-            }
-        }
-    } else {
+    if (!is.null(fixed$E)) {
+        Theta$E <- fixed$E
+        is_fixed$E <- TRUE
+    } else if (!is.null(inits$E)) {
         Theta$E <- inits$E
+        is_fixed$E <- FALSE
+    } else {
+        Theta$E <- sample_prior_E(Theta, dims, prior)
+        is_fixed$E <- FALSE
     }
 
-    # variance sigmasq
+    # signature assignment A
+    if (!is.null(fixed$q)) {
+        Theta$q <- fixed$q
+        is_fixed$q <- TRUE
+    } else if (!is.null(inits$q)) {
+        Theta$q <- inits$q
+        is_fixed$q <- FALSE
+    } else {
+        Theta$q <- matrix(
+            rbeta(dims$S * dims$N, Theta$a, Theta$b),
+            nrow = dims$S, ncol = dims$N
+        )
+        is_fixed$q <- FALSE
+    }
+
+    if (!is.null(fixed$A)) {
+        is_fixed$A <- TRUE
+    } else if (!is.null(inits$A)) {
+        Theta$A <- inits$A
+    } else if (!learn_A) {
+        Theta$A <- matrix(
+            as.numeric(rep(1, dims$S * dims$N)),
+            nrow = dims$S, ncol = dims$N
+        )
+    } else {
+        Theta$A <- matrix(
+            as.numeric(runif(dims$S * dims$N) < c(Theta$q)),
+            nrow = dims$S, ncol = dims$N
+        )
+    }
+
     if (likelihood == 'normal') {
-        if (is.null(inits$sigmasq)) {
-            Theta$sigmasq <- sapply(1:dims$K, function(k) {
-                invgamma::rinvgamma(n = 1, shape = Theta$Alpha[k], scale = Theta$Beta[k])
-            })
-        } else {
+        if (!is.null(fixed$sigmasq)) {
+            Theta$sigmasq <- fixed$sigmasq
+            is_fixed$sigmasq <- TRUE
+        } else if (!is.null(inits$sigmasq)) {
             Theta$sigmasq <- inits$sigmasq
+            is_fixed$sigmasq <- FALSE
+        } else {
+            Theta$sigmasq <- sample_prior_sigmasq(Theta, dims, sigmasq_type)
+            is_fixed$sigmasq <- FALSE
         }
     } else if (likelihood == 'poisson') {
         Theta$Z <- array(dim = c(dims$K, dims$N, dims$G))
@@ -237,23 +368,7 @@ initialize_Theta <- function(
         }
     }
 
-    # signature assignment A
-    if (learn_A) {
-        Theta$q <- matrix(
-            rbeta(dims$S * dims$N, Theta$a, Theta$b),
-            nrow = dims$S, ncol = dims$N
-        )
-        Theta$A <- matrix(
-            as.numeric(runif(dims$S * dims$N) < c(Theta$q)),
-            nrow = dims$S, ncol = dims$N
-        )
-    } else if (!is.null(inits$A)) {
-        Theta$A <- inits$A
-        Theta$q <- inits$A
-    } else {
-        Theta$A <- matrix(1, nrow = dims$S, ncol = dims$N)
-        Theta$q <- Theta$A
-    }
+    Theta$is_fixed <- is_fixed
 
     return(Theta)
 }

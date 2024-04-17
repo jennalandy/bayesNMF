@@ -42,6 +42,64 @@ get_Mhat_no_n <- function(Theta, dims, n) {
     return(Mhat_no_n)
 }
 
+#' Compute log prior
+#'
+#' @param Theta list of parameters
+#' @param likelihood string, one of c('poisson','normal')
+#' @param prior string, one of c('exponential','truncnormal','gamma')
+#' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
+#'
+#' @return scalar
+#' @noRd
+get_logprior <- function(
+    Theta, likelihood, prior, sigmasq_type
+) {
+    logprior = 0
+    if (prior == 'truncnormal') {
+        logprior <- logprior +
+            sum(log(
+                truncnorm::dtruncnorm(
+                    Theta$P, a = 0, b = Inf,
+                    mean = Theta$Mu_p, sd = sqrt(Theta$Sigmasq_p)
+                )
+            )) +
+            sum(log(
+                truncnorm::dtruncnorm(
+                    Theta$E, a = 0, b = Inf,
+                    mean = Theta$Mu_e, sd = sqrt(Theta$Sigmasq_e)
+                )
+            ))
+    } else if (prior == 'exponential') {
+        logprior <- logprior +
+            sum(log(
+                dexp(Theta$P, Theta$Lambda_p)
+            )) +
+            sum(log(
+                dexp(Theta$E, Theta$Lambda_e)
+            ))
+    } else if (prior == 'gamma') {
+        logprior <- logprior +
+            sum(log(
+                dgamma(Theta$P, Theta$Alpha_p, Theta$Beta_p)
+            )) +
+            sum(log(
+                dexp(Theta$E, Theta$Alpha_e, Theta$Beta_p)
+            ))
+    }
+
+    if (likelihood == 'normal') {
+        if (sigmasq_type == 'invgamma') {
+            logprior <- logprior +
+                sum(log(
+                    invgamma::dinvgamma(Theta$sigmasq, shape = Theta$Alpha, scale = Theta$Beta)
+                ))
+        } else if (sigmasq_type == 'noninformative') {
+            logprior <- logprior - sum(log(Theta$sigmasq))
+        }
+    }
+    return(logprior)
+}
+
 #' Compute (proportional) log posterior p(P, E | M)
 #'
 #' @param M mutational catalog matrix, K x G
@@ -232,10 +290,13 @@ get_gamma_sched <- function(len = 1000) {
 #' @export
 pairwise_sim <- function(
         mat1, mat2,
-        name1 = '',
-        name2 = '',
+        name1 = NULL,
+        name2 = NULL,
         which = 'cols'
 ) {
+    row_names = colnames(mat1)
+    col_names = colnames(mat2)
+
     if (which == 'cols') {
         mat1 = t(mat1)
         mat2 = t(mat2)
@@ -255,12 +316,16 @@ pairwise_sim <- function(
         })
     }))
 
-    if (name1 != "") {
+    if (!is.null(name1)) {
         rownames(sim_mat) = paste0(name1, 1:nrow(sim_mat))
+    } else {
+        rownames(sim_mat) = row_names
     }
 
-    if (name2 != "") {
+    if (!is.null(name2)) {
         colnames(sim_mat) = paste0(name2, 1:ncol(sim_mat))
+    } else {
+        colnames(sim_mat) = col_names
     }
 
     return(sim_mat)
@@ -271,14 +336,24 @@ pairwise_sim <- function(
 #'
 #' @param est_P estimated P (signatures matrix)
 #' @param true_P true P (signatures matrix)
+#' @param est_names names of estimated signatures
+#' @param true_names names of true signatures
 #' @param which string, one of c("rows","cols")
 #'
 #' @return ggplot object
 #' @export
-get_heatmap <- function(est_P, true_P, which = 'cols') {
-    sim_mat <- pairwise_sim(est_P, true_P, which = which)
-    rownames(sim_mat) = as.character(1:nrow(sim_mat))
-    colnames(sim_mat) = as.character(1:ncol(sim_mat))
+get_heatmap <- function(
+    est_P, true_P,
+    est_names = NULL,
+    true_names = NULL,
+    which = 'cols'
+) {
+    sim_mat <- pairwise_sim(
+        est_P, true_P,
+        name1 = est_names,
+        name2 = true_names,
+        which = which
+    )
     sim_mat <- assign_signatures(sim_mat)
 
     sim_mat_melted <- reshape2::melt(sim_mat)
@@ -402,4 +477,21 @@ get_KLDiv_multistudy <- function(M, Mhat, dims) {
     Mhat_wide[Mhat_wide == 0] <- 1
     M_wide[M_wide == 0] <- 1
     sum(M_wide * log(M_wide / Mhat_wide) - M_wide + Mhat_wide)
+}
+
+#' Any named item in `fill_with` that is not specified in `list` gets
+#' transfered into `list`. Final `list` is returned.
+#'
+#' @param list list of user specified values
+#' @param fill_with list of default values
+#'
+#' @return updated list
+#' @noRd
+fill_list <- function(list, fill_with) {
+    for (name in names(fill_with)) {
+        if (!(name %in% names(list))) {
+            list[[name]] = fill_with[[name]]
+        }
+    }
+    return(list)
 }
