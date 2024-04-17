@@ -42,11 +42,11 @@ Three files will be created and updated every 100 iterations by default (can be 
 
 - `my_run_rank5.log` will log the start time and the progress of the Gibbs sampler, which is useful to estimate the total run time if using a large dataset or a lot of iterations. 
 - `my_run_rank5.RData` records the current results, which is be useful if your run is cut short (the dreaded OOM error). Once the function is complete, this records complete results for future access. 
-- `my_run_rank5.pdf` updates four plots: RMSE, KL Divergence, log posterior, and log likelihood of periodically computed MAP estimates (see [the section on convergence]{#convergence} for details). Note that log likelihood is specific to the likelihood used, so values from the Poisson models are not comparable to those from Normal models.
+- `my_run_rank5.pdf` updates four plots: RMSE, KL Divergence, log posterior, and log likelihood of periodically computed MAP estimates (see the section on convergence below for details). Note that for log likelihood and log posterior, values from the Poisson models are not comparable to those from Normal models.
 
 The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `rank5_results$MAP$P` and `rank5_results$MAP$E`. The full Gibbs sampler chains are stored in `rank5_results$logs`. The reconstruction errors and log likelihood for each iteration are stored in `rank5_results$metrics`.
 
-### Iterations to Convergence {#convergence}
+### Iterations to Convergence
 
 Unlike standard MCMC problems, we cannot use multiple chains to determine convergence because different chains can have different numbers of latent factors which we would be unable to align. We instead determine convergence through an approach rooted in machine learning. The `convergence_control` parameter determines the specifics of this approach. These parameters can be adjusted by the user, but the default values are noted below.
 
