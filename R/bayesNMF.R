@@ -197,6 +197,11 @@ bayesNMF <- function(
         if (!Theta$is_fixed$A) {
             for (n in 1:dims$N) {
                 Theta$A[1, n] <- sample_An(n, M, Theta, dims, logfac, likelihood = likelihood, gamma = gamma_sched[iter])
+            }
+        }
+
+        if (!Theta$is_fixed$q) {
+            for (n in 1:dims$N) {
                 Theta$q[1, n] <- sample_qn(n, Theta, gamma = gamma_sched[iter])
             }
         }

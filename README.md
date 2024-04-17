@@ -48,7 +48,22 @@ The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `rank5_re
 
 ### Iterations to Convergence
 
-By default, we run models for 1500 samples with the first 1000 as burn-in. Note that the models with Poisson likelihoods take much longer per iteration than those with Normal likelihoods. This can be changed manual with the `niters` and `burn_in` parameters.
+Unlike standard MCMC problems, we cannot use multiple chains to determine convergence because different chains can have different numbers of latent factors which we would be unable to align. We instead determine convergence through an approach rooted in machine learning. The `convergence_control` parameter determines the specifics of this approach. These parameters can be adjusted by the user, but the default values are noted below.
+
+```{r}
+new_convergence_control = convergence_control(
+    MAP_over = 1000,
+    MAP_every = 100,
+    tol = 0.001,
+    Ninarow_nochange = 10,
+    Ninarow_nobest = 20,
+    miniters = 1000,
+    maxiters = 10000,
+    metric = "loglikelihood"
+)
+```
+
+We pre-determine that the MAP estimate will be the average over `MAP_over` samples. Starting at `miniters` and at every `MAP_every` samples after, we compute the MAP estimate *as if it is the last iteration* and record log likelihood, log posterior, RMSE, and KL Divergence. We say the MAP "hasn't changed" if it's log likelihood has changed by less than 100\*`tol`% since the previous computed MAP. We say the MCMC has converged when the MAP hasn't changed in `Ninarow_nochange` computations (i.e., `Ninarow_nochange`\*`MAP_every` samples) OR if it hasn't improved in `Ninarow_nobest` computations (i.e., `Ninarow_nobest`\*`MAP_every` samples).
 
 ### Learning Rank
 
