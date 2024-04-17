@@ -1,6 +1,52 @@
 source("setup_poisson.R")
 source("test_funcs.R")
 
+test_that("nmf_normal_truncnormal works with 5 signatures given N and fixed P", {
+    res <- bayesNMF(
+        M, N = 5,
+        fixed = list(P = true_P),
+        likelihood = 'normal',
+        prior = 'truncnormal',
+        file = "log_files/modelNT_dataP_N5_fixedP",
+        overwrite = TRUE,
+        true_P = true_P,
+        convergence_control = new_convergence_control(maxiters = 2000)
+    )
+
+    expect_equal(res$MAP$P, true_P, tolerance = 1e-10)
+
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+
+    expect_equal(ncol(res$MAP$P), 5)
+    expect_equal(nrow(res$MAP$P), 96)
+    expect_equal(nrow(res$MAP$E), 5)
+})
+
+
+test_that("nmf_normal_truncnormal works with 5 signatures given N and fixed sigmasq", {
+    res <- bayesNMF(
+        M, N = 5,
+        fixed = list(sigmasq = rep(5, 96)),
+        likelihood = 'normal',
+        prior = 'truncnormal',
+        file = "log_files/modelNT_dataP_N5_fixedP",
+        overwrite = TRUE,
+        true_P = true_P,
+        convergence_control = new_convergence_control(maxiters = 2000)
+    )
+
+    expect_equal(res$MAP$sigmasq, rep(5, 96), tolerance = 1e-10)
+
+    expect_equal(sum(is.na(res$MAP$P)), 0)
+    expect_equal(sum(is.na(res$MAP$E)), 0)
+
+    expect_equal(ncol(res$MAP$P), 5)
+    expect_equal(nrow(res$MAP$P), 96)
+    expect_equal(nrow(res$MAP$E), 5)
+})
+
+
 test_that("nmf_normal_truncnormal works with 1 signature given N", {
     res <- bayesNMF(
         M, N = 1,
@@ -8,7 +54,8 @@ test_that("nmf_normal_truncnormal works with 1 signature given N", {
         prior = 'truncnormal',
         file = "log_files/modelNT_dataP_N1",
         overwrite = TRUE,
-        true_P = true_P
+        true_P = true_P,
+        convergence_control = new_convergence_control(maxiters = 2000)
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
@@ -23,7 +70,8 @@ test_that("nmf_normal_truncnormal works with 2 signatures given N", {
         prior = 'truncnormal',
         file = "log_files/modelNT_dataP_N2",
         overwrite = TRUE,
-        true_P = true_P
+        true_P = true_P,
+        convergence_control = new_convergence_control(maxiters = 2000)
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)

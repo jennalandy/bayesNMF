@@ -10,6 +10,7 @@ bayesNMF(
   N = NULL,
   max_N = NULL,
   inits = NULL,
+  fixed = NULL,
   likelihood = "normal",
   prior = "truncnormal",
   sigmasq_type = "noninformative",
@@ -31,6 +32,9 @@ bayesNMF(
 
 \item{inits}{(optional) list of initial values for P and E as well as sigmasq
 if `likelihood = "normal"`}
+
+\item{fixed}{(ptional) list of parameters to fix and not include in Gibbs
+updates.}
 
 \item{likelihood}{string, one of c('normal','poisson')}
 

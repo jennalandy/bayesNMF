@@ -2,7 +2,7 @@ set.seed(123)
 N = 5
 G = 20
 
-sigs = c(2,3,4,5,6)
+sigs = c(2,3,4,5,10)
 N = length(sigs)
 P <- read.csv(
     "https://cog.sanger.ac.uk/cosmic-signatures-production/documents/COSMIC_v3.3.1_SBS_GRCh37.txt",

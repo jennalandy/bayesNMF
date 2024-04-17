@@ -275,12 +275,14 @@ sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
 #' @return named list of initialized unknowns
 #' @noRd
 initialize_Theta <- function(
-        M, likelihood, prior,
-        learn_A, dims,
-        sigmasq_type,
+        M, likelihood, prior, learn_A,
+        dims, sigmasq_type,
         inits = NULL,
+        fixed = NULL,
         prior_parameters = NULL
 ) {
+    is_fixed = list(A = !learn_A)
+
     # prior parameters
     Theta = prior_parameters
     if (prior == 'truncnormal') {
@@ -292,42 +294,70 @@ initialize_Theta <- function(
     }
 
     # signatures P
-    if (is.null(inits$P)) {
-        Theta$P <- sample_prior_P(Theta, dims, prior)
-    } else {
+    if (!is.null(fixed$P)) {
+        Theta$P <- fixed$P
+        is_fixed$P <- TRUE
+    } else if (!is.null(inits$P)) {
         Theta$P <- inits$P
+        is_fixed$P <- FALSE
+    } else {
+        Theta$P <- sample_prior_P(Theta, dims, prior)
+        is_fixed$P <- FALSE
     }
 
     # exposures E
-    if (is.null(inits$E)) {
-        Theta$E <- sample_prior_E(Theta, dims, prior)
-    } else {
+    if (!is.null(fixed$E)) {
+        Theta$E <- fixed$E
+        is_fixed$E <- TRUE
+    } else if (!is.null(inits$E)) {
         Theta$E <- inits$E
+        is_fixed$E <- FALSE
+    } else {
+        Theta$E <- sample_prior_E(Theta, dims, prior)
+        is_fixed$E <- FALSE
     }
 
     # signature assignment A
-    if (learn_A) {
+    if (!is.null(fixed$q)) {
+        Theta$q <- fixed$q
+        is_fixed$q <- TRUE
+    } else if (!is.null(inits$q)) {
+        Theta$q <- inits$q
+        is_fixed$q <- FALSE
+    } else {
         Theta$q <- matrix(
             rbeta(dims$S * dims$N, Theta$a, Theta$b),
             nrow = dims$S, ncol = dims$N
         )
+        is_fixed$q <- FALSE
+    }
+
+    if (!is.null(fixed$A)) {
+        is_fixed$A <- TRUE
+    } else if (!is.null(inits$A)) {
+        Theta$A <- inits$A
+    } else if (!learn_A) {
+        Theta$A <- matrix(
+            as.numeric(rep(1, dims$S * dims$N)),
+            nrow = dims$S, ncol = dims$N
+        )
+    } else {
         Theta$A <- matrix(
             as.numeric(runif(dims$S * dims$N) < c(Theta$q)),
             nrow = dims$S, ncol = dims$N
         )
-    } else if (!is.null(inits$A)) {
-        Theta$A <- inits$A
-        Theta$q <- inits$A
-    } else {
-        Theta$A <- matrix(1, nrow = dims$S, ncol = dims$N)
-        Theta$q <- Theta$A
     }
 
     if (likelihood == 'normal') {
-        if (is.null(inits$sigmasq)) {
-            Theta$sigmasq <- sample_prior_sigmasq(Theta, dims, sigmasq_type)
-        } else {
+        if (!is.null(fixed$sigmasq)) {
+            Theta$sigmasq <- fixed$sigmasq
+            is_fixed$sigmasq <- TRUE
+        } else if (!is.null(inits$sigmasq)) {
             Theta$sigmasq <- inits$sigmasq
+            is_fixed$sigmasq <- FALSE
+        } else {
+            Theta$sigmasq <- sample_prior_sigmasq(Theta, dims, sigmasq_type)
+            is_fixed$sigmasq <- FALSE
         }
     } else if (likelihood == 'poisson') {
         Theta$Z <- array(dim = c(dims$K, dims$N, dims$G))
@@ -337,6 +367,8 @@ initialize_Theta <- function(
             }
         }
     }
+
+    Theta$is_fixed <- is_fixed
 
     return(Theta)
 }

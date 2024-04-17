@@ -6,6 +6,8 @@
 #' @param max_N maximum number of signatures if learning rank
 #' @param inits (optional) list of initial values for P and E as well as sigmasq
 #' if `likelihood = "normal"`
+#' @param fixed (ptional) list of parameters to fix and not include in Gibbs
+#' updates.
 #' @param likelihood string, one of c('normal','poisson')
 #' @param prior string, one of c('truncnormal','exponential')
 #' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
@@ -25,6 +27,7 @@ bayesNMF <- function(
         N = NULL,
         max_N = NULL,
         inits = NULL,
+        fixed = NULL,
         likelihood = "normal",
         prior = "truncnormal",
         sigmasq_type = "noninformative",
@@ -40,12 +43,19 @@ bayesNMF <- function(
     rescale_by = mean(M)/100
     M_truescale = M
     M = M/rescale_by
+    if (!is.null(fixed$sigmasq)) {
+        fixed$sigmasq = fixed$sigmasq/(rescale_by**2)
+    }
+    if (!is.null(fixed$E)) {
+        fixed$E <- fixed$E/rescale_by
+    }
 
     # check N/max_N combination is valid
     if (is.null(N) & is.null(max_N)) {
         stop("Either `N` or `max_N` must be provided.")
     } else if (!is.null(N) & !is.null(max_N)) {
         message("Both `N` and `max_N` provided, using `N`.")
+        max_N = NULL
     } else if (is.null(N)) {
         N = max_N
     }
@@ -63,10 +73,8 @@ bayesNMF <- function(
         }
     }
 
-    # check whether A is given or learned
-    learn_A <- !is.null(max_N) & is.null(inits$A)
-
     # set up tempering schedule
+    learn_A <- !is.null(max_N) & is.null(fixed$A)
     if (learn_A | temper) {
         gamma_sched <- get_gamma_sched(len = convergence_control$maxiters)
     } else {
@@ -105,10 +113,13 @@ bayesNMF <- function(
 
     # set up Theta
     Theta <- initialize_Theta(
-        M, likelihood, prior,
-        learn_A, dims,
+        M = M,
+        likelihoo = likelihood,
+        prior = prior,
+        learn_A = learn_A,
+        dims = dims,
         sigmasq_type = sigmasq_type,
-        inits = inits,
+        inits = inits, fixed = fixed,
         prior_parameters = prior_parameters
     )
 
@@ -149,21 +160,27 @@ bayesNMF <- function(
     while (iter <= convergence_control$maxiters & !done) {
 
         # update P
-        for (n in 1:dims$N) {
-            Theta$P[, n] <- sample_Pn(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
+        if (!Theta$is_fixed$P) {
+            for (n in 1:dims$N) {
+                Theta$P[, n] <- sample_Pn(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
+            }
         }
 
         # update E
-        for (n in 1:dims$N) {
-            Theta$E[n, ] <- sample_En(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
+        if (!Theta$is_fixed$E) {
+            for (n in 1:dims$N) {
+                Theta$E[n, ] <- sample_En(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
+            }
         }
 
         # if Normal likelihood, update sigmasq
         if (likelihood == 'normal') {
-            if (sigmasq_type == 'eq_mu') {
-                Theta$sigmasq <- rowMeans(get_Mhat(Theta))
-            } else {
-                Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, sigmasq_type, gamma = gamma_sched[iter])
+            if (!Theta$is_fixed$sigmasq) {
+                if (sigmasq_type == 'eq_mu') {
+                    Theta$sigmasq <- rowMeans(get_Mhat(Theta))
+                } else {
+                    Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, sigmasq_type, gamma = gamma_sched[iter])
+                }
             }
         }
 
@@ -177,7 +194,7 @@ bayesNMF <- function(
         }
 
         # update A and q if learn_A = TRUE
-        if (learn_A) {
+        if (!Theta$is_fixed$A) {
             for (n in 1:dims$N) {
                 Theta$A[1, n] <- sample_An(n, M, Theta, dims, logfac, likelihood = likelihood, gamma = gamma_sched[iter])
                 Theta$q[1, n] <- sample_qn(n, Theta, gamma = gamma_sched[iter])
