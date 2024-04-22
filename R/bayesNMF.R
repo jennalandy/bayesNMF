@@ -275,7 +275,10 @@ bayesNMF <- function(
                 logfac = logfac,
                 sigmasq_eq_mu = sigmasq_type == 'eq_mu'
             )
-            first_MAP = FALSE
+            if (gamma_sched[iter] == 1 & first_MAP) {
+                first_MAP = FALSE
+                convergence_status$best_MAP_metric = Inf # forces convergence after gamma == 1
+            }
 
             NOW = Sys.time()
             diff = as.numeric(difftime(NOW, PREV, units = "secs"))
@@ -283,10 +286,10 @@ bayesNMF <- function(
             cat(paste(
                 iter, "/", ifelse(done, "", "(up to)"), convergence_control$maxiters,
                 "-", round(diff, 4), "seconds",
-                "-", paste0(round(convergence_status$prev_percent_change * 100, 4), "% change"),
                 ifelse(
                     gamma_sched[iter] == 1,
-                    paste("-", convergence_status$inarow_no_best, "no best",
+                    paste("-", paste0(round(convergence_status$prev_percent_change * 100, 4), "% change"),
+                          "-", convergence_status$inarow_no_best, "no best",
                          "-", convergence_status$inarow_no_change, "no change"),
                     ""
                 ),

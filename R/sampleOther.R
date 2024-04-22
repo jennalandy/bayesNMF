@@ -82,6 +82,15 @@ sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', gamma = 
 
     log_p = log_p1 - sumLog(c(log_p0, log_p1))
     p = exp(log_p)
+    if (is.na(p)) {
+        if (is.infinite(log_p1)) {
+            p = 1
+        } else if (is.infinite(log_p0)) {
+            p = 0
+        } else {
+            p = 0.5
+        }
+    }
     return(sample(c(0, 1), size = 1, prob = c(1-p, p)))
 }
 

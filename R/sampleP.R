@@ -10,13 +10,13 @@
 #' @noRd
 get_mu_sigmasq_Pn_normal_exponential <- function(n, M, Theta, dims, gamma = 1) {
     Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
-    sum_E_sq <- gamma * sum(Theta$E[n, ] ** 2)
+    sum_E_sq <- gamma * sum(Theta$A[1,n] * Theta$E[n, ] ** 2)
 
     # compute mean
     mu_num_term_1 <- gamma * sweep(
         (M - Mhat_no_n), # dim KxG
         2, # multiply each row by E[n,]
-        Theta$E[n, ], # length G
+        Theta$A[1,n] * Theta$E[n, ], # length G
         "*"
     ) %>% # dim KxG
         rowSums() # length K
@@ -45,10 +45,10 @@ get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta, dims, gamma = 1) {
     Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
 
     # compute mean
-    mu_num_term_1 <- gamma * Theta$A[1,n] * (1/Theta$sigmasq) * (sweep(
+    mu_num_term_1 <- gamma * (1/Theta$sigmasq) * (sweep(
         (M - Mhat_no_n), # dim KxG
         2, # multiply each row by E[n,]
-        Theta$E[n, ], # length G
+        Theta$A[1,n] * Theta$E[n, ], # length G
         "*"
     ) %>% # dim KxG
         rowSums()) # length K
@@ -105,11 +105,11 @@ sample_Pn_normal <- function(n, M, Theta, dims, prior = 'truncnormal', gamma = 1
 sample_Pn_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
     if (prior == 'gamma') {
         sampled <- sapply(1:dims$K, function(k) {
-            rgamma(1, Theta$Alpha_p[k,n] + gamma * sum(Theta$Z[k,n,]), Theta$Beta_p[k,n] + gamma * sum(Theta$E[n,]))
+            rgamma(1, Theta$Alpha_p[k,n] + gamma * sum(Theta$Z[k,n,]), Theta$Beta_p[k,n] + gamma * Theta$A[1,n] * sum(Theta$E[n,]))
         })
     } else if (prior == 'exponential') {
         sampled <- sapply(1:dims$K, function(k) {
-            rgamma(1, 1 + gamma * sum(Theta$Z[k,n,]), Theta$Lambda_p[k,n] + gamma * Theta$A[1,n] * sum(Theta$E[n,]))
+            rgamma(1, 1 + gamma * sum(Theta$Z[k,n,]), Theta$Lambda_p[k,n] + gamma * Theta$A[1,n] * Theta$A[1,n] * sum(Theta$E[n,]))
         })
     }
     return(sampled)
@@ -128,7 +128,7 @@ sample_Pn_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
 sample_Pkn_poisson_exp <- function(k, n, M, Theta, gamma) {
     log_pdf <- function(Pkn) {
         gamma * sum(Theta$Z[k,n,]) * log(Pkn) -
-            Pkn * (Theta$Lambda_p[k,n] + gamma * sum(Theta$E[n,]))
+            Pkn * (Theta$Lambda_p[k,n] + gamma * Theta$A[1,n] * sum(Theta$E[n,]))
     }
     sample <- armspp::arms(
         n_samples = 1,

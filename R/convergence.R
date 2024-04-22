@@ -113,6 +113,8 @@ check_converged <- function(
         convergence_status$prev_MAP_metric = MAP_metric + 1
         convergence_status$best_MAP_metric = MAP_metric + 1
         convergence_status$inarow_na = 0
+        convergence_status$inarow_no_change = 0
+        convergence_status$inarow_no_best = 0
     }
 
     percent_change = (
