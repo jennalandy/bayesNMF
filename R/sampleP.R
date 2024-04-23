@@ -212,7 +212,7 @@ sample_Pn_norm_exp <- function(n, M, Theta, dims, gamma) {
 #' @noRd
 sample_Pn <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
     if (likelihood == 'normal') {
-        if (prior == 'truncnormal' | gamma > 0.5) {
+        if (prior == 'truncnormal' | (prior == "exponential" & gamma > 0.5 & Theta$A[1,n] == 1)) {
             sample_Pn_normal(n, M, Theta, dims, prior, gamma)
         } else {
             sample_Pn_norm_exp(n, M, Theta, dims, gamma)
