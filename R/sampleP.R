@@ -109,7 +109,7 @@ sample_Pn_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
         })
     } else if (prior == 'exponential') {
         sampled <- sapply(1:dims$K, function(k) {
-            rgamma(1, 1 + gamma * sum(Theta$Z[k,n,]), Theta$Lambda_p[k,n] + gamma * Theta$A[1,n] * Theta$A[1,n] * sum(Theta$E[n,]))
+            rgamma(1, 1 + gamma * sum(Theta$Z[k,n,]), Theta$Lambda_p[k,n] + gamma * Theta$A[1,n] * sum(Theta$E[n,]))
         })
     }
     return(sampled)
