@@ -209,7 +209,7 @@ sample_En_poisson_exp <- function(n, M, Theta, dims, gamma) {
 #' @noRd
 sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
     if (likelihood == 'normal') {
-        if (prior == 'truncnormal' | gamma > 0.5) {
+        if ((prior == 'truncnormal' | gamma > 0.5) & Theta$A[1,n] == 1) {
             sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
         } else {
             # aarms sampling when gamma is small and prior is not conjugate
