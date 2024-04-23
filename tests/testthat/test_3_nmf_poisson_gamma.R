@@ -71,7 +71,11 @@ test_that("nmf_poisson_gamma works with sparse Poisson data generating function 
         prior = 'gamma',
         file = "log_files/modelPG_dataPS_maxN7",
         overwrite = TRUE,
-        true_P = true_P
+        true_P = true_P,
+        convergence_control = new_convergence_control(
+            MAP_over = 5000,
+            maxiters = 20000
+        )
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)

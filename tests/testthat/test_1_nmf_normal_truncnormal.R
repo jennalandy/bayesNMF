@@ -162,7 +162,10 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
         file = "log_files/modelNT_dataP_maxN7",
         overwrite = TRUE,
         true_P = true_P,
-        store_logs = TRUE
+        store_logs = TRUE,
+        convergence_control = new_convergence_control(
+            minA = 800
+        )
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)

@@ -9,6 +9,7 @@
 #' @param Ninarow_nobest integer, convergence may be determined by the number
 #' of MAPs in a row with no new "best"
 #' @param maxiters integer, absolute maximum number of samples to explore
+#' @param minA integer, minimum number of counts A matrix must have to consider it a valid MAP
 #' @param metric string, one of c('loglikelihood','logposterior','RMSE','KL')
 #'
 #' @return list
@@ -21,6 +22,7 @@ new_convergence_control <- function(
     Ninarow_nobest = 20,
     miniters = 1000,
     maxiters = 10000,
+    minA = 0,
     metric = "loglikelihood"
 ) {
     list(
@@ -31,6 +33,7 @@ new_convergence_control <- function(
         Ninarow_nobest = Ninarow_nobest,
         miniters = miniters,
         maxiters = maxiters,
+        minA = minA,
         metric = metric
     )
 }

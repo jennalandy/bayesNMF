@@ -275,7 +275,7 @@ bayesNMF <- function(
                 logfac = logfac,
                 sigmasq_eq_mu = sigmasq_type == 'eq_mu'
             )
-            if (gamma_sched[iter] == 1 & first_MAP) {
+            if (gamma_sched[iter] == 1 & first_MAP & A_MAP$top_counts[1] >= convergence_control$minA) {
                 first_MAP = FALSE
                 convergence_status$best_MAP_metric = Inf # forces convergence after gamma == 1
             }

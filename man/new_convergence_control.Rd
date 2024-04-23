@@ -12,6 +12,7 @@ new_convergence_control(
   Ninarow_nobest = 20,
   miniters = 1000,
   maxiters = 10000,
+  minA = 0,
   metric = "loglikelihood"
 )
 }
@@ -27,6 +28,8 @@ in MAP metric}
 of MAPs in a row with no new "best"}
 
 \item{maxiters}{integer, absolute maximum number of samples to explore}
+
+\item{minA}{integer, minimum number of counts A matrix must have to consider it a valid MAP}
 
 \item{metric}{string, one of c('loglikelihood','logposterior','RMSE','KL')}
 
