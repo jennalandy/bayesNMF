@@ -45,8 +45,9 @@ sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
 #' @noRd
 sample_Zkg_poisson <- function(k, g, M, Theta, dims){
     probs = sapply(1:dims$N, function(n) {
-        Theta$P[k,n] * Theta$E[n,g]
+        Theta$P[k,n] * Theta$A[1,n] * Theta$E[n,g]
     })
+    if (sum(Theta$A[1,]) == 0) {probs = rep(1, dims$N)}
     probs = probs/sum(probs)
     rmultinom(1, size = M[k,g], prob = probs)
 }

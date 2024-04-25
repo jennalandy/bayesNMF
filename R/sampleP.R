@@ -218,11 +218,7 @@ sample_Pn <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncno
             sample_Pn_norm_exp(n, M, Theta, dims, gamma)
         }
     } else if (likelihood == 'poisson') {
-        if (prior == 'gamma' | gamma > 0.5) {
-            sample_Pn_poisson(n, M, Theta, dims, prior, gamma)
-        } else {
-            sample_Pn_poisson_exp(n, M, Theta, dims, gamma)
-        }
-
+        sample_Pn_poisson(n, M, Theta, dims, prior, gamma)
+        # sample_Pn_poisson_exp(n, M, Theta, dims, gamma)
     }
 }

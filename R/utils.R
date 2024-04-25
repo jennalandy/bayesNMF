@@ -83,7 +83,7 @@ get_logprior <- function(
                 dgamma(Theta$P, Theta$Alpha_p, Theta$Beta_p)
             )) +
             sum(log(
-                dexp(Theta$E, Theta$Alpha_e, Theta$Beta_p)
+                dgamma(Theta$E, Theta$Alpha_e, Theta$Beta_p)
             ))
     }
 
@@ -209,7 +209,7 @@ get_loglik_normal <- function(M, Theta, dims) {
     Mhat = get_Mhat(Theta)
     - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
         sum(sweep(
-            (M - Theta$P %*% diag(Theta$A[1, ]) %*% Theta$E)**2,
+            (M - Mhat)**2,
             1,
             1/(2 * Theta$sigmasq), # Length K
             '*'
@@ -227,8 +227,9 @@ get_loglik_normal <- function(M, Theta, dims) {
 #' @return scalar
 #' @noRd
 get_loglik_poisson <- function(M, Theta, dims, logfac) {
-    - sum((Theta$P %*% Theta$E)) +
-        sum(M * log(Theta$P %*% Theta$E)) -
+    Mhat = get_Mhat(Theta)
+    - sum(Mhat) +
+        sum(M * log(Mhat)) -
         sum(logfac[M])
 }
 
@@ -427,6 +428,54 @@ get_mode <- function(matrix_list) {
 #' @noRd
 get_mean <- function(matrix_list) {
     return(Reduce(`+`, matrix_list)/length(matrix_list))
+}
+
+#' Get element-wise quantiles of a list of matrices
+#'
+#' @param matrix_list list of matrices
+#'
+#' @return matrix
+#' @noRd
+get_quantile <- function(matrix_list, quantiles = c(0.025, 0.975)) {
+    if (length(matrix_list) == 0) {
+        return()
+    }
+    quantiles = sort(quantiles)
+    quantile_matrices <- list()
+    if (!("matrix" %in% class(matrix_list[[1]]))) {
+        rows = length(matrix_list[[1]])
+        cols = 1
+        vector = TRUE
+    } else {
+        rows = nrow(matrix_list[[1]])
+        cols = ncol(matrix_list[[1]])
+        vector = FALSE
+    }
+    for (quantile in quantiles) {
+        quantile_matrices[[as.character(quantile)]] <- matrix(
+            nrow = rows,
+            ncol = cols
+        )
+    }
+    for (row in 1:rows) {
+        for (col in 1:cols) {
+            quants <- quantile(
+                sapply(matrix_list, function(mat) {
+                    if(vector) {
+                        return(mat[row])
+                    } else {
+                        return(mat[row, col])
+                    }
+                }),
+                quantiles
+            )
+            for (i in 1:length(quantiles)) {
+                quantile = quantiles[i]
+                quantile_matrices[[as.character(quantile)]][row, col] <- quants[i]
+            }
+        }
+    }
+    return(quantile_matrices)
 }
 
 

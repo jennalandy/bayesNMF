@@ -330,6 +330,22 @@ bayesNMF <- function(
                 E_MAP <- get_mean(E.log[map.idx])
                 q_MAP <- get_mean(q.log[map.idx])
                 sigmasq_MAP <- get_mean(sigmasq.log[map.idx])
+
+                credible_intervals <- list()
+                if (!Theta$is_fixed$P) {
+                    credible_intervals[["P"]] <- get_quantile(P.log[map.idx])
+                }
+                if (!Theta$is_fixed$E) {
+                    credible_intervals[["E"]] <- get_quantile(E.log[map.idx])
+                }
+                if (!Theta$is_fixed$q) {
+                    credible_intervals[["q"]] <- get_quantile(q.log[map.idx])
+                }
+                if (likelihood == "normal") {
+                    if (!Theta$is_fixed$sigmasq) {
+                        credible_intervals[["sigmasq"]] <- get_quantile(sigmasq.log[map.idx])
+                    }
+                }
             }
 
             # plot metrics
@@ -405,6 +421,9 @@ bayesNMF <- function(
                     "total_secs" = as.numeric(difftime(Sys.time(), START, units = "secs"))
                 )
             )
+            if (done) {
+                res$Credible_Intervals <- credible_intervals
+            }
             if (store_logs) {
                 res$logs = list(
                     P = P.log,

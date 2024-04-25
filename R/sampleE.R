@@ -216,11 +216,8 @@ sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncno
             sample_En_norm_exp(n, M, Theta, dims, gamma = gamma)
         }
     } else if (likelihood == 'poisson') {
-        if (prior == 'gamma' | gamma > 0.5) {
-            sample_En_poisson(n, M, Theta, dims, prior = prior, gamma = gamma)
-        } else {
-            # aarms sampling when gamma is small and prior is not conjugate
-            sample_En_poisson_exp(n, M, Theta, dims, gamma = gamma)
-        }
+        sample_En_poisson(n, M, Theta, dims, prior = prior, gamma = gamma)
+        # aarms sampling when gamma is small and prior is not conjugate
+        # sample_En_poisson_exp(n, M, Theta, dims, gamma = gamma)
     }
 }
