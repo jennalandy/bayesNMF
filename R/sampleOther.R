@@ -64,9 +64,10 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims){
 #'
 #' @return integer
 #' @noRd
-sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', gamma = 1) {
+sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = "truncnormal", gamma = 1) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
+
     Theta_A1 <- Theta
     Theta_A1$A[1,n] <- 1
 

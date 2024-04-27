@@ -60,13 +60,18 @@ get_metric <- function(
     logfac = NULL,
     sigmasq_eq_mu = FALSE
 ) {
-    if (metric %in% c('loglikelihood', 'logposterior')) {
+    if (metric %in% c('loglikelihood', 'logposterior', 'BIC')) {
         if (likelihood == 'normal') {
             loglik = get_loglik_normal(M, Theta, dims)
         } else if (likelihood == 'poisson') {
             loglik = get_loglik_poisson(M, Theta, dims, logfac)
         }
-        if (metric == 'loglikelihood') {return(-1 * loglik)}
+        if (metric == 'loglikelihood') {
+            return(-1 * loglik)
+        } else if (metric == 'BIC') {
+            n_params = sum(Theta$A[1,]) * (dims$G + dims$K + 2)
+            return(n_params * log(dims$G) - 2 * loglik)
+        }
         logpost = loglik + get_logprior(Theta, likelihood, prior, sigmasq_eq_mu)
         return(-1 * logpost)
     } else if (metric == 'RMSE') {

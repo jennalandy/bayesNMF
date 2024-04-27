@@ -83,7 +83,6 @@ sample_Pn_normal <- function(n, M, Theta, dims, prior = 'truncnormal', gamma = 1
         mu_sigmasq_P <- get_mu_sigmasq_Pn_normal_exponential(n, M, Theta, dims, gamma = gamma)
     }
 
-
     mu_P = mu_sigmasq_P$mu
     sigmasq_P = mu_sigmasq_P$sigmasq
 

@@ -40,6 +40,7 @@ bayesNMF <- function(
         temper = FALSE
 ) {
     START = Sys.time()
+
     rescale_by = mean(M)/100
     M_truescale = M
     M = M/rescale_by
@@ -51,27 +52,10 @@ bayesNMF <- function(
     }
 
     # check N/max_N combination is valid
-    if (is.null(N) & is.null(max_N)) {
-        stop("Either `N` or `max_N` must be provided.")
-    } else if (!is.null(N) & !is.null(max_N)) {
-        message("Both `N` and `max_N` provided, using `N`.")
-        max_N = NULL
-    } else if (is.null(N)) {
-        N = max_N
-    }
+    N <- validate_N(N, max_N)
 
     # check prior and likelihood are valid
-    if (!(likelihood %in% c('normal', 'poisson'))) {
-        stop("likelihood must be one of c('normal')")
-    } else if (likelihood == 'normal') {
-        if (!(prior %in% c('truncnormal','exponential'))) {
-            stop("prior must be one of c('truncnormal','exponential') with `likelihood = 'normal'`")
-        }
-    } else if (likelihood == 'poisson') {
-        if (!(prior %in% c('gamma','exponential'))) {
-            stop("prior must be one of c('gamma','exponential') with `likelihood = 'poisson'`")
-        }
-    }
+    validate_model(likelihood, prior)
 
     # set up tempering schedule
     learn_A <- !is.null(max_N) & is.null(fixed$A)
@@ -124,17 +108,28 @@ bayesNMF <- function(
     )
 
     # set up logs
-    sample_idx <- c()
-    RMSE <- c()
-    KL <- c()
-    loglik <- c()
-    logpost <- c()
+    metrics <- list(
+        sample_idx = list(),
+        RMSE = list(),
+        KL = list(),
+        loglik = list(),
+        logpost = list(),
+        N = list(),
+        n_params = list(),
+        BIC = list()
+    )
 
-    P.log <- list()
-    E.log <- list()
-    sigmasq.log <- list()
-    A.log <- list()
-    q.log <- list()
+    logs <- list(
+        P = list(),
+        E = list(),
+        A = list(),
+        q = list()
+    )
+    if (likelihood == "normal") {
+        logs$sigmasq <- list()
+    } else if (likelihood == "poisson") {
+        logs$Z <- list()
+    }
 
     convergence_status <- list(
         prev_MAP_RMSE = 1000,
@@ -161,14 +156,14 @@ bayesNMF <- function(
 
         # update P
         if (!Theta$is_fixed$P) {
-            for (n in 1:dims$N) {
+            for (n in sample(1:dims$N)) {
                 Theta$P[, n] <- sample_Pn(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
             }
         }
 
         # update E
         if (!Theta$is_fixed$E) {
-            for (n in 1:dims$N) {
+            for (n in sample(1:dims$N)) {
                 Theta$E[n, ] <- sample_En(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
             }
         }
@@ -186,8 +181,8 @@ bayesNMF <- function(
 
         # if Poisson likelihood, update latent counts Z
         if (likelihood == 'poisson') {
-            for (k in 1:dims$K) {
-                for (g in 1:dims$G) {
+            for (k in sample(1:dims$K)) {
+                for (g in sample(1:dims$G)) {
                     Theta$Z[k,,g] <- sample_Zkg_poisson(k, g, M, Theta, dims)
                 }
             }
@@ -195,23 +190,28 @@ bayesNMF <- function(
 
         # update A and q if learn_A = TRUE
         if (!Theta$is_fixed$A) {
-            for (n in 1:dims$N) {
-                Theta$A[1, n] <- sample_An(n, M, Theta, dims, logfac, likelihood = likelihood, gamma = gamma_sched[iter])
+            for (n in sample(1:dims$N)) {
+                Theta$A[1, n] <- sample_An(n, M, Theta, dims, logfac, likelihood = likelihood,  prior = prior, gamma = gamma_sched[iter])
             }
         }
 
         if (!Theta$is_fixed$q) {
-            for (n in 1:dims$N) {
+            for (n in sample(1:dims$N)) {
                 Theta$q[1, n] <- sample_qn(n, Theta, gamma = gamma_sched[iter])
             }
         }
 
         # log on original scale
-        P.log[[iter]] <- Theta$P
-        E.log[[iter]] <- Theta$E * rescale_by
-        sigmasq.log[[iter]] <- Theta$sigmasq * (rescale_by**2)
-        A.log[[iter]] <- Theta$A
-        q.log[[iter]] <- Theta$q
+        logs$P[[iter]] <- Theta$P
+        logs$E[[iter]] <- Theta$E * rescale_by
+        logs$A[[iter]] <- Theta$A
+        logs$q[[iter]] <- Theta$q
+
+        if (likelihood == "normal") {
+            logs$sigmasq[[iter]] <- Theta$sigmasq * (rescale_by**2)
+        } else if (likelihood == "poisson") {
+            logs$Z[[iter]] <- Theta$Z * rescale_by
+        }
 
         # periodically check convergence and log progress
         if (
@@ -222,45 +222,17 @@ bayesNMF <- function(
             # get MAP over past convergence_control$MAP_over iterations
             burn_in <- iter - convergence_control$MAP_over
             keep <- burn_in:iter
-            # get MAP of A matrix (fine to do even if learn_A = FALSE)
-            A_MAP = get_mode(A.log[keep])
-            map.idx = keep[A_MAP$idx]
-
-            # only keep signatures present in MAP A matrix
-            keep_sigs = as.logical(A_MAP$matrix[1, ])
-            # get MAP of P, E conditional on MAP of A
-            P_MAP <- get_mean(P.log[map.idx])
-            E_MAP <- get_mean(E.log[map.idx])
-            q_MAP <- get_mean(q.log[map.idx])
-            sigmasq_MAP <- get_mean(sigmasq.log[map.idx])
+            MAP <- get_MAP(logs, keep)
 
             # log metrics
-            Theta_MAP <- Theta
-            Theta_MAP$P = P_MAP
-            Theta_MAP$E = E_MAP
-            Theta_MAP$A = A_MAP$matrix
-            Theta_MAP$q = q_MAP
-            Theta_MAP$sigmasq = sigmasq_MAP
+            out <- update_metrics(
+                metrics, MAP, iter, Theta, M_truescale, M,
+                likelihood, prior, dims, logfac, rescale_by,
+                sigmasq_type
+            )
+            metrics <- out$metrics
+            Theta_MAP_rescaled <- out$Theta_MAP_rescaled
 
-            Theta_MAP_rescaled <- Theta_MAP
-            Theta_MAP_rescaled$E = E_MAP/rescale_by
-            Theta_MAP_rescaled$sigmasq = sigmasq_MAP/(rescale_by**2)
-
-            Mhat_MAP <- get_Mhat(Theta_MAP)
-            Mhat_MAP_rescaled <- get_Mhat(Theta_MAP_rescaled)
-            sample_idx <- c(sample_idx, iter)
-            RMSE <- c(RMSE, get_RMSE(M_truescale, Mhat_MAP))
-            KL <- c(KL, get_KLDiv(M_truescale, Mhat_MAP))
-            if (likelihood == 'normal') {
-                this_loglik <- get_loglik_normal(M, Theta_MAP_rescaled, dims)
-                loglik <- c(loglik, this_loglik)
-            } else if (likelihood == 'poisson') {
-                this_loglik <- get_loglik_poisson(M, Theta_MAP_rescaled, dims, logfac)
-                loglik <- c(loglik, this_loglik)
-            }
-            logpost <- c(logpost, this_loglik + get_logprior(
-                Theta_MAP_rescaled, likelihood, prior, sigmasq_type == 'eq_mu'
-            ))
             # check convergence
             convergence_status <- check_converged(
                 iter, gamma_sched[iter],
@@ -275,142 +247,44 @@ bayesNMF <- function(
                 logfac = logfac,
                 sigmasq_eq_mu = sigmasq_type == 'eq_mu'
             )
-            if (gamma_sched[iter] == 1 & first_MAP & A_MAP$top_counts[1] >= convergence_control$minA) {
+            if (gamma_sched[iter] == 1 & first_MAP & MAP$top_counts[1] >= convergence_control$minA) {
                 first_MAP = FALSE
-                convergence_status$best_MAP_metric = Inf # forces convergence after gamma == 1
+                # forces convergence after gamma == 1
+                convergence_status$best_MAP_metric = Inf
             }
 
             NOW = Sys.time()
             diff = as.numeric(difftime(NOW, PREV, units = "secs"))
             PREV = NOW
-            cat(paste(
-                iter, "/", ifelse(done, "", "(up to)"), convergence_control$maxiters,
-                "-", round(diff, 4), "seconds",
-                ifelse(
-                    gamma_sched[iter] == 1,
-                    paste("-", paste0(round(convergence_status$prev_percent_change * 100, 4), "% change"),
-                          "-", convergence_status$inarow_no_best, "no best",
-                         "-", convergence_status$inarow_no_change, "no change"),
-                    ""
-                ),
-                "\n"
-            ))
+            log_MAP(iter, done, diff, convergence_control, convergence_status, gamma_sched)
+
             if (learn_A) {
-                print(A_MAP$top_counts)
+                print(MAP$top_counts)
                 cat("\n")
             }
 
             if (convergence_status$converged){
-                cat(paste("\n\nCONVERGED at", convergence_status$best_iter))
-                if (convergence_status$why %in% c("no best", "max iters")) {
-                    cat(paste("\nNo best MAP since sample", convergence_status$best_iter, "\n\n"))
-                    stop = convergence_status$best_iter
-                } else {
-                    cat(paste(
-                        "\nNo change in MAP over past",
-                        convergence_control$Ninarow_nochange,
-                        "samples\n\n"
-                    ))
-                    stop = convergence_status$best_iter
-                }
+                stop = convergence_status$best_iter
+                log_converged(convergence_control, convergence_status)
                 done = TRUE
 
-                #re-compute MAP at stop
-                # get MAP over past convergence_control$MAP_over iterations
+                # re-compute MAP at stop, compute 95% credible intervals
                 burn_in <- stop - convergence_control$MAP_over
                 keep <- burn_in:stop
-                # get MAP of A matrix (fine to do even if learn_A = FALSE)
-                A_MAP = get_mode(A.log[keep])
-                map.idx = keep[A_MAP$idx]
-
-                # only keep signatures present in MAP A matrix
-                keep_sigs = as.logical(A_MAP$matrix[1, ])
-                # get MAP of P, E conditional on MAP of A
-                P_MAP <- get_mean(P.log[map.idx])
-                E_MAP <- get_mean(E.log[map.idx])
-                q_MAP <- get_mean(q.log[map.idx])
-                sigmasq_MAP <- get_mean(sigmasq.log[map.idx])
-
-                credible_intervals <- list()
-                if (!Theta$is_fixed$P) {
-                    credible_intervals[["P"]] <- get_quantile(P.log[map.idx])
-                }
-                if (!Theta$is_fixed$E) {
-                    credible_intervals[["E"]] <- get_quantile(E.log[map.idx])
-                }
-                if (!Theta$is_fixed$q) {
-                    credible_intervals[["q"]] <- get_quantile(q.log[map.idx])
-                }
-                if (likelihood == "normal") {
-                    if (!Theta$is_fixed$sigmasq) {
-                        credible_intervals[["sigmasq"]] <- get_quantile(sigmasq.log[map.idx])
-                    }
-                }
+                MAP <- get_MAP(logs, keep)
+                credible_intervals <- get_credible_intervals(logs, MAP$idx)
             }
 
             # plot metrics
-            grDevices::pdf(plotfile)
-            graphics::par(mfrow = c(3,1))
-            plot(sample_idx, RMSE)
-            if (!is.null(stop)) {
-                abline(v = stop, col = 'blue')
-            }
-            if (learn_A & gamma_sched[iter] == 1) {
-                abline(v = which(gamma_sched == 1)[1], col = 'green')
-            }
-            if (sum(!is.na(KL)) > 0) {
-                if (sum(KL != -Inf, na.rm = TRUE) > 0) {
-                    plot(sample_idx, KL)
-                    if (!is.null(stop)) {
-                        abline(v = stop, col = 'blue')
-                    }
-                    if (learn_A & gamma_sched[iter] == 1) {
-                        abline(v = which(gamma_sched == 1)[1], col = 'green')
-                    }
-                }
-            }
-            if (sum(!is.na(loglik)) > 0){
-                if (sum(loglik != -Inf, na.rm = TRUE) > 0) {
-                    plot(sample_idx, loglik)
-                    if (!is.null(stop)) {
-                        abline(v = stop, col = 'blue')
-                    }
-                    if (learn_A & gamma_sched[iter] == 1) {
-                        abline(v = which(gamma_sched == 1)[1], col = 'green')
-                    }
-                }
-            }
-            if (sum(!is.na(logpost)) > 0){
-                if (sum(logpost != -Inf, na.rm = TRUE) > 0) {
-                    plot(sample_idx, logpost)
-                    if (!is.null(stop)) {
-                        abline(v = stop, col = 'blue')
-                    }
-                    if (learn_A & gamma_sched[iter] == 1) {
-                        abline(v = which(gamma_sched == 1)[1], col = 'green')
-                    }
-                }
-            }
-            grDevices::dev.off()
+            plot_metrics(metrics, plotfile, stop, learn_A, gamma_sched, iter, true_P)
 
             # save results
+            keep_sigs = as.logical(MAP$A[1, ])
             res <- list(
                 M = M_truescale,
                 true_P = true_P,
-                MAP = list(
-                    A = A_MAP$matrix,
-                    q = q_MAP,
-                    P = P_MAP[,keep_sigs],
-                    E = E_MAP[keep_sigs,],
-                    sigmasq = sigmasq_MAP
-                ),
-                metrics = list(
-                    sample_idx = sample_idx,
-                    loglik = loglik,
-                    logpost = logpost,
-                    RMSE = RMSE,
-                    KL = KL
-                ),
+                MAP = MAP,
+                metrics = metrics,
                 convergence_control = convergence_control,
                 totaliters = iter,
                 converged_at = stop,
@@ -425,13 +299,7 @@ bayesNMF <- function(
                 res$Credible_Intervals <- credible_intervals
             }
             if (store_logs) {
-                res$logs = list(
-                    P = P.log,
-                    E = E.log,
-                    sigmasq = sigmasq.log,
-                    q = q.log,
-                    A = A.log
-                )
+                res$logs = logs
             }
             save(res, file = savefile)
         }
@@ -458,3 +326,178 @@ bayesNMF <- function(
     sink()
     return(res)
 }
+
+plot_one <- function(x, y, vblue = NULL, vgreen = NULL, xlab = "", ylab = "") {
+    if (sum(!is.na(y)) > 0){
+        if (sum(y != -Inf, na.rm = TRUE) > 0) {
+            plot(x, y, ylab = ylab, xlab = xlab)
+            if (!is.null(vblue)) {
+                abline(v = vblue, col = 'blue')
+            }
+            if (!is.null(vgreen)) {
+                abline(v = vgreen, col = 'green')
+            }
+        }
+    }
+}
+
+plot_metrics <- function(metrics, plotfile, stop, learn_A, gamma_sched, iter, true_P) {
+
+    if (!is.null(stop)) {
+        vblue = stop
+    } else { vblue = NULL }
+    if (learn_A & gamma_sched[iter] == 1) {
+        vgreen = which(gamma_sched == 1)[1]
+    } else { vgreen = NULL }
+
+
+    grDevices::pdf(plotfile)
+    graphics::par(mfrow = c(3,1))
+
+    x = unlist(metrics$sample_idx)
+    plot_one(x, unlist(metrics$loglik), vblue, vgreen, xlab = "Iteration", ylab = "Log Likelihood")
+    plot_one(x, unlist(metrics$logpost), vblue, vgreen, xlab = "Iteration", ylab = "Log Posterior")
+    plot_one(x, unlist(metrics$BIC), vblue, vgreen, xlab = "Iteration", ylab = "BIC")
+    plot_one(x, unlist(metrics$RMSE), vblue, vgreen, xlab = "Iteration", ylab = "RMSE")
+    plot_one(x, unlist(metrics$KL), vblue, vgreen, xlab = "Iteration", ylab = "KL Divergence")
+
+    plot_one(x, unlist(metrics$N), vblue, vgreen, xlab = "Iteration", ylab = "Number of Signatures")
+    if (!is.null(true_P)) {
+        abline(h = ncol(true_P))
+    }
+
+    grDevices::dev.off()
+}
+
+get_MAP <- function(logs, keep) {
+
+    # get MAP of A matrix (fine to do even if learn_A = FALSE)
+    A_MAP = get_mode(logs$A[keep])
+    map.idx = keep[A_MAP$idx]
+
+    # get MAP of P, E conditional on MAP of A
+    MAP <- list(
+        A = A_MAP$matrix,
+        P = get_mean(logs$P[map.idx]),
+        E = get_mean(logs$E[map.idx]),
+        q = get_mean(logs$q[map.idx]),
+        idx = map.idx,
+        top_counts = A_MAP$top_counts
+    )
+    if ("sigmasq" %in% names(logs)) {
+        MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
+    }
+
+    return(MAP)
+}
+
+update_metrics <- function(
+    metrics, MAP, iter, Theta, M_truescale, M,
+    likelihood, prior, dims, logfac, rescale_by,
+    sigmasq_type
+) {
+    Theta_MAP <- Theta
+    Theta_MAP$P = MAP$P
+    Theta_MAP$E = MAP$E
+    Theta_MAP$A = MAP$A
+    Theta_MAP$q = MAP$q
+    if (likelihood == 'normal') {
+        Theta_MAP$sigmasq = MAP$sigmasq
+    }
+
+    Theta_MAP_rescaled <- Theta_MAP
+    Theta_MAP_rescaled$E = MAP$E/rescale_by
+    if (likelihood == 'normal') {
+        Theta_MAP_rescaled$sigmasq = MAP$sigmasq/(rescale_by**2)
+    }
+
+    Mhat_MAP <- get_Mhat(Theta_MAP)
+    Mhat_MAP_rescaled <- get_Mhat(Theta_MAP_rescaled)
+    metrics$sample_idx[[iter]] <- iter
+    metrics$RMSE[[iter]] <- get_RMSE(M_truescale, Mhat_MAP)
+    metrics$KL[[iter]] <- get_KLDiv(M_truescale, Mhat_MAP)
+    if (likelihood == 'normal') {
+        metrics$loglik[[iter]] <- get_loglik_normal(M, Theta_MAP_rescaled, dims)
+    } else if (likelihood == 'poisson') {
+        metrics$loglik[[iter]] <- get_loglik_poisson(M, Theta_MAP_rescaled, dims, logfac)
+    }
+    metrics$N[[iter]] <- sum(Theta_MAP$A[1,])
+    metrics$n_params[[iter]] <- metrics$N[[iter]] * (dims$G + dims$K + 2)
+    metrics$BIC[[iter]] <- metrics$n_params[[iter]] * log(dims$G) - 2 * metrics$loglik[[iter]]
+    metrics$logpost[[iter]] <- metrics$loglik[[iter]] + get_logprior(
+        Theta_MAP_rescaled, likelihood, prior, sigmasq_type
+    )
+
+    return(list(
+        metrics = metrics,
+        Theta_MAP_rescaled = Theta_MAP_rescaled
+    ))
+}
+
+log_MAP <- function(iter, done, diff, convergence_control, convergence_status, gamma_sched) {
+    cat(paste(
+        iter, "/", ifelse(done, "", "(up to)"), convergence_control$maxiters,
+        "-", round(diff, 4), "seconds",
+        ifelse(
+            gamma_sched[iter] == 1,
+            paste("-", paste0(round(convergence_status$prev_percent_change * 100, 4), "% change"),
+                  "-", convergence_status$inarow_no_best, "no best",
+                  "-", convergence_status$inarow_no_change, "no change"),
+            ""
+        ),
+        "\n"
+    ))
+}
+
+log_converged <- function(convergence_control, convergence_status) {
+    cat(paste("\n\nCONVERGED at", convergence_status$best_iter))
+    if (convergence_status$why %in% c("no best", "max iters")) {
+        cat(paste(
+            "\nNo best MAP since sample",
+            convergence_status$best_iter, "\n\n"
+        ))
+    } else {
+        cat(paste(
+            "\nNo change in MAP over past",
+            convergence_control$Ninarow_nochange, "samples\n\n"
+        ))
+    }
+}
+
+get_credible_intervals <- function(logs, map.idx) {
+    credible_intervals <- list()
+    credible_intervals[["P"]] <- get_quantile(logs$P[map.idx])
+    credible_intervals[["E"]] <- get_quantile(logs$E[map.idx])
+    credible_intervals[["q"]] <- get_quantile(logs$q[map.idx])
+    if ("sigmasq" %in% names(logs)) {
+        credible_intervals[["sigmasq"]] <- get_quantile(logs$sigmasq[map.idx])
+    }
+    return(credible_intervals)
+}
+
+validate_N <- function(N, max_N) {
+    if (is.null(N) & is.null(max_N)) {
+        stop("Either `N` or `max_N` must be provided.")
+    } else if (!is.null(N) & !is.null(max_N)) {
+        message("Both `N` and `max_N` provided, using `N`.")
+        max_N = NULL
+    } else if (is.null(N)) {
+        N = max_N
+    }
+    return(N)
+}
+
+validate_model <- function(likelihood, prior) {
+    if (!(likelihood %in% c('normal', 'poisson'))) {
+        stop("likelihood must be one of c('normal')")
+    } else if (likelihood == 'normal') {
+        if (!(prior %in% c('truncnormal','exponential'))) {
+            stop("prior must be one of c('truncnormal','exponential') with `likelihood = 'normal'`")
+        }
+    } else if (likelihood == 'poisson') {
+        if (!(prior %in% c('gamma','exponential'))) {
+            stop("prior must be one of c('gamma','exponential') with `likelihood = 'poisson'`")
+        }
+    }
+}
+

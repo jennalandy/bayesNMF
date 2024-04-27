@@ -208,6 +208,7 @@ sample_En_poisson_exp <- function(n, M, Theta, dims, gamma) {
 #' @return vector of length G
 #' @noRd
 sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
+    # Theta$E[1,n] <- 1
     if (likelihood == 'normal') {
         if (prior == 'truncnormal' | (prior == "exponential" & gamma > 0.5 & Theta$A[1,n] == 1) ) {
             sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)

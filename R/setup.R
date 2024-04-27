@@ -49,10 +49,30 @@ set_truncnorm_prior_parameters <- function(
 ) {
     if ("mu_p" %in% names(Theta) & !("Mu_p" %in% names(Theta))) {
         Theta$Mu_p = matrix(Theta$mu_p, nrow = dims$K, ncol = dims$N)
+    } else if ((
+        "mean_p" %in% names(Theta) &
+        !("mu_p" %in% names(Theta)) &
+        !("Mu_p" %in% names(Theta))
+    )) {
+        Theta$mu_p = uniroot(function(x) {
+            x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - Theta$mean_p
+        }, interval = c(0, 100))$root
+        Theta$Mu_p = matrix(Theta$mu_p, nrow = dims$N, ncol = dims$G)
     }
+
     if ("mu_e" %in% names(Theta) & !("Mu_e" %in% names(Theta))) {
         Theta$Mu_e = matrix(Theta$mu_e, nrow = dims$N, ncol = dims$G)
+    } else if ((
+        "mean_e" %in% names(Theta) &
+        !("mu_e" %in% names(Theta)) &
+        !("Mu_e" %in% names(Theta))
+    )) {
+        Theta$mu_e = uniroot(function(x) {
+            x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - Theta$mean_e
+        }, interval = c(0, 100))$root
+        Theta$Mu_e = matrix(Theta$mu_e, nrow = dims$N, ncol = dims$G)
     }
+
     if ("sigmasq_p" %in% names(Theta) & !("Sigmasq_p" %in% names(Theta))) {
         Theta$Sigmasq_p = matrix(Theta$sigmasq_p, nrow = dims$K, ncol = dims$N)
     }
