@@ -1,7 +1,7 @@
 set.seed(123)
 dims = list(
     K = 96,
-    G = 20,
+    G = 60,
     N = 5
 )
 
@@ -15,11 +15,16 @@ P <- read.csv(
     "https://cog.sanger.ac.uk/cosmic-signatures-production/documents/COSMIC_v3.3.1_SBS_GRCh37.txt",
     sep = '\t'
 )
-# # write.csv(P, file = "cosmic.csv", quote = FALSE, row.names = FALSE)
-# P <- read.csv("../../cosmic.csv", header = TRUE)
-# P <- read.csv("cosmic.csv", header = TRUE)
-P <- as.matrix(P[,c(2,3,4,5,6)]) #7,8,12,13,14
-P <- P
+P <- as.matrix(P[,2:ncol(P)])
+sim <- pairwise_sim(P, P)
+row_maxes <- sapply(1:nrow(sim), function(i) {
+    sum(sim[i,-i] > 0.7)
+})
+
+P <- P[,-which(row_maxes > 0)]
+
+sigs = 2:(2+dims$N - 1) # c(2,3,4,5,10)
+P <- P[,sigs]
 
 E <- matrix(nrow = dims$N, ncol = dims$G)
 for (n in 1:dims$N) {

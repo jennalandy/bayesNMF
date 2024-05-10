@@ -98,7 +98,8 @@ sample_En_normal <- function(n, M, Theta, dims, prior = 'truncnormal', gamma = 1
 #'
 #' @return scalar
 #' @noRd
-sample_Eng_norm_exp <- function(n, g, M, Theta, gamma) {
+sample_Eng_norm_exp <- function(n, g, M, Theta, dims, gamma) {
+    previous = Theta$E[n,g]
     log_pdf <- function(Eng) {
         Theta$E[n,g] <- Eng
         Mhat <- get_Mhat(Theta)
@@ -109,7 +110,9 @@ sample_Eng_norm_exp <- function(n, g, M, Theta, gamma) {
         n_samples = 1,
         log_pdf = log_pdf,
         lower = 0,
-        upper = 100
+        upper = 10000,
+        previous = previous,
+        metropolis = TRUE
     )
 }
 
@@ -125,7 +128,7 @@ sample_Eng_norm_exp <- function(n, g, M, Theta, gamma) {
 #' @noRd
 sample_En_norm_exp <- function(n, M, Theta, dims, gamma) {
     sapply(1:dims$G, function(g) {
-        sample_Eng_norm_exp(n, g, M, Theta, gamma)
+        sample_Eng_norm_exp(n, g, M, Theta, dims, gamma)
     })
 }
 
@@ -144,54 +147,22 @@ sample_En_norm_exp <- function(n, M, Theta, dims, gamma) {
 sample_En_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
     if (prior == 'gamma') {
         sampled <- sapply(1:dims$G, function(g) {
-            rgamma(1, Theta$Alpha_e[n,g] + gamma*sum(Theta$Z[,n,g]), Theta$Beta_e[n,g] + gamma * Theta$A[1,n] * sum(Theta$P[,n]))
+            rgamma(
+                1,
+                Theta$Alpha_e[n,g] + gamma*sum(Theta$Z[,n,g]),
+                Theta$Beta_e[n,g] + gamma * Theta$A[1,n] * sum(Theta$P[,n])
+            )
         })
     } else if (prior == 'exponential') {
         sampled <- sapply(1:dims$G, function(g) {
-            rgamma(1, 1 + gamma * sum(Theta$Z[,n,g]), Theta$Lambda_e[n,g] + gamma * Theta$A[1,n] * sum(Theta$P[,n]))
+            rgamma(
+                1,
+                1 + gamma * sum(Theta$Z[,n,g]),
+                Theta$Lambda_e[n,g] + gamma * Theta$A[1,n] * sum(Theta$P[,n])
+            )
         })
     }
     return(sampled)
-}
-
-#' Sample Eng for Poisson-Exponential Model with adaptive rejection metropolis sampling
-#'
-#' @param n signature index
-#' @param g tumor genome index
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param gamma double, tempering parameter
-#'
-#' @return scalar
-#' @noRd
-sample_Eng_poisson_exp <- function(n, g, M, Theta, gamma) {
-    log_pdf <- function(Eng) {
-        gamma * sum(Theta$Z[,n,g]) * log(Eng) -
-            Eng * (Theta$Lambda_e[n,g] + gamma * Theta$A[1,n] * sum(Theta$P[,n]))
-    }
-    sample <- armspp::arms(
-        n_samples = 1,
-        log_pdf = log_pdf,
-        lower = 0,
-        upper = 100
-    )
-    return(sample)
-}
-
-#' Sample En for Poisson-Exponential Model with adaptive rejection metropolis sampling
-#'
-#' @param n signature index
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#' @param gamma double, tempering parameter
-#'
-#' @return vector of length G
-#' @noRd
-sample_En_poisson_exp <- function(n, M, Theta, dims, gamma) {
-    sapply(1:dims$G, function(g) {
-        sample_Eng_poisson_exp(n, g, M, Theta, gamma)
-    })
 }
 
 
@@ -208,9 +179,11 @@ sample_En_poisson_exp <- function(n, M, Theta, dims, gamma) {
 #' @return vector of length G
 #' @noRd
 sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
-    # Theta$E[1,n] <- 1
+    if (gamma < 1) {
+        Theta$A[1,n] <- 1
+    }
     if (likelihood == 'normal') {
-        if (prior == 'truncnormal' | (prior == "exponential" & gamma > 0.5 & Theta$A[1,n] == 1) ) {
+        if (prior == 'truncnormal' | (prior == "exponential" & gamma > 0.25 & Theta$A[1,n] == 1) ) {
             sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
         } else {
             # aarms sampling when gamma is small and prior is not conjugate
@@ -218,7 +191,5 @@ sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncno
         }
     } else if (likelihood == 'poisson') {
         sample_En_poisson(n, M, Theta, dims, prior = prior, gamma = gamma)
-        # aarms sampling when gamma is small and prior is not conjugate
-        # sample_En_poisson_exp(n, M, Theta, dims, gamma = gamma)
     }
 }

@@ -1,0 +1,362 @@
+---
+title: "Setting Prior Parameters"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{priors}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+---
+
+```{r}
+source("../R/utils.R")
+source("../R/setup.R")
+
+library(truncnorm)
+```
+
+## Data Scaling
+
+In order to have prior distributions that are realistic for any provided dataset, we rescale the dataset such that the average value in the matrix is 100.
+
+$$\tilde M = M\cdot \frac{100}{\bar M}$$
+We center the priors for each element of $P$ and $E$ at $10/sqrt(N)$ such that the prior $\hat M = PE$ is also centered at 100. 
+
+$$\mathbb{E}\left[(PE)_{kg}\right] = \mathbb{E}\left[\sum_nP_{kn}E_{ng}\right] = \sum_n\mathbb E\left[P_{kn}\right]\mathbb{E}\left[E_{ng}\right] = \sum_n \frac{10}{\sqrt{N}}\cdot \frac{10}{\sqrt{N}} = 100$$
+
+This ensures that the scale of our priors is a reasonable starting place. Note that all results are translated back to the input scale.
+
+## Default Priors
+
+### Gamma
+
+```{r}
+Theta <- list()
+dims <- list(G = 1, N = 1, K = 1)
+gamma_priors <- set_gamma_prior_parameters(Theta, dims)
+
+prior_P_sample <- rgamma(10000, gamma_priors$Alpha_p, gamma_priors$Beta_p)
+hist(prior_P_sample, xlab = "P[k,n]",
+     main = paste0("Gamma Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rgamma(10000, gamma_priors$Alpha_e, gamma_priors$Beta_e)
+hist(prior_E_sample, xlab = "E[n,g]",
+     main = paste0("Gamma Prior on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+
+prior_Mhat_mean <- (gamma_priors$Alpha_p / gamma_priors$Beta_p) %*% (gamma_priors$Alpha_e / gamma_priors$Beta_e)
+prior_Mhat_mean
+```
+
+### Exponential
+
+```{r}
+Theta <- list()
+dims <- list(G = 1, N = 1, K = 1)
+exp_priors <- set_exponential_prior_parameters(Theta, dims)
+
+prior_P_sample <- rexp(10000, exp_priors$Lambda_p)
+hist(prior_P_sample, xlab = "P[k,n]",
+     main = paste0("Exponential Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rexp(10000, exp_priors$Lambda_e)
+hist(prior_E_sample, xlab = "E[n,g]",
+     main = paste0("Exponential Prior on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+
+prior_Mhat_mean <- (1 / exp_priors$Lambda_p) %*% (1 / exp_priors$Lambda_e)
+mean(prior_Mhat_mean)
+```
+
+### Truncated Normal
+
+```{r}
+Theta <- list()
+dims <- list(G = 1, N = 1, K = 1)
+truncnorm_priors <- set_truncnorm_prior_parameters(Theta, dims)
+
+prior_P_sample <- rtruncnorm(10000, 0, Inf, truncnorm_priors$Mu_p, sqrt(truncnorm_priors$Sigmasq_p))
+hist(prior_P_sample, xlab = "P[k,n]",
+     main = paste0("Truncated Normal Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rtruncnorm(10000, 0, Inf, truncnorm_priors$Mu_e, sqrt(truncnorm_priors$Sigmasq_e))
+hist(prior_E_sample, xlab = "E[n,g]",
+     main = paste0("Truncated Normal on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+```
+
+## Custom Priors
+
+Custom priors can be specified with the `prior_parameters` argument. We recommend playing with the code below to ensure that the scale is still reasonable given your dimensions and prior specifications.
+
+### Gamma
+
+```{r}
+Theta <- list()
+dims <- list(G = 10, N = 2, K = 10)
+gamma_priors <- set_gamma_prior_parameters(
+    Theta, dims,
+    alpha_p = 20,
+    beta_p = 50,
+    Alpha_e = matrix(
+        runif(20, 100, 300),
+        nrow = 2
+    )
+)
+
+prior_P_sample <- rgamma(10000, gamma_priors$Alpha_p[1,1], gamma_priors$Beta_p[1,1])
+hist(prior_P_sample, xlab = "P[1,1]",
+     main = paste0("Gamma Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rgamma(10000, gamma_priors$Alpha_e[1,1], gamma_priors$Beta_e[1,1])
+hist(prior_E_sample, xlab = "E[1,1]",
+     main = paste0("Gamma Prior on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+
+prior_Mhat_mean <- (gamma_priors$Alpha_p / gamma_priors$Beta_p) %*% (gamma_priors$Alpha_e / gamma_priors$Beta_e)
+mean(prior_Mhat_mean)
+```
+
+```{r}
+Theta <- list()
+dims <- list(G = 12, N = 64, K = 96)
+gamma_priors <- set_gamma_prior_parameters(
+    Theta, dims,
+    alpha_p = 50/sqrt(dims$N),
+    beta_p = sqrt(dims$N),
+    alpha_e = 2,
+    beta_e = 1
+)
+
+prior_P_sample <- rgamma(10000, gamma_priors$Alpha_p[1,1], gamma_priors$Beta_p[1,1])
+hist(prior_P_sample, xlab = "P[1,1]",
+     main = paste0("Gamma Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rgamma(10000, gamma_priors$Alpha_e[1,1], gamma_priors$Beta_e[1,1])
+hist(prior_E_sample, xlab = "E[1,1]",
+     main = paste0("Gamma Prior on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+
+prior_Mhat_mean <- (gamma_priors$Alpha_p / gamma_priors$Beta_p) %*% (gamma_priors$Alpha_e / gamma_priors$Beta_e)
+mean(prior_Mhat_mean)
+mean(prior_E_sample)
+```
+
+### Exponential
+
+```{r}
+Theta <- list()
+dims <- list(G = 100, N = 5, K = 96)
+exp_priors <- set_exponential_prior_parameters(
+    Theta, dims,
+    lambda_e = 0.005,
+    lambda_p = 10
+)
+
+prior_P_sample <- rexp(10000, exp_priors$Lambda_p[1,1])
+hist(prior_P_sample, xlab = "P[1,1]",
+     main = paste0("Exponential Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rexp(10000, exp_priors$Lambda_e[1,1])
+hist(prior_E_sample, xlab = "E[1,1]",
+     main = paste0("Exponential Prior on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+
+prior_Mhat_mean <- (1 / exp_priors$Lambda_p) %*% (1 / exp_priors$Lambda_e)
+mean(prior_Mhat_mean)
+```
+
+```{r}
+Theta <- list()
+dims <- list(G = 12, N = 64, K = 96)
+exp_priors <- set_exponential_prior_parameters(
+    Theta, dims,
+    lambda_e = 1/2,
+    lambda_p = dims$N/50
+)
+
+prior_P_sample <- rexp(10000, exp_priors$Lambda_p[1,1])
+hist(prior_P_sample, xlab = "P[1,1]",
+     main = paste0("Exponential Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rexp(10000, exp_priors$Lambda_e[1,1])
+hist(prior_E_sample, xlab = "E[1,1]",
+     main = paste0("Exponential Prior on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+
+prior_Mhat_mean <- (1 / exp_priors$Lambda_p) %*% (1 / exp_priors$Lambda_e)
+mean(prior_Mhat_mean)
+mean(prior_E_sample)
+```
+
+
+### Truncated Normal
+
+Note that the parameter $\mu$ in a truncated normal is not the mean. For a truncated normal distribution with parameters $\mu$, $\sigma^2$ and bounded by $a$ and $b$, its mean is
+
+$$
+\mu + \sigma \cdot \frac{\varphi(\frac{a - \mu}{\sigma}) - \varphi(\frac{b - \mu}{\sigma})}{\Phi(\frac{b - \mu}{\sigma}) - \Phi(\frac{a - \mu}{\sigma})}
+$$
+where $\varphi$ is the standard normal pdf and $\Phi$ is the standard normal cdf.
+
+`bayesNMF` allows you to provide either `mu_e` or `mean_e`. If the mean and `sigmasq_e` are provided, the conversion to `mu` will be performed automatically (and same for prior parameters of P). If `mu` or `mean` are provided and `sigmasq` is not, `sigmasq` is set equal to `mu` by default.
+
+```{r}
+Theta <- list()
+dims <- list(G = 12, N = 10, K = 10)
+truncnorm_priors <- set_truncnorm_prior_parameters(
+    Theta, dims,
+    mean_p = 10/sqrt(10),
+    sigmasq_p = 1/10,
+    mean_e = 10/sqrt(10),
+    sigmasq_e = 50/sqrt(10)
+)
+
+prior_P_sample <- rtruncnorm(10000, 0, Inf, truncnorm_priors$Mu_p, sqrt(truncnorm_priors$Sigmasq_p))
+hist(prior_P_sample, xlab = "P[k,n]",
+     main = paste0("Truncated Normal Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rtruncnorm(10000, 0, Inf, truncnorm_priors$Mu_e, sqrt(truncnorm_priors$Sigmasq_e))
+hist(prior_E_sample, xlab = "E[n,g]",
+     main = paste0("Truncated Normal on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+
+alpha_P = -truncnorm_priors$Mu_p/sqrt(truncnorm_priors$Sigmasq_p)
+prior_P_mean <- truncnorm_priors$Mu_p + 
+    sqrt(truncnorm_priors$Sigmasq_p)*(dnorm(alpha_P))/(1 - pnorm(alpha_P))
+
+alpha_E = -truncnorm_priors$Mu_e/sqrt(truncnorm_priors$Sigmasq_e)
+prior_E_mean <- truncnorm_priors$Mu_e + 
+    sqrt(truncnorm_priors$Sigmasq_e)*(dnorm(alpha_E))/(1 - pnorm(alpha_E))
+
+prior_Mhat_mean <- (prior_P_mean) %*% (prior_E_mean)
+mean(prior_Mhat_mean)
+```
+
+
+```{r}
+Theta <- list()
+dims <- list(G = 12, N = 64, K = 96)
+truncnorm_priors <- set_truncnorm_prior_parameters(
+    Theta, dims,
+    mu_p = 25/dims$N,
+    mean_e = 2,
+)
+
+prior_P_sample <- rtruncnorm(10000, 0, Inf, truncnorm_priors$Mu_p, sqrt(truncnorm_priors$Sigmasq_p))
+hist(prior_P_sample, xlab = "P[k,n]",
+     main = paste0("Truncated Normal Prior on P\nmean = ",
+                   round(mean(prior_P_sample), 2), ", var = ",
+                   round(var(prior_P_sample), 2)))
+
+prior_E_sample <- rtruncnorm(10000, 0, Inf, truncnorm_priors$Mu_e, sqrt(truncnorm_priors$Sigmasq_e))
+hist(prior_E_sample, xlab = "E[n,g]",
+     main = paste0("Truncated Normal on E\nmean = ",
+                   round(mean(prior_E_sample), 2), ", var = ",
+                   round(var(prior_E_sample), 2)))
+
+alpha_P = -truncnorm_priors$Mu_p/sqrt(truncnorm_priors$Sigmasq_p)
+prior_P_mean <- truncnorm_priors$Mu_p + 
+    sqrt(truncnorm_priors$Sigmasq_p)*(dnorm(alpha_P))/(1 - pnorm(alpha_P))
+
+alpha_E = -truncnorm_priors$Mu_e/sqrt(truncnorm_priors$Sigmasq_e)
+prior_E_mean <- truncnorm_priors$Mu_e + 
+    sqrt(truncnorm_priors$Sigmasq_e)*(dnorm(alpha_E))/(1 - pnorm(alpha_E))
+
+prior_Mhat_mean <- (prior_P_mean) %*% (prior_E_mean)
+mean(prior_Mhat_mean)
+mean(prior_E_sample)
+```
+
+
+```{r}
+
+get_truncnorm_parameters <- function(m, v, lambda = 1/10) {
+    # assumes truncated normal between 0 and infinity
+    f1 <- function(mu, sigma) {
+        psi_alpha <- dnorm(-mu/sigma)
+        Psi_alpha <- pnorm(-mu/sigma)
+        Z <- 1 - Psi_alpha
+        m - (mu + psi_alpha * sigma / Z)
+    }
+    f2 <- function(mu, sigma) {
+        psi_alpha <- dnorm(-mu/sigma)
+        Psi_alpha <- pnorm(-mu/sigma)
+        Z <- 1 - Psi_alpha
+        v - (sigma**2 * (
+            1 - (mu / sigma) * psi_alpha / Z - (psi_alpha / Z)**2
+        ))
+    }
+    f_opt <- function(x) {
+        crossprod(c(f1(x[1], x[2]), lambda * f2(x[1], x[2])))
+    }
+    opt <- optim(
+        c(m, v),
+        f_opt,
+        lower = c(-Inf, 0),
+        upper = c(Inf, Inf),
+        method = "L-BFGS-B"
+    )
+    list(
+        mu = opt$par[1],
+        sigma = opt$par[2],
+        mean = m - f1(opt$par[1], opt$par[2]),
+        var = v - f2(opt$par[1], opt$par[2])
+    )
+}
+
+get_mu_from_mean <- function(mean) {
+    if (mean < 5) {
+        uniroot(function(x) {
+            sigma = x**(1/5)
+            x + sigma * dnorm(-x/sigma)/(pnorm(-x/sigma) - 1) - mean
+        }, interval = c(0.001, 100))
+    } else {
+        uniroot(function(x) {
+            sigma = sqrt(x)
+            x + sigma * dnorm(-x/sigma)/(pnorm(-x/sigma) - 1) - mean
+        }, interval = c(0.001, 100))
+    }
+}
+
+mu = get_mu_from_mean(0.1)
+mean(rtruncnorm(10000, 0, Inf, mu$root, sqrt(mu$root)))
+
+param = get_truncnorm_parameters(0.1, 0.1)
+param
+hist(rtruncnorm(10000, 0, Inf, param$mu, param$sigma))
+mean(rtruncnorm(10000, 0, Inf, param$mu, param$sigma))
+
+param = get_truncnorm_parameters(100, 100)
+param
+hist(rtruncnorm(10000, 0, Inf, param$mu, param$sigma))
+mean(rtruncnorm(10000, 0, Inf, param$mu, param$sigma))
+
+```
+
+
+

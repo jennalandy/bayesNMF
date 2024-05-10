@@ -171,7 +171,7 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
 
-    expect_lt(abs(sum(res$MAP$A) - 5), 2)
+    expect_lt(abs(sum(res$MAP$A) - 5), 1)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -192,7 +192,7 @@ test_that("nmf_normal_truncnormal works with Poisson data generating function gi
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
 
-    expect_lt(abs(sum(res$MAP$A) - 5), 2)
+    expect_lt(abs(sum(res$MAP$A) - 5), 1)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -233,7 +233,7 @@ test_that("nmf_normal_truncnormal works with sparse Poisson data generating func
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
 
-    expect_lt(abs(sum(res$MAP$A) - 5), 2)
+    expect_lt(abs(sum(res$MAP$A) - 5), 1)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -273,7 +273,7 @@ test_that("nmf_normal_truncnormal works with Normal data generating function giv
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
 
-    expect_lt(abs(sum(res$MAP$A) - 5), 2)
+    expect_lt(abs(sum(res$MAP$A) - 5), 1)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
@@ -313,7 +313,7 @@ test_that("nmf_normal_truncnormal works with sparse Normal data generating funct
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
 
-    expect_lt(abs(sum(res$MAP$A) - 5), 2)
+    expect_lt(abs(sum(res$MAP$A) - 5), 1)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]

@@ -2,44 +2,66 @@
 #'
 #' @param Theta list of parameters
 #' @param dims named list of dimensions N, K, G
-#' @param mu_p see `Mu_p`
-#' @param Mu_p mean for the truncated normal prior on `P`, matrix
-#' size K x N. Defaults to all same value `mu_p`
-#' @param sigmasq_p see `Sigmasq_p`
-#' @param Sigmasq_p variance for the truncated normal prior on `P`, matrix
-#' size K x N. Defaults to all same value `sigmasq_p`
-#' @param mu_e see `Mu_e`
-#' @param Mu_e mean for the truncated normal prior on `E`, matrix
-#' size N x G. Defaults to all same value `mu_e`
-#' @param sigmasq_e see `Sigmasq_e`
-#' @param Sigmasq_e variance for the truncated normal prior on `P`, matrix
-#' size N x G. Defaults to all same value `sigmasq_e`
+#' @param mean_p mean for the prior location parameter of `P`
+#' @param m_p see `M_p`
+#' @param M_p location parameter for the prior location parameter of `P`
+#' size K x N. Defaults to all same value `m_p`
+#' @param s_p see `S_p`
+#' @param S_p scale prameter for the prior location parameter of `P`
+#' size K x N. Defaults to all same value `s_p`
+#' @param a_p see `A_p`
+#' @param A_p shape parameter for the gamma prior on `P`, matrix
+#' @param b_p see `B_p`
+#' @param B_p rate parameter for the gamma prior on `P`, matrix
+#' @param mean_e mean for the prior location parameter of `E`
+#' @param m_e see `M_e`
+#' @param M_e location parameter for the prior location parameter of `E`
+#' size N x G. Defaults to all same value `m_e`
+#' @param s_e see `S_e`
+#' @param S_e scale prameter for the prior location parameter of `E`
+#' size N x G. Defaults to all same value `s_e`
+#' @param a_e see `A_e`
+#' @param A_e shape parameter for the gamma prior on `E`, matrix
+#' size N x G. Defaults to all same value `a_e`
+#' @param b_e see `B_e`
+#' @param B_e rate parameter for the gamma prior on `E`, matrix
+#' size N x G. Defaults to all same value `b_e`
 #' @param alpha see `Alpha`
 #' @param Alpha shape parameter for the inverse-gamma prior on `sigmasq`,
 #' length K. Defaults to all same value `alpha`
 #' @param beta see `Beta`
 #' @param Beta rate parameter for the inverse-gamma prior on `sigmasq`,
 #' length K. Defaults to all same value `beta`
+#' @param a shape1 parameter for beta prior on `q`
+#' @param b shape2 parameter for beta prior on `q`
 #'
 #' @return named list of prior parameters
-#' @export
-set_truncnorm_prior_parameters <- function(
+#' @noRd
+set_truncnorm_hyperprior_parameters <- function(
         Theta,
         dims,
-        mean_p = sqrt(100/dims$N),
-        mu_p = uniroot(function(x) {
+        mean_p = 10/sqrt(dims$N),
+        m_p = uniroot(function(x) {
             x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - mean_p
         }, interval = c(0, 100))$root,
-        Mu_p = matrix(mu_p, nrow = dims$K, ncol = dims$N),
-        sigmasq_p = mu_p, #mu_p/10,
-        Sigmasq_p = matrix(sigmasq_p, nrow = dims$K, ncol = dims$N),
-        mean_e = sqrt(100/dims$N),
-        mu_e = uniroot(function(x) {
+        M_p = matrix(m_p, nrow = dims$K, ncol = dims$N),
+        s_p = m_p, #mu_p/10,
+        S_p = matrix(s_p, nrow = dims$K, ncol = dims$N),
+        a_p = sqrt(dims$N) + 1,
+        A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
+        b_p = 10,
+        B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
+        mean_e = 10/sqrt(dims$N),
+        m_e = uniroot(function(x) {
             x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - mean_e
         }, interval = c(0, 100))$root,
-        Mu_e = matrix(mu_e, nrow = dims$N, ncol = dims$G),
-        sigmasq_e = mu_e, #mu_e/10,
-        Sigmasq_e = matrix(sigmasq_e, nrow = dims$N, ncol = dims$G),
+        M_e = matrix(m_e, nrow = dims$N, ncol = dims$G),
+        s_e = m_e, #mu_e/10,
+        S_e = matrix(s_e, nrow = dims$N, ncol = dims$G),
+        a_e = sqrt(dims$N) + 1,
+        A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
+        b_e = 10,
+        B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
         Alpha = rep(alpha, dims$K),
         beta = 0.1,
@@ -47,37 +69,37 @@ set_truncnorm_prior_parameters <- function(
         a = 0.8,
         b = 0.8
 ) {
-    if ("mu_p" %in% names(Theta) & !("Mu_p" %in% names(Theta))) {
-        Theta$Mu_p = matrix(Theta$mu_p, nrow = dims$K, ncol = dims$N)
+    if ("m_p" %in% names(Theta) & !("M_p" %in% names(Theta))) {
+        Theta$M_p = matrix(Theta$m_p, nrow = dims$K, ncol = dims$N)
     } else if ((
         "mean_p" %in% names(Theta) &
-        !("mu_p" %in% names(Theta)) &
-        !("Mu_p" %in% names(Theta))
+        !("m_p" %in% names(Theta)) &
+        !("M_p" %in% names(Theta))
     )) {
-        Theta$mu_p = uniroot(function(x) {
+        Theta$m_p = uniroot(function(x) {
             x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - Theta$mean_p
         }, interval = c(0, 100))$root
-        Theta$Mu_p = matrix(Theta$mu_p, nrow = dims$N, ncol = dims$G)
+        Theta$M_p = matrix(Theta$m_p, nrow = dims$N, ncol = dims$G)
     }
 
-    if ("mu_e" %in% names(Theta) & !("Mu_e" %in% names(Theta))) {
-        Theta$Mu_e = matrix(Theta$mu_e, nrow = dims$N, ncol = dims$G)
+    if ("m_e" %in% names(Theta) & !("M_e" %in% names(Theta))) {
+        Theta$M_e = matrix(Theta$m_e, nrow = dims$N, ncol = dims$G)
     } else if ((
         "mean_e" %in% names(Theta) &
-        !("mu_e" %in% names(Theta)) &
-        !("Mu_e" %in% names(Theta))
+        !("m_e" %in% names(Theta)) &
+        !("M_e" %in% names(Theta))
     )) {
-        Theta$mu_e = uniroot(function(x) {
+        Theta$m_e = uniroot(function(x) {
             x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - Theta$mean_e
         }, interval = c(0, 100))$root
-        Theta$Mu_e = matrix(Theta$mu_e, nrow = dims$N, ncol = dims$G)
+        Theta$M_e = matrix(Theta$m_e, nrow = dims$N, ncol = dims$G)
     }
 
-    if ("sigmasq_p" %in% names(Theta) & !("Sigmasq_p" %in% names(Theta))) {
-        Theta$Sigmasq_p = matrix(Theta$sigmasq_p, nrow = dims$K, ncol = dims$N)
+    if ("s_p" %in% names(Theta) & !("S_p" %in% names(Theta))) {
+        Theta$S_p = matrix(Theta$s_p, nrow = dims$K, ncol = dims$N)
     }
-    if ("sigmasq_e" %in% names(Theta) & !("Sigmasq_e" %in% names(Theta))) {
-        Theta$Sigmasq_e = matrix(Theta$sigmasq_e, nrow = dims$N, ncol = dims$G)
+    if ("s_e" %in% names(Theta) & !("S_e" %in% names(Theta))) {
+        Theta$S_e = matrix(Theta$s_e, nrow = dims$N, ncol = dims$G)
     }
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
         Theta$Alpha = rep(Theta$alpha, dims$K)
@@ -86,15 +108,57 @@ set_truncnorm_prior_parameters <- function(
         Theta$Beta = rep(Theta$beta, dims$K)
     }
     fill_list(Theta, list(
-        Mu_p = Mu_p,
-        Sigmasq_p = Sigmasq_p,
-        Mu_e = Mu_e,
-        Sigmasq_e = Sigmasq_e,
+        M_p = M_p,
+        M_e = M_e,
+        S_p = S_p,
+        S_e = S_e,
+        A_p = A_p,
+        A_e = A_e,
+        B_p = B_p,
+        B_e = B_e,
         Alpha = Alpha,
         Beta = Beta,
         a = a,
         b = b
     ))
+}
+
+#' Sample Truncated Normal Prior Parameters from Hyperpriors
+#'
+#' @param Theta list of parameters
+#' @param dims named list of dimensions N, K, G
+#'
+#' @return updated list of parameters
+#'
+#' @noRd
+sample_truncnormal_prior_parameters <- function(Theta, dims) {
+    Theta$Mu_p <- matrix(nrow = dims$K, ncol = dims$N)
+    Theta$Sigmasq_p <- matrix(nrow = dims$K, ncol = dims$N)
+    for (k in 1:dims$K) {
+        for (n in 1:dims$N) {
+            Theta$Mu_p[k,n] <- rnorm(
+                1, Theta$M_p[k,n], sqrt(Theta$S_p[k,n])
+            )
+            Theta$Sigmasq_p[k,n] <- invgamma::rinvgamma(
+                n = 1, shape = Theta$A_p[k, n], rate = Theta$B_p[k, n]
+            )
+        }
+    }
+
+    Theta$Mu_e <- matrix(nrow = dims$N, ncol = dims$G)
+    Theta$Sigmasq_e <- matrix(nrow = dims$N, ncol = dims$G)
+    for (n in 1:dims$N) {
+        for (g in 1:dims$G) {
+            Theta$Mu_e[n,g] <- rnorm(
+                1, Theta$M_e[n,g], sqrt(Theta$S_e[n,g])
+            )
+            Theta$Sigmasq_e[n,g] <- invgamma::rinvgamma(
+                n = 1, shape = Theta$A_e[n, g], rate = Theta$B_e[n, g]
+            )
+        }
+    }
+
+    return(Theta)
 }
 
 #' Set prior parameters for Exponential prior
@@ -115,14 +179,18 @@ set_truncnorm_prior_parameters <- function(
 #' length K. Defaults to all same value `beta`
 #'
 #' @return named list of prior parameters
-#' @export
-set_exponential_prior_parameters <- function(
+#' @noRd
+set_exponential_hyperprior_parameters <- function(
         Theta,
         dims,
-        lambda_p = sqrt(dims$N/100),
-        Lambda_p = matrix(lambda_p, nrow = dims$K, ncol = dims$N),
-        lambda_e = sqrt(dims$N/100),
-        Lambda_e = matrix(lambda_e, nrow = dims$N, ncol = dims$G),
+        a_p = sqrt(dims$N),
+        A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
+        b_p = 10,
+        B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
+        a_e = sqrt(dims$N),
+        A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
+        b_e = 10,
+        B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
         Alpha = rep(alpha, dims$K),
         beta = 0.1,
@@ -130,26 +198,61 @@ set_exponential_prior_parameters <- function(
         a = 0.8,
         b = 0.8
 ) {
-    if ("lambda_p" %in% names(Theta) & !("Lambda_p" %in% names(Theta))) {
-        Theta$Lambda_p = matrix(Theta$lambda_p, nrow = dims$K, ncol = dims$N)
+    if ("a_p" %in% names(Theta) & !("A_p" %in% names(Theta))) {
+        Theta$A_p = matrix(Theta$a_p, nrow = dims$K, ncol = dims$N)
     }
-    if ("lambda_e" %in% names(Theta) & !("Lambda_e" %in% names(Theta))) {
-        Theta$Lambda_e = matrix(Theta$lambda_e, nrow = dims$N, ncol = dims$G)
+    if ("b_p" %in% names(Theta) & !("B_p" %in% names(Theta))) {
+        Theta$B_p = matrix(Theta$b_p, nrow = dims$K, ncol = dims$N)
     }
+    if ("a_e" %in% names(Theta) & !("A_e" %in% names(Theta))) {
+        Theta$A_e = matrix(Theta$a_e, nrow = dims$N, ncol = dims$G)
+    }
+    if ("b_e" %in% names(Theta) & !("B_e" %in% names(Theta))) {
+        Theta$B_e = matrix(Theta$b_e, nrow = dims$N, ncol = dims$G)
+    }
+
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
         Theta$Alpha = rep(Theta$alpha, dims$K)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
         Theta$Beta = rep(Theta$beta, dims$K)
     }
+
     fill_list(Theta, list(
-        Lambda_p = Lambda_p,
-        Lambda_e = Lambda_e,
+        A_p = A_p,
+        B_p = B_p,
+        A_e = A_e,
+        B_e = B_e,
         Alpha = Alpha,
         Beta = Beta,
         a = a,
         b = b
     ))
+}
+
+#' Sample Exponential Prior Parameters from Hyperprior Distributions
+#'
+#' @param Theta list of parameters
+#' @param dims named list of dimensions N, K, G
+#'
+#' @return updated list of parameters
+#' @noRd
+sample_exponential_prior_parameters <- function(Theta, dims) {
+    Theta$Lambda_p <- matrix(nrow = dims$K, ncol = dims$N)
+    for (k in 1:dims$K) {
+        for (n in 1:dims$N) {
+            Theta$Lambda_p[k,n] <- rgamma(1, Theta$A_p[k,n], Theta$B_p[k,n])
+        }
+    }
+
+    Theta$Lambda_e <- matrix(nrow = dims$N, ncol = dims$G)
+    for (n in 1:dims$N) {
+        for (g in 1:dims$G) {
+            Theta$Lambda_e[n,g] <- rgamma(1, Theta$A_e[n,g], Theta$B_e[n,g])
+        }
+    }
+
+    return(Theta)
 }
 
 #' Set prior parameters for Gamma prior
@@ -170,41 +273,76 @@ set_exponential_prior_parameters <- function(
 #' size N x G. Defaults to all same value `beta_e`
 #' #'
 #' @return named list of prior parameters
-#' @export
-set_gamma_prior_parameters <- function(
+#' @noRd
+set_gamma_hyperprior_parameters <- function(
         Theta,
         dims,
-        alpha_p = 10,
-        Alpha_p = matrix(alpha_p, nrow = dims$K, ncol = dims$N),
-        beta_p = sqrt(dims$N),
-        Beta_p = matrix(beta_p, nrow = dims$K, ncol = dims$N),
-        alpha_e = 10,
-        Alpha_e = matrix(alpha_e, nrow = dims$N, ncol = dims$G),
-        beta_e = sqrt(dims$N),
-        Beta_e = matrix(beta_e, nrow = dims$N, ncol = dims$G),
+        a_p = sqrt(dims$N),
+        A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
+        b_p = 1,
+        B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
+        a_e = sqrt(dims$N),
+        A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
+        b_e = 1,
+        B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
+        l_p = 0.1,
+        L_p = matrix(l_p, nrow = dims$K, ncol = dims$N),
+        l_e = 0.1,
+        L_e = matrix(l_e, nrow = dims$N, ncol = dims$G),
         a = 0.8,
         b = 0.8
 ) {
-    if ("alpha_p" %in% names(Theta) & !("Alpha_p" %in% names(Theta))) {
-        Theta$Alpha_p = matrix(Theta$alpha_p, nrow = dims$K, ncol = dims$N)
+    if ("a_p" %in% names(Theta) & !("A_p" %in% names(Theta))) {
+        Theta$A_p = matrix(Theta$a_p, nrow = dims$K, ncol = dims$N)
     }
-    if ("beta_p" %in% names(Theta) & !("Beta_p" %in% names(Theta))) {
-        Theta$Beta_p = matrix(Theta$beta_p, nrow = dims$K, ncol = dims$N)
+    if ("b_p" %in% names(Theta) & !("B_p" %in% names(Theta))) {
+        Theta$B_p = matrix(Theta$b_p, nrow = dims$K, ncol = dims$N)
     }
-    if ("alpha_e" %in% names(Theta) & !("Alpha_e" %in% names(Theta))) {
-        Theta$Alpha_e = matrix(Theta$alpha_e, nrow = dims$N, ncol = dims$G)
+    if ("a_e" %in% names(Theta) & !("A_e" %in% names(Theta))) {
+        Theta$A_e = matrix(Theta$a_e, nrow = dims$N, ncol = dims$G)
     }
-    if ("beta_e" %in% names(Theta) & !("Beta_e" %in% names(Theta))) {
-        Theta$Beta_e = matrix(Theta$beta_e, nrow = dims$N, ncol = dims$G)
+    if ("b_e" %in% names(Theta) & !("B_e" %in% names(Theta))) {
+        Theta$B_e = matrix(Theta$b_e, nrow = dims$N, ncol = dims$G)
     }
+    if ("l_p" %in% names(Theta) & !("L_p" %in% names(Theta))) {
+        Theta$L_p = matrix(Theta$l_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("l_e" %in% names(Theta) & !("L_e" %in% names(Theta))) {
+        Theta$L_e = matrix(Theta$l_e, nrow = dims$N, ncol = dims$G)
+    }
+
     fill_list(Theta, list(
-        Alpha_p = Alpha_p,
-        Beta_p = Beta_p,
-        Alpha_e = Alpha_e,
-        Beta_e = Beta_e,
+        A_p = A_p,
+        A_e = A_e,
+        B_p = B_p,
+        B_e = B_e,
+        L_p = L_p,
+        L_e = L_e,
         a = a,
         b = b
     ))
+}
+
+sample_gamma_prior_parameters <- function(Theta, dims) {
+    Theta$Alpha_p <- matrix(nrow = dims$K, ncol = dims$N)
+    Theta$Beta_p <- matrix(nrow = dims$K, ncol = dims$N)
+    for (k in 1:dims$K) {
+        for (n in 1:dims$N) {
+            Theta$Beta_p[k,n] <- rgamma(1, Theta$A_p[k,n], Theta$B_p[k,n])
+            Theta$Alpha_p[k,n] <- rexp(1, Theta$L_p[k,n])
+        }
+    }
+
+    Theta$Alpha_e <- matrix(nrow = dims$N, ncol = dims$G)
+    Theta$Beta_e <- matrix(nrow = dims$N, ncol = dims$G)
+    for (n in 1:dims$N) {
+        for (g in 1:dims$G) {
+            Theta$Beta_e[n,g] <- rgamma(1, Theta$A_e[n,g], Theta$B_e[n,g])
+            Theta$Alpha_e[n,g] <- rexp(1, Theta$L_e[n,g])
+        }
+    }
+
+    return(Theta)
 }
 
 #' Sample from prior distribution of P
@@ -303,14 +441,17 @@ initialize_Theta <- function(
 ) {
     is_fixed = list(A = !learn_A)
 
-    # prior parameters
+    # hyperprior and prior parameters
     Theta = prior_parameters
     if (prior == 'truncnormal') {
-        Theta = set_truncnorm_prior_parameters(Theta, dims)
+        Theta <- set_truncnorm_hyperprior_parameters(Theta, dims)
+        Theta <- sample_truncnormal_prior_parameters(Theta, dims)
     } else if (prior == 'exponential') {
-        Theta = set_exponential_prior_parameters(Theta, dims)
+        Theta <- set_exponential_hyperprior_parameters(Theta, dims)
+        Theta <- sample_exponential_prior_parameters(Theta, dims)
     } else if (prior == 'gamma') {
-        Theta = set_gamma_prior_parameters(Theta, dims)
+        Theta <- set_gamma_hyperprior_parameters(Theta, dims)
+        Theta <- sample_gamma_prior_parameters(Theta, dims)
     }
 
     # signatures P

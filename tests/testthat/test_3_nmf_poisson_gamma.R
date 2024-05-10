@@ -72,14 +72,13 @@ test_that("nmf_poisson_gamma works with sparse Poisson data generating function 
         file = "log_files/modelPG_dataPS_maxN7",
         overwrite = TRUE,
         true_P = true_P,
-        convergence_control = new_convergence_control(
-            MAP_over = 5000,
-            maxiters = 20000
-        )
+        store_logs = TRUE
     )
 
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
+
+    expect_lt(abs(sum(res$MAP$A) - 5), 1)
 
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
