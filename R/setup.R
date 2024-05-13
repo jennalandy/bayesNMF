@@ -277,18 +277,22 @@ sample_exponential_prior_parameters <- function(Theta, dims) {
 set_gamma_hyperprior_parameters <- function(
         Theta,
         dims,
-        a_p = sqrt(dims$N),
+        a_p = 10 * sqrt(dims$N),
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = 1,
+        b_p = 10,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
-        a_e = sqrt(dims$N),
+        c_p = 100,
+        C_p = matrix(c_p, nrow = dims$K, ncol = dims$N),
+        d_p = 10,
+        D_p = matrix(d_p, nrow = dims$K, ncol = dims$N),
+        a_e = 10 * sqrt(dims$N),
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = 1,
+        b_e = 10,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        l_p = 0.1,
-        L_p = matrix(l_p, nrow = dims$K, ncol = dims$N),
-        l_e = 0.1,
-        L_e = matrix(l_e, nrow = dims$N, ncol = dims$G),
+        c_e = 100,
+        C_e = matrix(c_e, nrow = dims$N, ncol = dims$G),
+        d_e = 10,
+        D_e = matrix(d_e, nrow = dims$N, ncol = dims$G),
         a = 0.8,
         b = 0.8
 ) {
@@ -298,17 +302,23 @@ set_gamma_hyperprior_parameters <- function(
     if ("b_p" %in% names(Theta) & !("B_p" %in% names(Theta))) {
         Theta$B_p = matrix(Theta$b_p, nrow = dims$K, ncol = dims$N)
     }
+    if ("c_p" %in% names(Theta) & !("C_p" %in% names(Theta))) {
+        Theta$C_p = matrix(Theta$c_p, nrow = dims$K, ncol = dims$N)
+    }
+    if ("d_p" %in% names(Theta) & !("D_p" %in% names(Theta))) {
+        Theta$D_p = matrix(Theta$d_p, nrow = dims$K, ncol = dims$N)
+    }
     if ("a_e" %in% names(Theta) & !("A_e" %in% names(Theta))) {
         Theta$A_e = matrix(Theta$a_e, nrow = dims$N, ncol = dims$G)
     }
     if ("b_e" %in% names(Theta) & !("B_e" %in% names(Theta))) {
         Theta$B_e = matrix(Theta$b_e, nrow = dims$N, ncol = dims$G)
     }
-    if ("l_p" %in% names(Theta) & !("L_p" %in% names(Theta))) {
-        Theta$L_p = matrix(Theta$l_p, nrow = dims$K, ncol = dims$N)
+    if ("c_e" %in% names(Theta) & !("C_e" %in% names(Theta))) {
+        Theta$C_e = matrix(Theta$c_e, nrow = dims$N, ncol = dims$G)
     }
-    if ("l_e" %in% names(Theta) & !("L_e" %in% names(Theta))) {
-        Theta$L_e = matrix(Theta$l_e, nrow = dims$N, ncol = dims$G)
+    if ("d_e" %in% names(Theta) & !("D_e" %in% names(Theta))) {
+        Theta$D_e = matrix(Theta$d_e, nrow = dims$N, ncol = dims$G)
     }
 
     fill_list(Theta, list(
@@ -316,8 +326,10 @@ set_gamma_hyperprior_parameters <- function(
         A_e = A_e,
         B_p = B_p,
         B_e = B_e,
-        L_p = L_p,
-        L_e = L_e,
+        C_p = C_p,
+        C_e = C_e,
+        D_p = D_p,
+        D_e = D_e,
         a = a,
         b = b
     ))
@@ -329,7 +341,7 @@ sample_gamma_prior_parameters <- function(Theta, dims) {
     for (k in 1:dims$K) {
         for (n in 1:dims$N) {
             Theta$Beta_p[k,n] <- rgamma(1, Theta$A_p[k,n], Theta$B_p[k,n])
-            Theta$Alpha_p[k,n] <- rexp(1, Theta$L_p[k,n])
+            Theta$Alpha_p[k,n] <- rgamma(1, Theta$C_p[k,n], Theta$D_p[k,n])
         }
     }
 
@@ -338,7 +350,7 @@ sample_gamma_prior_parameters <- function(Theta, dims) {
     for (n in 1:dims$N) {
         for (g in 1:dims$G) {
             Theta$Beta_e[n,g] <- rgamma(1, Theta$A_e[n,g], Theta$B_e[n,g])
-            Theta$Alpha_e[n,g] <- rexp(1, Theta$L_e[n,g])
+            Theta$Alpha_e[n,g] <- rgamma(1, Theta$C_e[n,g], Theta$D_e[n,g])
         }
     }
 

@@ -162,7 +162,7 @@ bayesNMF <- function(
 
         # update P
         if (!Theta$is_fixed$P) {
-            for (n in sample((1:dims$N)[Theta$A[1,] > 0])) {
+            for (n in sample(1:dims$N)) {
                 Theta$P[, n] <- sample_Pn(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
             }
         }
@@ -331,7 +331,8 @@ bayesNMF <- function(
                     fixed = fixed,
                     inits = inits,
                     convergence_control = convergence_control,
-                    dims = dims
+                    dims = dims,
+                    gamma_sched = gamma_sched
                 ),
                 totaliters = iter,
                 converged_at = stop,

@@ -141,11 +141,10 @@ sample_Beta_En <- function(n, Theta, dims, gamma) {
 #' @noRd
 sample_Alpha_Pkn <- function(k, n, Theta, dims, gamma) {
     logpdf_prop <- function(x) {
-        - Theta$L_p[k,n] * x + gamma * (
-            x * log(Theta$Beta_p[k,n]) -
-            base::lgamma(x) +
-            (x - 1)*log(Theta$P[k,n])
-        )
+        (gamma * Theta$Beta_p[k,n] + Theta$C_p[k,n] - 1) * log(x) -
+        Theta$D_p[k,n] * x +
+        gamma * (x - 1) * log(Theta$P[k,n]) -
+        gamma * lgamma(x)
     }
 
     armspp::arms(
@@ -168,11 +167,10 @@ sample_Alpha_Pkn <- function(k, n, Theta, dims, gamma) {
 #' @noRd
 sample_Alpha_Eng <- function(n, g, Theta, dims, gamma) {
     logpdf_prop <- function(x) {
-        - Theta$L_e[n,g] * x + gamma * (
-            x * log(Theta$Beta_e[n,g]) -
-            base::lgamma(x) +
-            (x - 1)*log(Theta$E[n,g])
-        )
+        (gamma * Theta$Beta_e[n,g] + Theta$C_e[n,g] - 1) * log(x) -
+        Theta$D_e[n,g] * x +
+        gamma * (x - 1) * log(Theta$E[n,g]) -
+        gamma * lgamma(x)
     }
 
     armspp::arms(
