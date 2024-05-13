@@ -660,8 +660,7 @@ update_metrics <- function(
         Theta = Theta_MAP_rescaled,
         dims = dims,
         likelihood = likelihood,
-        prior = prior,
-        learn_A = learn_A
+        prior = prior
     )
 
     metrics$logpost[[iter]] <- metrics$loglik[[iter]] + get_logprior(
