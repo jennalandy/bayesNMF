@@ -168,17 +168,14 @@ check_converged <- function(
             convergence_control$Ninarow_nochange
         ) {
             convergence_status$converged = TRUE
-            convergence_status$burn_in = iter
             convergence_status$why = "no change"
         } else if (convergence_status$inarow_no_best >=
                    convergence_control$Ninarow_nobest
         ) {
             convergence_status$converged = TRUE
-            convergence_status$burn_in = convergence_status$best_iter
             convergence_status$why = "no best"
         } else if (iter >= convergence_control$maxiters) {
             convergence_status$converged = TRUE
-            convergence_status$burn_in = convergence_status$best_iter
             convergence_status$why = "max iters"
         }
     }

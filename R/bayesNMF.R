@@ -137,11 +137,12 @@ bayesNMF <- function(
 
     # initialize convergence status
     convergence_status <- list(
-        prev_MAP_RMSE = Inf,
-        best_MAP_RMSE = Inf,
+        prev_MAP_metric = Inf,
+        best_MAP_metric = Inf,
         inarow_no_change = 0,
         inarow_no_best = 0,
-        converged = FALSE
+        converged = FALSE,
+        best_iter = NULL
     )
 
     # start logging
@@ -154,6 +155,7 @@ bayesNMF <- function(
 
     # Gibbs sampler
     iter = 1
+    logiter = 1
     done = FALSE
     first_MAP = TRUE
     stop = NULL
@@ -233,15 +235,19 @@ bayesNMF <- function(
         }
 
         # log on original scale
-        logs$P[[iter]] <- Theta$P
-        logs$E[[iter]] <- Theta$E * rescale_by
-        logs$A[[iter]] <- Theta$A
-        logs$q[[iter]] <- Theta$q
-        logs$prob_inclusion[[iter]] <- Theta$prob_inclusion
-        if (likelihood == "normal") {
-            logs$sigmasq[[iter]] <- Theta$sigmasq * (rescale_by**2)
-        } else if (likelihood == "poisson") {
-            logs$Z[[iter]] <- Theta$Z * rescale_by
+        # only if storing logs or if we will use it for MAP
+        if (store_logs | iter >= convergence_control$MAP_every + 1) {
+            logs$P[[logiter]] <- Theta$P
+            logs$E[[logiter]] <- Theta$E * rescale_by
+            logs$A[[logiter]] <- Theta$A
+            logs$q[[logiter]] <- Theta$q
+            logs$prob_inclusion[[logiter]] <- Theta$prob_inclusion
+            if (likelihood == "normal") {
+                logs$sigmasq[[logiter]] <- Theta$sigmasq * (rescale_by**2)
+            } else if (likelihood == "poisson") {
+                logs$Z[[logiter]] <- Theta$Z * rescale_by
+            }
+            logiter = logiter + 1
         }
 
         # periodically check convergence and log progress
@@ -251,8 +257,8 @@ bayesNMF <- function(
             | iter == convergence_control$maxiters
         ) {
             # get MAP over past convergence_control$MAP_over iterations
-            burn_in <- iter - convergence_control$MAP_over
-            keep <- burn_in:iter
+            burn_in <- logiter - convergence_control$MAP_over
+            keep <- burn_in:(logiter - 1)
             MAP <- get_MAP(logs, keep)
 
             # log metrics
@@ -286,6 +292,27 @@ bayesNMF <- function(
                 convergence_status$best_MAP_metric = Inf
             }
 
+            # if not storing logs, store current best MAP to return if needed
+            # and remove logs to save memory
+            if (
+                !store_logs &
+                !is.null(convergence_status$best_iter)
+            ) {
+                # update stored MAP if this is the best_iter
+                if (convergence_status$best_iter == iter) {
+                    store_MAP <- MAP
+                    store_MAP_iter <- iter
+                    store_credible_intervals <- get_credible_intervals(logs, store_MAP$idx)
+                }
+
+                # remove logs to save memory
+                drop <- 1:convergence_control$MAP_every
+                for (name in names(logs)) {
+                    logs[[name]][drop] <- NULL
+                }
+                logiter = logiter - length(drop)
+            }
+
             # log progress
             NOW = Sys.time()
             diff = as.numeric(difftime(NOW, PREV, units = "secs"))
@@ -302,10 +329,18 @@ bayesNMF <- function(
                 done = TRUE
 
                 # re-compute MAP at stop, compute 95% credible intervals
-                burn_in <- stop - convergence_control$MAP_over
-                keep <- burn_in:stop
-                MAP <- get_MAP(logs, keep, final = TRUE)
-                credible_intervals <- get_credible_intervals(logs, MAP$idx)
+                if (store_logs) {
+                    burn_in <- stop - convergence_control$MAP_over
+                    keep <- burn_in:stop
+                    MAP <- get_MAP(logs, keep, final = TRUE)
+                    credible_intervals <- get_credible_intervals(logs, MAP$idx)
+                } else {
+                    MAP <- store_MAP
+                    keep_sigs <- which(MAP$A[1,] == 1)
+                    MAP$P <- MAP$P[, keep_sigs]
+                    MAP$E <- MAP$E[keep_sigs, ]
+                    credible_intervals <- store_credible_intervals
+                }
             }
 
             # plot metrics
