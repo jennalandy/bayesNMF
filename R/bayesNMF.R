@@ -268,7 +268,6 @@ bayesNMF <- function(
             convergence_status <- check_converged(
                 iter, gamma_sched[iter],
                 Mhat_MAP_rescaled, M,
-                learn_A,
                 convergence_status,
                 convergence_control,
                 first_MAP,

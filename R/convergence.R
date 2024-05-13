@@ -43,7 +43,6 @@ new_convergence_control <- function(
 #' @param metric string, one of c('loglikelihood','logposterior',RMSE','KL')
 #' @param Mhat matrix, reconstructed mutational catalog
 #' @param M matrix, true mutational catalog
-#' @param learn_A boolean, whether A is being learned
 #' @param Theta list, current values of all unkowns
 #' @param likelihood string, one of c("normal", "poisson")
 #' @param prior string, one of c("truncnormal","exponential","gamma")
@@ -53,7 +52,7 @@ new_convergence_control <- function(
 #' @return scalar
 #' @noRd
 get_metric <- function(
-    metric, Mhat, M, learn_A,
+    metric, Mhat, M,
     Theta = NULL,
     likelihood = NULL,
     prior = NULL,
@@ -70,7 +69,7 @@ get_metric <- function(
         if (metric == 'loglikelihood') {
             return(-1 * loglik)
         } else if (metric == 'BIC') {
-            return(get_BIC(loglik, Theta, dims, likelihood, prior, learn_A))
+            return(get_BIC(loglik, Theta, dims, likelihood, prior))
         }
         logpost = loglik + get_logprior(Theta, likelihood, prior, sigmasq_eq_mu)
         return(-1 * logpost)
@@ -87,7 +86,6 @@ get_metric <- function(
 #' @param gamma numeric, tempering parameter
 #' @param Mhat matrix, reconstructed mutational catalog
 #' @param M matrix, true mutational catalog
-#' @param learn_A boolean, whether A is being learned
 #' @param Theta list, current values of all unkowns
 #' @param convergence_status list, current status of convergence
 #' @param convergence_control list, control parameters
@@ -101,7 +99,7 @@ get_metric <- function(
 #' @return list, updated status of convergence
 #' @noRd
 check_converged <- function(
-    iter, gamma, Mhat, M, learn_A,
+    iter, gamma, Mhat, M,
     convergence_status,
     convergence_control,
     first_MAP,
@@ -113,7 +111,7 @@ check_converged <- function(
     sigmasq_eq_mu = FALSE
 ) {
     MAP_metric = get_metric(
-        convergence_control$metric, Mhat, M, learn_A,
+        convergence_control$metric, Mhat, M,
         Theta, likelihood, prior, dims, logfac
     )
 
@@ -196,25 +194,19 @@ check_converged <- function(
 #' @param dims list, named list of dimensions
 #' @param likelihood string, one of c("normal", "poisson")
 #' @param prior string, one of c("truncnormal","exponential","gamma")
-#' @param learn_A boolean, whether A is being learned
 #'
 #' @return scalar, BIC
 #' @noRd
-get_BIC <- function(loglik, Theta, dims, likelihood, prior, learn_A) {
+get_BIC <- function(loglik, Theta, dims, likelihood, prior) {
     N = sum(Theta$A[1,])
-    if (learn_A) {
-        coef = ifelse(prior == 'exponential', 2, 3)
-    } else {
-        coef = 1
-    }
     if (likelihood == 'normal' & prior == 'truncnormal') {
-        n_params = N * (coef*dims$G + coef*dims$K + 2) + dims$K
+        n_params = N * (dims$G + dims$K + 2) + dims$K
     } else if (likelihood == 'normal' & prior == 'exponential') {
-        n_params = N * (coef*dims$G + coef*dims$K + 2) + dims$K
+        n_params = N * (dims$G + dims$K + 2) + dims$K
     } else if (likelihood == 'poisson' & prior == 'gamma') {
-        n_params = N * (coef*dims$G + coef*dims$K + dims$K*dims$G + 2)
+        n_params = N * (dims$G + dims$K + dims$K*dims$G + 2)
     } else if (likelihood == 'poisson' & prior == 'exponential') {
-        n_params = N * (coef*dims$G + coef*dims$K + dims$K*dims$G + 2)
+        n_params = N * (dims$G + dims$K + dims$K*dims$G + 2)
     }
 
     return(n_params * log(dims$G) - 2 * loglik)

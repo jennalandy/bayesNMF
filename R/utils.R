@@ -618,6 +618,7 @@ get_MAP <- function(logs, keep, final = FALSE) {
 #' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
 #'
 #' @return list, updated metrics
+#' @noRd
 update_metrics <- function(
         metrics, MAP, iter, Theta, M_truescale, M,
         likelihood, prior, dims, logfac, rescale_by,
@@ -654,7 +655,15 @@ update_metrics <- function(
     }
     metrics$N[[iter]] <- sum(Theta_MAP$A[1,])
     metrics$n_params[[iter]] <- metrics$N[[iter]] * (dims$G + dims$K + 2)
-    metrics$BIC[[iter]] <- metrics$n_params[[iter]] * log(dims$G) - 2 * metrics$loglik[[iter]]
+    metrics$BIC[[iter]] <- get_BIC(
+        loglik = metrics$loglik[[iter]],
+        Theta = Theta_MAP_rescaled,
+        dims = dims,
+        likelihood = likelihood,
+        prior = prior,
+        learn_A = learn_A
+    )
+
     metrics$logpost[[iter]] <- metrics$loglik[[iter]] + get_logprior(
         Theta_MAP_rescaled, likelihood, prior, sigmasq_type
     )
