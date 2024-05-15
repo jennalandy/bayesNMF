@@ -44,9 +44,6 @@ sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
 #' @return vector length K
 #' @noRd
 sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
-    if (gamma < 1) {
-        Theta$A[1,] <- rep(1, dims$N)
-    }
     probs = sapply(1:dims$N, function(n) {
         Theta$P[k,n] * Theta$A[1,n] * Theta$E[n,g]
     })
