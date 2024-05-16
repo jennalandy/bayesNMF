@@ -196,15 +196,16 @@ check_converged <- function(
 #' @noRd
 get_BIC <- function(loglik, Theta, dims, likelihood, prior) {
     N = sum(Theta$A[1,])
-    if (likelihood == 'normal' & prior == 'truncnormal') {
-        n_params = N * (dims$G + dims$K + 2) + dims$K
-    } else if (likelihood == 'normal' & prior == 'exponential') {
-        n_params = N * (dims$G + dims$K + 2) + dims$K
-    } else if (likelihood == 'poisson' & prior == 'gamma') {
-        n_params = N * (dims$G + dims$K + dims$K*dims$G + 2)
-    } else if (likelihood == 'poisson' & prior == 'exponential') {
-        n_params = N * (dims$G + dims$K + dims$K*dims$G + 2)
-    }
+    n_params = N * (dims$G + dims$K)
+    # if (likelihood == 'normal' & prior == 'truncnormal') {
+    #     n_params = N * (dims$G + dims$K + 2) + dims$K
+    # } else if (likelihood == 'normal' & prior == 'exponential') {
+    #     n_params = N * (dims$G + dims$K + 2) + dims$K
+    # } else if (likelihood == 'poisson' & prior == 'gamma') {
+    #     n_params = N * (dims$G + dims$K + dims$K*dims$G + 2)
+    # } else if (likelihood == 'poisson' & prior == 'exponential') {
+    #     n_params = N * (dims$G + dims$K + dims$K*dims$G + 2)
+    # }
 
     return(n_params * log(dims$G) - 2 * loglik)
 }
