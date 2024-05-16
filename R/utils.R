@@ -245,7 +245,7 @@ get_loglik_poisson <- function(M, Theta, dims, logfac) {
 #' @param Mhat reconstructed matrix, K x G
 #'
 #' @return scalar
-#' @export
+#' @noRd
 get_RMSE <- function(M, Mhat) {
     sqrt(mean((M - Mhat)**2))
 }
@@ -256,7 +256,7 @@ get_RMSE <- function(M, Mhat) {
 #' @param Mhat reconstructed matrix, K x G
 #'
 #' @return scalar
-#' @export
+#' @noRd
 get_KLDiv <- function(M, Mhat) {
     Mhat[Mhat <= 0] <- 1
     M[M <= 0] <- 1
@@ -389,7 +389,7 @@ get_heatmap <- function(
 #' @param sim_mat similarity matrix
 #'
 #' @return matrix
-#' @export
+#' @noRd
 assign_signatures <- function(sim_mat) {
     reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
     reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
