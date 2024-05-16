@@ -71,6 +71,8 @@ test_that("nmf_poisson_exponential works with Poisson data generating function g
     expect_equal(sum(is.na(res$MAP$P)), 0)
     expect_equal(sum(is.na(res$MAP$E)), 0)
 
+    expect_lt(abs(sum(res$MAP$A) - 5), 1)
+
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
     expect_gt(min(sig_sims), 0.8)

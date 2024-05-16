@@ -9,32 +9,25 @@ bayesNMF(
   M,
   N = NULL,
   max_N = NULL,
-  inits = NULL,
-  fixed = NULL,
   likelihood = "normal",
   prior = "truncnormal",
   sigmasq_type = "noninformative",
+  inits = NULL,
+  fixed = NULL,
   prior_parameters = NULL,
   file = paste0("nmf_", likelihood, "_", prior),
-  overwrite = FALSE,
   true_P = NULL,
   convergence_control = new_convergence_control(),
-  store_logs = FALSE,
-  temper = FALSE
+  store_logs = TRUE,
+  overwrite = FALSE
 )
 }
 \arguments{
 \item{M}{mutational catalog matrix, K x G}
 
-\item{N}{fixed number of signatures}
+\item{N}{fixed number of latent factors}
 
-\item{max_N}{maximum number of signatures if learning rank}
-
-\item{inits}{(optional) list of initial values for P and E as well as sigmasq
-if `likelihood = "normal"`}
-
-\item{fixed}{(ptional) list of parameters to fix and not include in Gibbs
-updates.}
+\item{max_N}{maximum number of latent factors if learning rank}
 
 \item{likelihood}{string, one of c('normal','poisson')}
 
@@ -42,19 +35,25 @@ updates.}
 
 \item{sigmasq_type}{string, one of c('eq_mu','invgamma','noninformative')}
 
+\item{inits}{(optional) list of initial values for P and E as well as sigmasq
+if `likelihood = "normal"`}
+
+\item{fixed}{(ptional) list of parameters to fix and not include in Gibbs
+updates.}
+
 \item{prior_parameters}{list, optional specification of prior parameters}
 
 \item{file}{file name without extension of log, save, and plot files}
 
-\item{overwrite}{if `overwrite = TRUE`, the log, safe, and plot files of
-previous runs with the same `file` will be overwritten}
-
-\item{true_P}{(optional) true signatures matrix P to compare to in a heatmap}
+\item{true_P}{(optional) true latent factors matrix P to compare to in a heatmap}
 
 \item{convergence_control}{list, specification of convergence parameters.
 See documentation for `new_convergence_control`.}
 
-\item{store_logs}{boolean, whether to store each sample in resulting .RData file}
+\item{store_logs}{boolean, whether to store each sample in resulting .rds file}
+
+\item{overwrite}{if `overwrite = TRUE`, the log, safe, and plot files of
+previous runs with the same `file` will be overwritten}
 }
 \value{
 list

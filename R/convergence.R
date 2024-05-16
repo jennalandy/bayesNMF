@@ -23,7 +23,7 @@ new_convergence_control <- function(
     miniters = 1000,
     maxiters = 10000,
     minA = 0,
-    metric = "loglikelihood"
+    metric = "BIC"
 ) {
     list(
         MAP_over = MAP_over,
@@ -60,13 +60,17 @@ get_metric <- function(
     logfac = NULL,
     sigmasq_eq_mu = FALSE
 ) {
-    if (metric %in% c('loglikelihood', 'logposterior')) {
+    if (metric %in% c('loglikelihood', 'logposterior', 'BIC')) {
         if (likelihood == 'normal') {
             loglik = get_loglik_normal(M, Theta, dims)
         } else if (likelihood == 'poisson') {
             loglik = get_loglik_poisson(M, Theta, dims, logfac)
         }
-        if (metric == 'loglikelihood') {return(-1 * loglik)}
+        if (metric == 'loglikelihood') {
+            return(-1 * loglik)
+        } else if (metric == 'BIC') {
+            return(get_BIC(loglik, Theta, dims, likelihood, prior))
+        }
         logpost = loglik + get_logprior(Theta, likelihood, prior, sigmasq_eq_mu)
         return(-1 * logpost)
     } else if (metric == 'RMSE') {
@@ -164,21 +168,35 @@ check_converged <- function(
             convergence_control$Ninarow_nochange
         ) {
             convergence_status$converged = TRUE
-            convergence_status$burn_in = iter
             convergence_status$why = "no change"
         } else if (convergence_status$inarow_no_best >=
                    convergence_control$Ninarow_nobest
         ) {
             convergence_status$converged = TRUE
-            convergence_status$burn_in = convergence_status$best_iter
             convergence_status$why = "no best"
         } else if (iter >= convergence_control$maxiters) {
             convergence_status$converged = TRUE
-            convergence_status$burn_in = convergence_status$best_iter
             convergence_status$why = "max iters"
         }
     }
 
 
     return(convergence_status)
+}
+
+#' compute BIC where number of parameters depends on likelihood-prior combination
+#'
+#' @param loglik scalar, log likelihood at Theta
+#' @param Theta list, current values of all unknowns
+#' @param dims list, named list of dimensions
+#' @param likelihood string, one of c("normal", "poisson")
+#' @param prior string, one of c("truncnormal","exponential","gamma")
+#'
+#' @return scalar, BIC
+#' @noRd
+get_BIC <- function(loglik, Theta, dims, likelihood, prior) {
+    N = sum(Theta$A[1,])
+    n_params = N * (dims$G + dims$K)
+
+    return(n_params * log(dims$G) - 2 * loglik)
 }

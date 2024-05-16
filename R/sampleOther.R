@@ -43,11 +43,15 @@ sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
 #'
 #' @return vector length K
 #' @noRd
-sample_Zkg_poisson <- function(k, g, M, Theta, dims){
+sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
     probs = sapply(1:dims$N, function(n) {
         Theta$P[k,n] * Theta$A[1,n] * Theta$E[n,g]
     })
-    if (sum(Theta$A[1,]) == 0) {probs = rep(1, dims$N)}
+    if (sum(probs) == 0) {
+        # happens if all factors are excluded
+        # setting Zs to 0 means P, E sampled from their priors
+        return(rep(0, dims$N))
+    }
     probs = probs/sum(probs)
     rmultinom(1, size = M[k,g], prob = probs)
 }
@@ -64,9 +68,10 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims){
 #'
 #' @return integer
 #' @noRd
-sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', gamma = 1) {
+sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = "truncnormal", gamma = 1) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
+
     Theta_A1 <- Theta
     Theta_A1$A[1,n] <- 1
 
@@ -84,15 +89,20 @@ sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', gamma = 
     log_p = log_p1 - sumLog(c(log_p0, log_p1))
     p = exp(log_p)
     if (is.na(p)) {
-        if (is.infinite(log_p1)) {
+        if (log_p1 > log_p0) {
             p = 1
-        } else if (is.infinite(log_p0)) {
+        } else if (log_p1 < logp0) {
             p = 0
         } else {
             p = 0.5
         }
     }
-    return(sample(c(0, 1), size = 1, prob = c(1-p, p)))
+
+    sampled <- sample(c(0, 1), size = 1, prob = c(1-p, p))
+    return(list(
+        sampled = sampled,
+        prob_inclusion = p
+    ))
 }
 
 #' Sample qn

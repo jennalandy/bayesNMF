@@ -13,7 +13,7 @@ new_convergence_control(
   miniters = 1000,
   maxiters = 10000,
   minA = 0,
-  metric = "loglikelihood"
+  metric = "BIC"
 )
 }
 \arguments{

@@ -228,9 +228,15 @@ get_loglik_normal <- function(M, Theta, dims) {
 #' @noRd
 get_loglik_poisson <- function(M, Theta, dims, logfac) {
     Mhat = get_Mhat(Theta)
-    - sum(Mhat) +
-        sum(M * log(Mhat)) -
-        sum(logfac[M])
+    Mhat[Mhat <= 0] <- 1
+    M[M <= 0] <- 1
+    sum(sapply(1:dims$K, function(k) {
+        sum(sapply(1:dims$G, function(g) {
+            -Mhat[k,g] +
+            M[k,g] * log(Mhat[k,g]) -
+            logfac[M[k,g]]
+        }))
+    }))
 }
 
 #' Compute RMSE
@@ -239,7 +245,7 @@ get_loglik_poisson <- function(M, Theta, dims, logfac) {
 #' @param Mhat reconstructed matrix, K x G
 #'
 #' @return scalar
-#' @export
+#' @noRd
 get_RMSE <- function(M, Mhat) {
     sqrt(mean((M - Mhat)**2))
 }
@@ -250,7 +256,7 @@ get_RMSE <- function(M, Mhat) {
 #' @param Mhat reconstructed matrix, K x G
 #'
 #' @return scalar
-#' @export
+#' @noRd
 get_KLDiv <- function(M, Mhat) {
     Mhat[Mhat <= 0] <- 1
     M[M <= 0] <- 1
@@ -383,7 +389,7 @@ get_heatmap <- function(
 #' @param sim_mat similarity matrix
 #'
 #' @return matrix
-#' @export
+#' @noRd
 assign_signatures <- function(sim_mat) {
     reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
     reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
@@ -478,56 +484,6 @@ get_quantile <- function(matrix_list, quantiles = c(0.025, 0.975)) {
     return(quantile_matrices)
 }
 
-
-# ---------------
-
-
-#' Estimate multistudy M from current values of Theta
-#'
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#'
-#' @return list of matrices
-#' @noRd
-get_Mhat_multistudy <- function(Theta, dims) {
-    lapply(1:dims$S, function(s) {
-        Theta$P %*% diag(Theta$A[s,]) %*% Theta$E[[s]]
-    })
-}
-
-
-#' get RMSE in multistudy setting
-#'
-#' @param M list of mutational catalog matrices, length S
-#' @param Mhat list of reconstructed mutational catalog matrices, length S
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_RMSE_multistudy <- function(M, Mhat, dims) {
-    M_wide = do.call(cbind, M)
-    Mhat_wide = do.call(cbind, Mhat)
-
-    sqrt(mean((M_wide - Mhat_wide)**2))
-}
-
-
-#' Get KL Divergence in the multistudy setting
-#' @param M list of mutational catalog matrices, length S
-#' @param Mhat list of reconstructed mutational catalog matrices, length S
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_KLDiv_multistudy <- function(M, Mhat, dims) {
-    M_wide = do.call(cbind, M)
-    Mhat_wide = do.call(cbind, Mhat)
-
-    Mhat_wide[Mhat_wide == 0] <- 1
-    M_wide[M_wide == 0] <- 1
-    sum(M_wide * log(M_wide / Mhat_wide) - M_wide + Mhat_wide)
-}
-
 #' Any named item in `fill_with` that is not specified in `list` gets
 #' transfered into `list`. Final `list` is returned.
 #'
@@ -543,4 +499,292 @@ fill_list <- function(list, fill_with) {
         }
     }
     return(list)
+}
+
+
+#' Plot one metric
+#'
+#' @param x x-axis variable
+#' @param y y-axis variable
+#' @param vblue x-intercept for blue vertical line (convergence)
+#' @param vgreen x-intercept for green vertical line (end of tempering)
+#' @param xlab x-axis label
+#' @param ylab y-axis label
+#'
+#' @return ggplot object
+#' @noRd
+plot_one <- function(x, y, vblue = NULL, vgreen = NULL, xlab = "", ylab = "") {
+    if (sum(!is.na(y)) > 0){
+        if (sum(y != -Inf, na.rm = TRUE) > 0) {
+            plot(x, y, ylab = ylab, xlab = xlab)
+            if (!is.null(vblue)) {
+                abline(v = vblue, col = 'blue')
+            }
+            if (!is.null(vgreen)) {
+                abline(v = vgreen, col = 'green')
+            }
+        }
+    }
+}
+
+#' Plot all metrics and save in a pdf
+#'
+#' @param metrics list, list of metrics
+#' @param plotfile string, file name (pdf) for plot
+#' @param stop integer, iteration at which convergence was reached
+#' @param learn_A boolean, whether A is being learned
+#' @param gamma_sched numeric vector, tempering schedule
+#' @param iter integer, current iteration
+#' @param true_P matrix, true P matrix
+#'
+#' @return NULL
+#' @noRd
+plot_metrics <- function(metrics, plotfile, stop, learn_A, gamma_sched, iter, true_P) {
+    if (!is.null(stop)) {
+        vblue = stop
+    } else { vblue = NULL }
+    if (learn_A & gamma_sched[iter] == 1) {
+        vgreen = which(gamma_sched == 1)[1]
+    } else { vgreen = NULL }
+
+
+    grDevices::pdf(plotfile)
+    graphics::par(mfrow = c(3,1))
+
+    x = unlist(metrics$sample_idx)
+    plot_one(x, unlist(metrics$loglik), vblue, vgreen, xlab = "Iteration", ylab = "Log Likelihood")
+    plot_one(x, unlist(metrics$logpost), vblue, vgreen, xlab = "Iteration", ylab = "Log Posterior")
+    plot_one(x, unlist(metrics$BIC), vblue, vgreen, xlab = "Iteration", ylab = "BIC")
+    plot_one(x, unlist(metrics$RMSE), vblue, vgreen, xlab = "Iteration", ylab = "RMSE")
+    plot_one(x, unlist(metrics$KL), vblue, vgreen, xlab = "Iteration", ylab = "KL Divergence")
+
+    plot_one(x, unlist(metrics$N), vblue, vgreen, xlab = "Iteration", ylab = "Latent Rank")
+    if (!is.null(true_P)) {
+        abline(h = ncol(true_P))
+    }
+
+    grDevices::dev.off()
+}
+
+#' Compute maximum a-posteriori (MAP) estimate of A, P, E, q
+#'
+#' @param logs list, list of Gibbs sampler logs
+#' @param keep numeric vector, indices to consider for MAP
+#' @param final boolean, whether this is the final iteration
+#'
+#' @return list, MAP estimate of A, P, E, q
+#' @noRd
+get_MAP <- function(logs, keep, final = FALSE) {
+
+    # get MAP of A matrix (fine to do even if learn_A = FALSE)
+    A_MAP = get_mode(logs$A[keep])
+    map.idx = keep[A_MAP$idx]
+    if (final) {
+        keep_sigs <- which(A_MAP$matrix[1,] == 1)
+    } else {
+        keep_sigs <- 1:ncol(A_MAP$matrix)
+    }
+
+    # get MAP of P, E conditional on MAP of A
+    MAP <- list(
+        A = A_MAP$matrix,
+        P = get_mean(logs$P[map.idx])[,keep_sigs],
+        E = get_mean(logs$E[map.idx])[keep_sigs,],
+        q = get_mean(logs$q[map.idx]),
+        prob_inclusion = get_mean(logs$prob_inclusion[map.idx]),
+        idx = map.idx,
+        top_counts = A_MAP$top_counts
+    )
+    if ("sigmasq" %in% names(logs)) {
+        MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
+    }
+
+    return(MAP)
+}
+
+#' Update list of metrics
+#'
+#' @param metrics list, list of metrics
+#' @param MAP list, maximum a-posteriori estimates
+#' @param iter integer, current iteration
+#' @param Theta list, current state of Theta
+#' @param M_truescale matrix, true M matrix
+#' @param M matrix, rescaled M matrix
+#' @param likelihood string, one of c("normal", "poisson")
+#' @param prior string, one of c("truncnormal","exponential","gamma")
+#' @param dims list, named list of dimensions
+#' @param logfac vector, logfac[i] = log(i!), only needed for `likelihood = 'poisson'`
+#' @param rescale_by double, rescale factor
+#' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
+#'
+#' @return list, updated metrics
+#' @noRd
+update_metrics <- function(
+        metrics, MAP, iter, Theta, M_truescale, M,
+        likelihood, prior, dims, logfac, rescale_by,
+        sigmasq_type
+) {
+    Theta_MAP <- Theta
+    Theta_MAP$P = MAP$P
+    Theta_MAP$E = MAP$E
+    Theta_MAP$A = MAP$A
+    Theta_MAP$q = MAP$q
+    if (likelihood == 'normal') {
+        Theta_MAP$sigmasq = MAP$sigmasq
+    }
+
+    Theta_MAP_rescaled <- Theta_MAP
+    Theta_MAP_rescaled$E = MAP$E/rescale_by
+    if (likelihood == 'normal') {
+        Theta_MAP_rescaled$sigmasq = MAP$sigmasq/(rescale_by**2)
+    }
+    Mhat_MAP <- get_Mhat(Theta_MAP)
+    Mhat_MAP_rescaled <- get_Mhat(Theta_MAP_rescaled)
+
+    metrics$sample_idx[[iter]] <- iter
+
+    # RMSE and KL on true scale
+    metrics$RMSE[[iter]] <- get_RMSE(M_truescale, Mhat_MAP)
+    metrics$KL[[iter]] <- get_KLDiv(M_truescale, Mhat_MAP)
+
+    # likelihood-based metrics on rescaled scale
+    if (likelihood == 'normal') {
+        metrics$loglik[[iter]] <- get_loglik_normal(M, Theta_MAP_rescaled, dims)
+    } else if (likelihood == 'poisson') {
+        metrics$loglik[[iter]] <- get_loglik_poisson(M, Theta_MAP_rescaled, dims, logfac)
+    }
+    metrics$N[[iter]] <- sum(Theta_MAP$A[1,])
+    metrics$n_params[[iter]] <- metrics$N[[iter]] * (dims$G + dims$K + 2)
+    metrics$BIC[[iter]] <- get_BIC(
+        loglik = metrics$loglik[[iter]],
+        Theta = Theta_MAP_rescaled,
+        dims = dims,
+        likelihood = likelihood,
+        prior = prior
+    )
+
+    metrics$logpost[[iter]] <- metrics$loglik[[iter]] + get_logprior(
+        Theta_MAP_rescaled, likelihood, prior, sigmasq_type
+    )
+
+    # top counts for MAP A
+    metrics$MAP_A_counts[[iter]] <- MAP$top_counts[1]
+
+    return(list(
+        metrics = metrics,
+        Theta_MAP_rescaled = Theta_MAP_rescaled
+    ))
+}
+
+#' Log progress of Gibbs sampler
+#'
+#' @param iter integer, current iteration
+#' @param done boolean, whether sampler is done
+#' @param diff double, time since last log
+#' @param convergence_control list, control parameters
+#' @param convergence_status list, current status of convergence
+#' @param gamma_sched numeric vector, tempering schedule
+#' @param MAP list, maximum a-posteriori estimates
+#' @param learn_A boolean, whether A is being learned
+#'
+#' @return NULL
+#' @noRd
+log_MAP <- function(iter, done, diff, convergence_control, convergence_status, gamma_sched, MAP, learn_A) {
+    cat(paste(
+        iter, "/", ifelse(done, "", "(up to)"), convergence_control$maxiters,
+        "-", round(diff, 4), "seconds",
+        ifelse(
+            gamma_sched[iter] == 1,
+            paste("-", paste0(round(convergence_status$prev_percent_change * 100, 4), "% change"),
+                  "-", convergence_status$inarow_no_best, "no best",
+                  "-", convergence_status$inarow_no_change, "no change"),
+            ""
+        ),
+        "\n"
+    ))
+
+    if (learn_A) {
+        print(MAP$top_counts)
+        cat("\n")
+    }
+}
+
+#' Log when sampler converges
+#'
+#' @param convergence_control list, control parameters
+#' @param convergence_status list, current status of convergence
+#'
+#' @return NULL
+#' @noRd
+log_converged <- function(convergence_control, convergence_status) {
+    cat(paste("\n\nCONVERGED at", convergence_status$best_iter))
+    if (convergence_status$why %in% c("no best", "max iters")) {
+        cat(paste(
+            "\nNo best MAP since sample",
+            convergence_status$best_iter, "\n\n"
+        ))
+    } else {
+        cat(paste(
+            "\nNo change in MAP over past",
+            convergence_control$Ninarow_nochange, "samples\n\n"
+        ))
+    }
+}
+
+#' Compute 95% credible intervals for MAP estimates
+#'
+#' @param logs list, list of Gibbs sampler logs
+#' @param map.idx integer vector, indices used for MAP estiamtes
+#'
+#' @return list, credible intervals for P, E, q, and sigmasq
+#' @noRd
+get_credible_intervals <- function(logs, map.idx) {
+    credible_intervals <- list()
+    credible_intervals[["P"]] <- get_quantile(logs$P[map.idx])
+    credible_intervals[["E"]] <- get_quantile(logs$E[map.idx])
+    credible_intervals[["q"]] <- get_quantile(logs$q[map.idx])
+    if ("sigmasq" %in% names(logs)) {
+        credible_intervals[["sigmasq"]] <- get_quantile(logs$sigmasq[map.idx])
+    }
+    return(credible_intervals)
+}
+
+#' Validate that provided N and max_N are valid
+#'
+#' @param N integer, fixed rank
+#' @param max_N integer, maximum rank
+#'
+#' @return integer, N or max_N
+#' @noRd
+validate_N <- function(N, max_N) {
+    if (is.null(N) & is.null(max_N)) {
+        stop("Either `N` or `max_N` must be provided.")
+    } else if (!is.null(N) & !is.null(max_N)) {
+        message("Both `N` and `max_N` provided, using `N`.")
+        max_N = NULL
+    } else if (is.null(N)) {
+        N = max_N
+    }
+    return(N)
+}
+
+#' Validate likelihood-prior combination
+#'
+#' @param likelihood string, one of c('normal','poisson')
+#' @param prior string, one of c('truncnormal','exponential','gamma')
+#'
+#' @return NULL
+#' @noRd
+validate_model <- function(likelihood, prior) {
+    if (!(likelihood %in% c('normal', 'poisson'))) {
+        stop("likelihood must be one of c('normal')")
+    } else if (likelihood == 'normal') {
+        if (!(prior %in% c('truncnormal','exponential'))) {
+            stop("prior must be one of c('truncnormal','exponential') with `likelihood = 'normal'`")
+        }
+    } else if (likelihood == 'poisson') {
+        if (!(prior %in% c('gamma','exponential'))) {
+            stop("prior must be one of c('gamma','exponential') with `likelihood = 'poisson'`")
+        }
+    }
 }
