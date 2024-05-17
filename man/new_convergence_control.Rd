@@ -40,5 +40,5 @@ of MAPs in a row with no change}
 list
 }
 \description{
-Create new convergence control object
+Specify convergence criteria for the bayesNMF Gibbs sampler.
 }

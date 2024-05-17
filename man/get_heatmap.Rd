@@ -2,7 +2,7 @@
 % Please edit documentation in R/utils.R
 \name{get_heatmap}
 \alias{get_heatmap}
-\title{Plot a heatmap of cosine similarities between two matrices}
+\title{Plot heatmap of cosine similarities}
 \usage{
 get_heatmap(est_P, true_P, est_names = NULL, true_names = NULL, which = "cols")
 }
@@ -22,4 +22,6 @@ ggplot object
 }
 \description{
 Plot a heatmap of cosine similarities between two matrices
+with `ggplot2`. Can be similarity between rows or columns with the `which`
+parameter.
 }

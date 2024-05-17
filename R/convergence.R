@@ -1,4 +1,5 @@
 #' Create new convergence control object
+#' @description Specify convergence criteria for the bayesNMF Gibbs sampler.
 #'
 #' @param MAP_over integer, number of samples to average over for MAP
 #' @param MAP_every integer, how often (in samples) to compute MAP for evaluation

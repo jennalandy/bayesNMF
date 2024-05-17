@@ -338,8 +338,10 @@ pairwise_sim <- function(
     return(sim_mat)
 }
 
-
-#' Plot a heatmap of cosine similarities between two matrices
+#' Plot heatmap of cosine similarities
+#' @description Plot a heatmap of cosine similarities between two matrices
+#' with `ggplot2`. Can be similarity between rows or columns with the `which`
+#' parameter.
 #'
 #' @param est_P estimated P (signatures matrix)
 #' @param true_P true P (signatures matrix)
@@ -756,7 +758,7 @@ get_credible_intervals <- function(logs, map.idx) {
 #'
 #' @return integer, N or max_N
 #' @noRd
-validate_N <- function(N, max_N) {
+validate_N <- function(N, max_N, recovery_priors) {
     if (is.null(N) & is.null(max_N)) {
         stop("Either `N` or `max_N` must be provided.")
     } else if (!is.null(N) & !is.null(max_N)) {
@@ -764,6 +766,9 @@ validate_N <- function(N, max_N) {
         max_N = NULL
     } else if (is.null(N)) {
         N = max_N
+    }
+    if (length(recovery_priors) > 0) {
+        N = N + recovery_priors$N_r
     }
     return(N)
 }
