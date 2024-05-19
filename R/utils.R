@@ -338,8 +338,10 @@ pairwise_sim <- function(
     return(sim_mat)
 }
 
-
-#' Plot a heatmap of cosine similarities between two matrices
+#' Plot heatmap of cosine similarities
+#' @description Plot a heatmap of cosine similarities between two matrices
+#' with `ggplot2`. Can be similarity between rows or columns with the `which`
+#' parameter.
 #'
 #' @param est_P estimated P (signatures matrix)
 #' @param true_P true P (signatures matrix)
@@ -588,13 +590,21 @@ get_MAP <- function(logs, keep, final = FALSE) {
     # get MAP of P, E conditional on MAP of A
     MAP <- list(
         A = A_MAP$matrix,
-        P = get_mean(logs$P[map.idx])[,keep_sigs],
-        E = get_mean(logs$E[map.idx])[keep_sigs,],
+        P = get_mean(logs$P[map.idx]),
+        E = get_mean(logs$E[map.idx]),
         q = get_mean(logs$q[map.idx]),
         prob_inclusion = get_mean(logs$prob_inclusion[map.idx]),
         idx = map.idx,
         top_counts = A_MAP$top_counts
     )
+
+    if (ncol(MAP$P) == 1) {
+        MAP$P <- matrix(MAP$P, ncol = 1)
+        MAP$E <- matrix(MAP$E, nrow = 1)
+    }
+
+    MAP$P <- MAP$P[,keep_sigs]
+    MAP$E <- MAP$E[,keep_sigs,]
     if ("sigmasq" %in% names(logs)) {
         MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
     }
@@ -756,7 +766,7 @@ get_credible_intervals <- function(logs, map.idx) {
 #'
 #' @return integer, N or max_N
 #' @noRd
-validate_N <- function(N, max_N) {
+validate_N <- function(N, max_N, recovery_priors) {
     if (is.null(N) & is.null(max_N)) {
         stop("Either `N` or `max_N` must be provided.")
     } else if (!is.null(N) & !is.null(max_N)) {
@@ -764,6 +774,9 @@ validate_N <- function(N, max_N) {
         max_N = NULL
     } else if (is.null(N)) {
         N = max_N
+    }
+    if (length(recovery_priors) > 0) {
+        N = N + recovery_priors$N_r
     }
     return(N)
 }

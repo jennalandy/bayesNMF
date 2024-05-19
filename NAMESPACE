@@ -3,6 +3,7 @@
 export("%>%")
 export(bayesNMF)
 export(get_heatmap)
+export(get_recovery_priors)
 export(new_convergence_control)
 export(pairwise_sim)
 importFrom(magrittr,"%>%")

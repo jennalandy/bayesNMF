@@ -2,8 +2,7 @@
 % Please edit documentation in R/bayesNMF.R
 \name{bayesNMF}
 \alias{bayesNMF}
-\title{Perform single-study Bayesian NMF with the provided likelihood and prior
-combination. Exact rank `N` or maximum rank `max_N` must be provided.}
+\title{Bayesian Non-Negative Matrix Factorization}
 \usage{
 bayesNMF(
   M,
@@ -15,6 +14,8 @@ bayesNMF(
   inits = NULL,
   fixed = NULL,
   prior_parameters = NULL,
+  recovery = FALSE,
+  recovery_priors = "cosmic",
   file = paste0("nmf_", likelihood, "_", prior),
   true_P = NULL,
   convergence_control = new_convergence_control(),

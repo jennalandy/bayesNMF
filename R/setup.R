@@ -131,7 +131,7 @@ set_truncnorm_hyperprior_parameters <- function(
 #' @return updated list of parameters
 #'
 #' @noRd
-sample_truncnormal_prior_parameters <- function(Theta, dims) {
+sample_truncnormal_prior_parameters <- function(Theta, dims, recovery, recovery_priors) {
     Theta$Mu_p <- matrix(nrow = dims$K, ncol = dims$N)
     Theta$Sigmasq_p <- matrix(nrow = dims$K, ncol = dims$N)
     for (k in 1:dims$K) {
@@ -156,6 +156,11 @@ sample_truncnormal_prior_parameters <- function(Theta, dims) {
                 n = 1, shape = Theta$A_e[n, g], rate = Theta$B_e[n, g]
             )
         }
+    }
+
+    if (recovery) {
+        Theta$Mu_p[,1:recovery_priors$N_r] <- recovery_priors$Mu_p
+        Theta$Sigmasq_p[,1:recovery_priors$N_r] <- recovery_priors$Sigmasq_p
     }
 
     return(Theta)
@@ -237,7 +242,7 @@ set_exponential_hyperprior_parameters <- function(
 #'
 #' @return updated list of parameters
 #' @noRd
-sample_exponential_prior_parameters <- function(Theta, dims) {
+sample_exponential_prior_parameters <- function(Theta, dims, recovery, recovery_priors) {
     Theta$Lambda_p <- matrix(nrow = dims$K, ncol = dims$N)
     for (k in 1:dims$K) {
         for (n in 1:dims$N) {
@@ -250,6 +255,10 @@ sample_exponential_prior_parameters <- function(Theta, dims) {
         for (g in 1:dims$G) {
             Theta$Lambda_e[n,g] <- rgamma(1, Theta$A_e[n,g], Theta$B_e[n,g])
         }
+    }
+
+    if (recovery) {
+        Theta$Lambda_p[,1:recovery_priors$N_r] <- recovery_priors$Lambda_p
     }
 
     return(Theta)
@@ -335,7 +344,7 @@ set_gamma_hyperprior_parameters <- function(
     ))
 }
 
-sample_gamma_prior_parameters <- function(Theta, dims) {
+sample_gamma_prior_parameters <- function(Theta, dims, recovery, recovery_priors) {
     Theta$Alpha_p <- matrix(nrow = dims$K, ncol = dims$N)
     Theta$Beta_p <- matrix(nrow = dims$K, ncol = dims$N)
     for (k in 1:dims$K) {
@@ -352,6 +361,11 @@ sample_gamma_prior_parameters <- function(Theta, dims) {
             Theta$Beta_e[n,g] <- rgamma(1, Theta$A_e[n,g], Theta$B_e[n,g])
             Theta$Alpha_e[n,g] <- rgamma(1, Theta$C_e[n,g], Theta$D_e[n,g])
         }
+    }
+
+    if (recovery) {
+        Theta$Alpha_p[,1:recovery_priors$N_r] <- recovery_priors$Alpha_p
+        Theta$Beta_p[,1:recovery_priors$N_r] <- recovery_priors$Beta_p
     }
 
     return(Theta)
@@ -447,23 +461,32 @@ sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
 initialize_Theta <- function(
         M, likelihood, prior, learn_A,
         dims, sigmasq_type,
-        inits = NULL,
-        fixed = NULL,
-        prior_parameters = NULL
+        inits,
+        fixed,
+        prior_parameters,
+        recovery,
+        recovery_priors
 ) {
-    is_fixed = list(A = !learn_A)
+    is_fixed = list(
+        A = !learn_A,
+        prior_P = rep(FALSE, dims$N)
+    )
+
+    if (recovery) {
+        is_fixed$prior_P[1:recovery_priors$N_r] <- TRUE
+    }
 
     # hyperprior and prior parameters
     Theta = prior_parameters
     if (prior == 'truncnormal') {
         Theta <- set_truncnorm_hyperprior_parameters(Theta, dims)
-        Theta <- sample_truncnormal_prior_parameters(Theta, dims)
+        Theta <- sample_truncnormal_prior_parameters(Theta, dims, recovery, recovery_priors)
     } else if (prior == 'exponential') {
         Theta <- set_exponential_hyperprior_parameters(Theta, dims)
-        Theta <- sample_exponential_prior_parameters(Theta, dims)
+        Theta <- sample_exponential_prior_parameters(Theta, dims, recovery, recovery_priors)
     } else if (prior == 'gamma') {
         Theta <- set_gamma_hyperprior_parameters(Theta, dims)
-        Theta <- sample_gamma_prior_parameters(Theta, dims)
+        Theta <- sample_gamma_prior_parameters(Theta, dims, recovery, recovery_priors)
     }
 
     # signatures P

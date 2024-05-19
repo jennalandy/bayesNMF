@@ -1,4 +1,5 @@
-#' Perform single-study Bayesian NMF with the provided likelihood and prior
+#' Bayesian Non-Negative Matrix Factorization
+#' @description Perform single-study Bayesian NMF with the provided likelihood and prior
 #' combination. Exact rank `N` or maximum rank `max_N` must be provided.
 #'
 #' @param M mutational catalog matrix, K x G
@@ -32,6 +33,8 @@ bayesNMF <- function(
         inits = NULL,
         fixed = NULL,
         prior_parameters = NULL,
+        recovery = FALSE,
+        recovery_priors = "cosmic",
         file = paste0('nmf_', likelihood, '_', prior),
         true_P = NULL,
         convergence_control = new_convergence_control(),
@@ -51,8 +54,25 @@ bayesNMF <- function(
         fixed$E <- fixed$E/rescale_by
     }
 
+    # check recovery/discovery
+    if (recovery) {
+        if (is.character(recovery_priors)) {
+            if (recovery_priors == "cosmic") {
+                if (likelihood == 'normal' & prior == 'truncnormal') {
+                    recovery_priors <- normal_truncnormal_recovery_priors
+                } else if (likelihood == 'normal' & prior == 'exponential') {
+                    recovery_priors <- normal_exponential_recovery_priors
+                } else {
+                    stop("Recovery priors not defined for this likelihood/prior combination")
+                }
+            }
+        }
+    } else {
+        recovery_priors = list()
+    }
+
     # check N/max_N combination is valid
-    N <- validate_N(N, max_N)
+    N <- validate_N(N, max_N, recovery_priors)
 
     # check prior and likelihood are valid
     validate_model(likelihood, prior)
@@ -105,7 +125,9 @@ bayesNMF <- function(
         dims = dims,
         sigmasq_type = sigmasq_type,
         inits = inits, fixed = fixed,
-        prior_parameters = prior_parameters
+        prior_parameters = prior_parameters,
+        recovery = recovery,
+        recovery_priors = recovery_priors
     )
     Theta$prob_inclusion <- Theta$q
 
@@ -214,19 +236,25 @@ bayesNMF <- function(
         if (learn_A) {
             for (n in 1:dims$N) {
                 if (prior == "truncnormal") {
-                    Theta$Mu_p[,n] <- sample_Mu_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    if (!Theta$is_fixed$prior_P[n]) {
+                        Theta$Mu_p[,n] <- sample_Mu_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                        Theta$Sigmasq_p[,n] <- sample_Sigmasq_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    }
                     Theta$Mu_e[n,] <- sample_Mu_En(n, Theta, dims, gamma = gamma_sched[iter])
                     Theta$Sigmasq_e[n,] <- sample_Sigmasq_En(n, Theta, dims, gamma = gamma_sched[iter])
-                    Theta$Sigmasq_p[,n] <- sample_Sigmasq_Pn(n, Theta, dims, gamma = gamma_sched[iter])
                 } else if (prior == "exponential") {
-                    Theta$Lambda_p[,n] <- sample_Lambda_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    if (!Theta$is_fixed$prior_P[n]) {
+                        Theta$Lambda_p[,n] <- sample_Lambda_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    }
                     Theta$Lambda_e[n,] <- sample_Lambda_En(n, Theta, dims, gamma = gamma_sched[iter])
                 } else if (prior == "gamma") {
-                    Theta$Beta_p[,n] <- sample_Beta_Pn(n, Theta, dims, gamma = gamma_sched[iter])
-                    Theta$Beta_e[n,] <- sample_Beta_En(n, Theta, dims, gamma = gamma_sched[iter])
-                    for (k in 1:dims$K) {
-                        Theta$Alpha_p[k,n] <- sample_Alpha_Pkn(k, n, Theta, dims, gamma = gamma_sched[iter])
+                    if (!Theta$is_fixed$prior_P[n]) {
+                        Theta$Beta_p[,n] <- sample_Beta_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                        for (k in 1:dims$K) {
+                            Theta$Alpha_p[k,n] <- sample_Alpha_Pkn(k, n, Theta, dims, gamma = gamma_sched[iter])
+                        }
                     }
+                    Theta$Beta_e[n,] <- sample_Beta_En(n, Theta, dims, gamma = gamma_sched[iter])
                     for (g in 1:dims$G) {
                         Theta$Alpha_e[n,g] <- sample_Alpha_Eng(n, g, Theta, dims, gamma = gamma_sched[iter])
                     }
