@@ -590,13 +590,21 @@ get_MAP <- function(logs, keep, final = FALSE) {
     # get MAP of P, E conditional on MAP of A
     MAP <- list(
         A = A_MAP$matrix,
-        P = get_mean(logs$P[map.idx])[,keep_sigs],
-        E = get_mean(logs$E[map.idx])[keep_sigs,],
+        P = get_mean(logs$P[map.idx]),
+        E = get_mean(logs$E[map.idx]),
         q = get_mean(logs$q[map.idx]),
         prob_inclusion = get_mean(logs$prob_inclusion[map.idx]),
         idx = map.idx,
         top_counts = A_MAP$top_counts
     )
+
+    if (ncol(MAP$P) == 1) {
+        MAP$P <- matrix(MAP$P, ncol = 1)
+        MAP$E <- matrix(MAP$E, nrow = 1)
+    }
+
+    MAP$P <- MAP$P[,keep_sigs]
+    MAP$E <- MAP$E[,keep_sigs,]
     if ("sigmasq" %in% names(logs)) {
         MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
     }
