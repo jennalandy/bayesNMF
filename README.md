@@ -41,10 +41,10 @@ rank5_results <- bayesNMF(
 Three files will be created and updated every 100 iterations by default (can be controlled with the `logevery` parameter) 
 
 - `my_run_rank5.log` will log the start time and the progress of the Gibbs sampler, which is useful to estimate the total run time if using a large dataset or a lot of iterations. 
-- `my_run_rank5.RData` records the current results, which is be useful if your run is cut short (the dreaded OOM error). Once the function is complete, this records complete results for future access. 
-- `my_run_rank5.pdf` updates four plots: RMSE, KL Divergence, log posterior, and log likelihood of periodically computed MAP estimates (see the section on convergence below for details). Note that for log likelihood and log posterior, values from the Poisson models are not comparable to those from Normal models.
+- `my_run_rank5.rds` records the current results, which is be useful if your run is cut short (the dreaded OOM error). Once the function is complete, this records complete results for future access. 
+- `my_run_rank5.pdf` updates plots of metrics: RMSE, KL Divergence, BIC, log posterior, log likelihood, and latent rank of periodically computed MAP estimates (see the section on convergence below for details). Note that for log likelihood and log posterior, values from the Poisson models are not comparable to those from Normal models.
 
-The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `rank5_results$MAP$P` and `rank5_results$MAP$E`. The full Gibbs sampler chains are stored in `rank5_results$logs`. The reconstruction errors and log likelihood for each iteration are stored in `rank5_results$metrics`.
+The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `rank5_results$MAP$P` and `rank5_results$MAP$E`. The full Gibbs sampler chains are stored in `rank5_results$logs` if  `store_logs = TRUE` (default). The periodic metrics of MAP estimates displayed in `my_run_rank5.pdf` are stored in `rank5_results$metrics`.
 
 ### Iterations to Convergence
 
@@ -80,6 +80,8 @@ learned_rank_results <- bayesNMF(
 
 Here, an additional matrix $A$ is estimated, which determines which latent factors are included in the final model. `learned_rank_results$MAP$A` is dimension 1 by `max_N`. For each position $n$, a 1 indicates factor $n$ is included, while a 0 indicates the factor was dropped. Dropped factors have already been removed from `learned_rank_results$MAP$P` and `learned_rank_results$MAP$E`.
 
+When learning rank, the model employs hyperprior distributions so that prior parameters are updated at each iteration.
+
 ### Compare to True or Literature Signatures
 
 We also include commands to compare estimated signatures to the true signatures matrix to evaluate simulation studies. This could also be a set of signatures from literature that we wish to use as a baseline.
@@ -102,6 +104,40 @@ rank5_results <- bayesNMF(
     true_P = true_P
 )
 ```
+
+### Recovery-Discovery Option
+
+If `recovery = TRUE` and `recovery_priors` are provided, then the model will use a combination of these priors an `N` or `max_N` standard priors. This is particularly useful in the context of mutational signatures, where we may want our recovery priors to match the reference signatures in the [COSMIC database](https://cancer.sanger.ac.uk/signatures/). For Normal likelihood models, `recovery_priors = "cosmic"` (default) can be used as a shortcut. Alternatively, a `P` matrix can be provided to the `get_recovery_priors` function to generate recovery priors that can then be provided to `bayesNMF`.
+
+
+This example uses recovery priors for the 79 COSMIC signatures. This means we are learning between 0 and 49 + 7 = 56 latent factors, where 49 have priors set at the COSMIC recovery priors, and the other 7 have priors with the standard hyperprior distributions that are updated at each iteration. 
+
+```{r}
+learned_rank_recovery_discover_results <- bayesNMF(
+    M, max_N = 7, 
+    likelihood = "normal", 
+    prior = "truncnormal", 
+    file = "my_run_learned_rank",
+    recovery = TRUE,
+    recovery_priors = "cosmic"
+)
+```
+
+This is an example with a user-provided `P` matrix, `literature_P`, perhaps containing latent factors discovered in a previous analysis.
+
+```{r}
+recovery_priors = get_recovery_priors(literature_P)
+learned_rank__recovery_discover_results <- bayesNMF(
+    M, max_N = 7, 
+    likelihood = "normal", 
+    prior = "truncnormal", 
+    file = "my_run_learned_rank",
+    recovery = TRUE,
+    recovery_priors = recovery_priors
+)
+```
+
+```{r}
 
 ## Simulated Example
 
