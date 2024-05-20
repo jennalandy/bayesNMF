@@ -126,7 +126,7 @@ get_proportional_log_posterior <- function(
         log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
         for (k in 1:nrow(M)) {
             for (g in 1:ncol(M)) {
-                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k])
+                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[g])
             }
         }
         log_pM = sum(log_pM)
@@ -150,7 +150,7 @@ get_proportional_log_posterior <- function(
         log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
         for (k in 1:nrow(M)) {
             for (g in 1:ncol(M)) {
-                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k])
+                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[g])
             }
         }
         log_pM = sum(log_pM)
@@ -206,14 +206,10 @@ get_proportional_log_posterior <- function(
 #' @return scalar
 #' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
-    Mhat = get_Mhat(Theta)
-    - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
-        sum(sweep(
-            (M - Mhat)**2,
-            1,
-            1/(2 * Theta$sigmasq), # Length K
-            '*'
-        ))
+    Mhat <- get_Mhat(Theta)
+    loglik <- (- dims$K * sum(log(2 * pi * Theta$sigmasq)) / 2 -
+      sum(colSums(M - Mhat)**2 / (2 * Theta$sigmasq)))
+    return(loglik)
 }
 
 
@@ -572,20 +568,16 @@ plot_metrics <- function(metrics, plotfile, stop, learn_A, gamma_sched, iter, tr
 #'
 #' @param logs list, list of Gibbs sampler logs
 #' @param keep numeric vector, indices to consider for MAP
+#' @param dims list, named list of dimensions
 #' @param final boolean, whether this is the final iteration
 #'
 #' @return list, MAP estimate of A, P, E, q
 #' @noRd
-get_MAP <- function(logs, keep, final = FALSE) {
+get_MAP <- function(logs, keep, dims, final = FALSE) {
 
     # get MAP of A matrix (fine to do even if learn_A = FALSE)
     A_MAP = get_mode(logs$A[keep])
     map.idx = keep[A_MAP$idx]
-    if (final) {
-        keep_sigs <- which(A_MAP$matrix[1,] == 1)
-    } else {
-        keep_sigs <- 1:ncol(A_MAP$matrix)
-    }
 
     # get MAP of P, E conditional on MAP of A
     MAP <- list(
@@ -598,13 +590,19 @@ get_MAP <- function(logs, keep, final = FALSE) {
         top_counts = A_MAP$top_counts
     )
 
-    if (ncol(MAP$P) == 1) {
+    if (dims$N == 1) {
         MAP$P <- matrix(MAP$P, ncol = 1)
         MAP$E <- matrix(MAP$E, nrow = 1)
     }
 
+    if (final) {
+        keep_sigs <- which(A_MAP$matrix[1,] == 1)
+    } else {
+        keep_sigs <- 1:ncol(A_MAP$matrix)
+    }
     MAP$P <- MAP$P[,keep_sigs]
-    MAP$E <- MAP$E[,keep_sigs,]
+    MAP$E <- MAP$E[keep_sigs,]
+
     if ("sigmasq" %in% names(logs)) {
         MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
     }

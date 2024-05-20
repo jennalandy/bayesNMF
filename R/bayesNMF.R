@@ -287,7 +287,7 @@ bayesNMF <- function(
             # get MAP over past convergence_control$MAP_over iterations
             burn_in <- logiter - convergence_control$MAP_over
             keep <- burn_in:(logiter - 1)
-            MAP <- get_MAP(logs, keep)
+            MAP <- get_MAP(logs, keep, dims)
 
             # log metrics
             out <- update_metrics(
@@ -360,7 +360,7 @@ bayesNMF <- function(
                 if (store_logs) {
                     burn_in <- stop - convergence_control$MAP_over
                     keep <- burn_in:stop
-                    MAP <- get_MAP(logs, keep, final = TRUE)
+                    MAP <- get_MAP(logs, keep, dims, final = TRUE)
                     credible_intervals <- get_credible_intervals(logs, MAP$idx)
                 } else {
                     MAP <- store_MAP

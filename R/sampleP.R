@@ -12,16 +12,15 @@ get_mu_sigmasq_Pn_normal_exponential <- function(n, M, Theta, dims, gamma = 1) {
     Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
 
     # compute mean
-    mu_num_term_1 <- gamma * Theta$A[1,n] * sweep(
+    mu_num_term_1 <- gamma * sweep(
         (M - Mhat_no_n), # dim KxG
         2, # multiply each row by E[n,]
-        Theta$E[n, ], # length G
+        Theta$A[1,n] * Theta$E[n, ] / Theta$sigmasq, # length G
         "*"
     ) %>% # dim KxG
         rowSums() # length K
-    mu_num_term_1 <- mu_num_term_1 / Theta$sigmasq
     mu_num_term_2 <- Theta$Lambda_p[, n] # length K
-    denom <- gamma * sum(Theta$A[1,n] * Theta$E[n, ] ** 2) / Theta$sigmasq
+    denom <- gamma * sum(Theta$A[1,n] * Theta$E[n, ] ** 2 / Theta$sigmasq)
 
     mu_P <- (mu_num_term_1 - mu_num_term_2) / denom # length K
     sigmasq_P <- 1 / denom # length K
@@ -46,15 +45,15 @@ get_mu_sigmasq_Pn_normal_truncnormal <- function(n, M, Theta, dims, gamma = 1) {
     Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
 
     # compute mean
-    mu_num_term_1 <- gamma * (1/Theta$sigmasq) * (sweep(
+    mu_num_term_1 <- gamma * sweep(
         (M - Mhat_no_n), # dim KxG
         2, # multiply each row by E[n,]
-        Theta$A[1,n] * Theta$E[n, ], # length G
+        Theta$A[1,n] * Theta$E[n, ] / Theta$sigmasq, # length G
         "*"
     ) %>% # dim KxG
-        rowSums()) # length K
+        rowSums() # length K
     mu_num_term_2 <- Theta$Mu_p[, n] / Theta$Sigmasq_p[,n] # length K
-    denom <- (1/Theta$Sigmasq_p[,n]) + gamma * sum(Theta$A[1,n] * Theta$E[n, ] ** 2) / Theta$sigmasq
+    denom <- (1/Theta$Sigmasq_p[,n]) + gamma * sum(Theta$A[1,n] * Theta$E[n, ] ** 2 / Theta$sigmasq)
 
 
     mu_P <- (mu_num_term_1 + mu_num_term_2) / denom # length K
@@ -139,7 +138,7 @@ sample_Pkn_norm_exp <- function(k, n, M, Theta, gamma) {
         Theta$P[k,n] <- Pkn
         Mhat <- get_Mhat(Theta)
         -Theta$Lambda_p[k,n] * Pkn -
-            gamma/(2*Theta$sigmasq[k]) * sum((M[k,] - Mhat[k,]) ** 2)
+            gamma/(2) * sum((M[k,] - Mhat[k,]) ** 2 / Theta$sigmasq)
     }
     armspp::arms(
         n_samples = 1,

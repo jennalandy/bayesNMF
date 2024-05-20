@@ -63,9 +63,9 @@ set_truncnorm_hyperprior_parameters <- function(
         b_e = sqrt(dims$N) + 1,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
-        Alpha = rep(alpha, dims$K),
+        Alpha = rep(alpha, dims$G),
         beta = 0.1,
-        Beta = rep(beta, dims$K),
+        Beta = rep(beta, dims$G),
         a = 0.8,
         b = 0.8
 ) {
@@ -102,10 +102,10 @@ set_truncnorm_hyperprior_parameters <- function(
         Theta$S_e = matrix(Theta$s_e, nrow = dims$N, ncol = dims$G)
     }
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = rep(Theta$alpha, dims$K)
+        Theta$Alpha = rep(Theta$alpha, dims$G)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = rep(Theta$beta, dims$K)
+        Theta$Beta = rep(Theta$beta, dims$G)
     }
     fill_list(Theta, list(
         M_p = M_p,
@@ -197,9 +197,9 @@ set_exponential_hyperprior_parameters <- function(
         b_e = 10,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
-        Alpha = rep(alpha, dims$K),
+        Alpha = rep(alpha, dims$G),
         beta = 0.1,
-        Beta = rep(beta, dims$K),
+        Beta = rep(beta, dims$G),
         a = 0.8,
         b = 0.8
 ) {
@@ -217,10 +217,10 @@ set_exponential_hyperprior_parameters <- function(
     }
 
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = rep(Theta$alpha, dims$K)
+        Theta$Alpha = rep(Theta$alpha, dims$G)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = rep(Theta$beta, dims$K)
+        Theta$Beta = rep(Theta$beta, dims$G)
     }
 
     fill_list(Theta, list(
@@ -436,11 +436,11 @@ sample_prior_E <- function(Theta, dims, prior) {
 #' @noRd
 sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
     if (sigmasq_type == 'invgamma') {
-        sapply(1:dims$K, function(k) {
-            1/rgamma(n = 1, shape = Theta$Alpha[k], rate = Theta$Beta[k])
+        sapply(1:dims$G, function(g) {
+            invgamma::rinvgamma(n = 1, shape = Theta$Alpha[g], rate = Theta$Beta[g])
         })
     } else if (sigmasq_type == 'noninformative') {
-        armspp::arms(n_samples = dims$K, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)
+        armspp::arms(n_samples = dims$G, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)
     } else if (sigmasq_type == 'eq_mu') {
         rowMeans(get_Mhat(Theta))
     }
