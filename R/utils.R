@@ -604,7 +604,7 @@ get_MAP <- function(logs, keep, final = FALSE) {
     }
 
     MAP$P <- MAP$P[,keep_sigs]
-    MAP$E <- MAP$E[,keep_sigs,]
+    MAP$E <- MAP$E[keep_sigs,]
     if ("sigmasq" %in% names(logs)) {
         MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
     }
