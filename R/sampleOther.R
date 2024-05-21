@@ -11,10 +11,6 @@ sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
     Mhat <- get_Mhat(Theta)
     if (sigmasq_type == 'invgamma') {
         sigmasq <- sapply(1:dims$G, function(g) {
-            print(paste(
-                Theta$Alpha[g] + gamma * dims$K / 2,
-                Theta$Beta[g] + gamma * sum(((M - Mhat)[,g])**2) / 2
-            ))
             s <- invgamma::rinvgamma(
                 n = 1,
                 shape = Theta$Alpha[g] + gamma * dims$K / 2,
