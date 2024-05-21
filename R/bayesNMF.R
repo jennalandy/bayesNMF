@@ -233,31 +233,29 @@ bayesNMF <- function(
         }
 
         # update priors
-        if (learn_A) {
-            for (n in 1:dims$N) {
-                if (prior == "truncnormal") {
-                    if (!Theta$is_fixed$prior_P[n]) {
-                        Theta$Mu_p[,n] <- sample_Mu_Pn(n, Theta, dims, gamma = gamma_sched[iter])
-                        Theta$Sigmasq_p[,n] <- sample_Sigmasq_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+        for (n in 1:dims$N) {
+            if (prior == "truncnormal") {
+                if (!Theta$is_fixed$prior_P[n]) {
+                    Theta$Mu_p[,n] <- sample_Mu_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    Theta$Sigmasq_p[,n] <- sample_Sigmasq_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                }
+                Theta$Mu_e[n,] <- sample_Mu_En(n, Theta, dims, gamma = gamma_sched[iter])
+                Theta$Sigmasq_e[n,] <- sample_Sigmasq_En(n, Theta, dims, gamma = gamma_sched[iter])
+            } else if (prior == "exponential") {
+                if (!Theta$is_fixed$prior_P[n]) {
+                    Theta$Lambda_p[,n] <- sample_Lambda_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                }
+                Theta$Lambda_e[n,] <- sample_Lambda_En(n, Theta, dims, gamma = gamma_sched[iter])
+            } else if (prior == "gamma") {
+                if (!Theta$is_fixed$prior_P[n]) {
+                    Theta$Beta_p[,n] <- sample_Beta_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    for (k in 1:dims$K) {
+                        Theta$Alpha_p[k,n] <- sample_Alpha_Pkn(k, n, Theta, dims, gamma = gamma_sched[iter])
                     }
-                    Theta$Mu_e[n,] <- sample_Mu_En(n, Theta, dims, gamma = gamma_sched[iter])
-                    Theta$Sigmasq_e[n,] <- sample_Sigmasq_En(n, Theta, dims, gamma = gamma_sched[iter])
-                } else if (prior == "exponential") {
-                    if (!Theta$is_fixed$prior_P[n]) {
-                        Theta$Lambda_p[,n] <- sample_Lambda_Pn(n, Theta, dims, gamma = gamma_sched[iter])
-                    }
-                    Theta$Lambda_e[n,] <- sample_Lambda_En(n, Theta, dims, gamma = gamma_sched[iter])
-                } else if (prior == "gamma") {
-                    if (!Theta$is_fixed$prior_P[n]) {
-                        Theta$Beta_p[,n] <- sample_Beta_Pn(n, Theta, dims, gamma = gamma_sched[iter])
-                        for (k in 1:dims$K) {
-                            Theta$Alpha_p[k,n] <- sample_Alpha_Pkn(k, n, Theta, dims, gamma = gamma_sched[iter])
-                        }
-                    }
-                    Theta$Beta_e[n,] <- sample_Beta_En(n, Theta, dims, gamma = gamma_sched[iter])
-                    for (g in 1:dims$G) {
-                        Theta$Alpha_e[n,g] <- sample_Alpha_Eng(n, g, Theta, dims, gamma = gamma_sched[iter])
-                    }
+                }
+                Theta$Beta_e[n,] <- sample_Beta_En(n, Theta, dims, gamma = gamma_sched[iter])
+                for (g in 1:dims$G) {
+                    Theta$Alpha_e[n,g] <- sample_Alpha_Eng(n, g, Theta, dims, gamma = gamma_sched[iter])
                 }
             }
         }
