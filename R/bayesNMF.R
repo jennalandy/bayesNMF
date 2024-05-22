@@ -23,6 +23,7 @@
 #'
 #' @return list
 #' @export
+
 bayesNMF <- function(
         M,
         N = NULL,
@@ -199,12 +200,8 @@ bayesNMF <- function(
 
         # if Normal likelihood, update sigmasq
         if (likelihood == 'normal') {
-            if (!Theta$is_fixed$sigmasq) {
-                if (sigmasq_type == 'eq_mu') {
-                    Theta$sigmasq <- rowMeans(get_Mhat(Theta))
-                } else {
-                    Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, sigmasq_type, gamma = gamma_sched[iter])
-                }
+            if (!Theta$is_fixed$sigmasq & iter > 100) {
+                Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, sigmasq_type, gamma = gamma_sched[iter])
             }
         }
 
