@@ -126,7 +126,7 @@ get_proportional_log_posterior <- function(
         log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
         for (k in 1:nrow(M)) {
             for (g in 1:ncol(M)) {
-                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k])
+                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k, g])
             }
         }
         log_pM = sum(log_pM)
@@ -150,7 +150,7 @@ get_proportional_log_posterior <- function(
         log_pM = matrix(nrow = nrow(M), ncol = ncol(M))
         for (k in 1:nrow(M)) {
             for (g in 1:ncol(M)) {
-                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k])
+                log_pM[k,g] <- -1 * (M[k,g] - (P%*%E)[k,g])**2 / (2*sigmasq[k,g])
             }
         }
         log_pM = sum(log_pM)
@@ -208,12 +208,7 @@ get_proportional_log_posterior <- function(
 get_loglik_normal <- function(M, Theta, dims) {
     Mhat = get_Mhat(Theta)
     - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
-        sum(sweep(
-            (M - Mhat)**2,
-            1,
-            1/(2 * Theta$sigmasq), # Length K
-            '*'
-        ))
+        sum((M - Mhat)**2/(2 * Theta$sigmasq))
 }
 
 

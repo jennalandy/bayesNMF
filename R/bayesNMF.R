@@ -183,7 +183,6 @@ bayesNMF <- function(
     stop = NULL
     START_ITER <- Sys.time()
     while (iter <= convergence_control$maxiters & !done) {
-
         # update P
         if (!Theta$is_fixed$P) {
             for (n in sample(1:dims$N)) {

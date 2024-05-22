@@ -13,14 +13,21 @@ get_mu_sigmasq_En_normal_exponential <- function(n, M, Theta, dims, gamma = 1) {
 
     # compute mean
     mu_num_term_1 <- gamma * Theta$A[1,n] * sweep(
-        (M - Mhat_no_n), # dim KxG
+        (M - Mhat_no_n) / Theta$sigmasq, # dim KxG
         1, # multiply each column by P[,n]
-        Theta$P[, n] / Theta$sigmasq, # length K
+        Theta$P[, n], # length K
         "*"
     ) %>% # dim KxG
         colSums() # length G
     mu_num_term_2 <- Theta$Lambda_e[n, ] # length G
-    denom <- sum(gamma * Theta$A[1,n] * Theta$P[, n] ** 2 / Theta$sigmasq)
+
+    denom <- gamma * sweep(
+        1 / Theta$sigmasq, # dim KxG
+        1, # multiply each column by P[,n]**2
+        Theta$A[1,n] * Theta$P[, n] ** 2, # length K
+        "*" # length K
+    ) %>% # dim KxG
+        colSums() # length G
 
     mu_E <- (mu_num_term_1 - mu_num_term_2) / denom # length G
     sigmasq_E <- 1 / denom
@@ -46,14 +53,20 @@ get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta, dims, gamma = 1) {
 
     # compute mean
     mu_num_term_1 <- gamma * Theta$A[1,n] * sweep(
-        (M - Mhat_no_n), # dim KxG
+        (M - Mhat_no_n) / Theta$sigmasq, # dim KxG
         1, # multiply each column by P[,n]
-        Theta$P[, n] / Theta$sigmasq, # length K
+        Theta$P[, n], # length K
         "*"
     ) %>% # dim KxG
         colSums() # length G
     mu_num_term_2 <- Theta$Mu_e[n, ] / Theta$Sigmasq_e[n,] # length G
-    denom <- (1/Theta$Sigmasq_e[n,]) + gamma * sum(Theta$A[1,n] * Theta$P[, n] ** 2 / Theta$sigmasq)
+    denom <- (1/Theta$Sigmasq_e[n,]) + gamma * (sweep(
+        1 / Theta$sigmasq,
+        1,
+        Theta$A[1,n] * Theta$P[, n] ** 2,
+        "*"
+    ) %>% # dim KxG
+        colSums()) # length G
 
     mu_E <- (mu_num_term_1 + mu_num_term_2) / denom # length G
     sigmasq_E <- 1 / denom
