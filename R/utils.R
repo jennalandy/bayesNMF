@@ -207,7 +207,7 @@ get_proportional_log_posterior <- function(
 #' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
     Mhat = get_Mhat(Theta)
-    - dims$G * sum(log(2 * pi * Theta$sigmasq)) / 2 -
+    - sum(log(2 * pi * Theta$sigmasq)) / 2 -
         sum((M - Mhat)**2/(2 * Theta$sigmasq))
 }
 
