@@ -1,4 +1,4 @@
-#' sample sigmasq for Normal likelihood
+#' sample S for Normal likelihood
 #'
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
@@ -7,32 +7,17 @@
 #'
 #' @return vector length K
 #' @noRd
-sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
+sample_S_normal <- function(M, Theta, dims, gamma = 1){
     Mhat <- get_Mhat(Theta)
-    Sigmasq <- matrix(nrow = dims$K, ncol = dims$G)
-    if (sigmasq_type == 'invgamma') {
-        for (k in 1:dims$K) {
-            Sigmasq[k,] <- invgamma::rinvgamma(
-                n = dims$G,
-                shape = Theta$Alpha[k,] + gamma * 1 / 2,
-                rate = Theta$Beta[k,] + gamma * ((M - Mhat)[k,])**2 / 2
-            )
-        }
-        Sigmasq[Sigmasq > max(M)] <- max(M)
-    } else if (sigmasq_type == 'noninformative') {
-        for (k in 1:dims$K) {
-            Sigmasq[k,] <- invgamma::rinvgamma(
-                n = dims$G,
-                shape = 1 / 2,
-                rate = ((M - Mhat)[k,])**2 / 2
-            )
-        }
-        Sigmasq[Sigmasq > max(M)] <- max(M)
-    } else if (sigmasq_type == "eq_mu") {
-        Sigmasq <- Mhat
+    S <- matrix(nrow = dims$K, ncol = dims$G)
+    for (k in 1:dims$K) {
+        S[k,] <- invgamma::rinvgamma(
+            n = dims$G,
+            shape = Theta$Alpha[k,] + gamma * 1 / 2,
+            rate = Theta$Beta[k,] + gamma * ((M - Mhat)[k,])**2 / (2 * Mhat[k,])
+        )
     }
-
-    return(Sigmasq)
+    return(S)
 }
 
 

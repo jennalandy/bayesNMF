@@ -47,12 +47,11 @@ get_Mhat_no_n <- function(Theta, dims, n) {
 #' @param Theta list of parameters
 #' @param likelihood string, one of c('poisson','normal')
 #' @param prior string, one of c('exponential','truncnormal','gamma')
-#' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
 #'
 #' @return scalar
 #' @noRd
 get_logprior <- function(
-    Theta, likelihood, prior, sigmasq_type
+    Theta, likelihood, prior
 ) {
     logprior = 0
     if (prior == 'truncnormal') {
@@ -88,14 +87,10 @@ get_logprior <- function(
     }
 
     if (likelihood == 'normal') {
-        if (sigmasq_type == 'invgamma') {
-            logprior <- logprior +
-                sum(log(
-                    invgamma::dinvgamma(Theta$sigmasq, shape = Theta$Alpha, scale = Theta$Beta)
-                ))
-        } else if (sigmasq_type == 'noninformative') {
-            logprior <- logprior - sum(log(Theta$sigmasq))
-        }
+        logprior <- logprior +
+            sum(log(
+                invgamma::dinvgamma(Theta$S, shape = Theta$Alpha, scale = Theta$Beta)
+            ))
     }
     return(logprior)
 }
@@ -109,9 +104,11 @@ get_logprior <- function(
 #' @return scalar
 #' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
+    Mhat <- get_Mhat(Theta)
+    Sigmasq_mat <- Mhat * Theta$S
     Mhat = get_Mhat(Theta)
-    - sum(log(2 * pi * Theta$sigmasq)) / 2 -
-        sum((M - Mhat)**2/(2 * Theta$sigmasq))
+    - sum(log(2 * pi * Sigmasq_mat)) / 2 -
+        sum((M - Mhat)**2/(2 * Sigmasq_mat))
 }
 
 
@@ -503,8 +500,8 @@ get_MAP <- function(logs, keep, final = FALSE) {
 
     MAP$P <- MAP$P[,keep_sigs]
     MAP$E <- MAP$E[keep_sigs,]
-    if ("sigmasq" %in% names(logs)) {
-        MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
+    if ("S" %in% names(logs)) {
+        MAP$S <- get_mean(logs$S[map.idx])
     }
 
     return(MAP)
@@ -523,14 +520,12 @@ get_MAP <- function(logs, keep, final = FALSE) {
 #' @param dims list, named list of dimensions
 #' @param logfac vector, logfac[i] = log(i!), only needed for `likelihood = 'poisson'`
 #' @param rescale_by double, rescale factor
-#' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
 #'
 #' @return list, updated metrics
 #' @noRd
 update_metrics <- function(
         metrics, MAP, iter, Theta, M_truescale, M,
-        likelihood, prior, dims, logfac, rescale_by,
-        sigmasq_type
+        likelihood, prior, dims, logfac, rescale_by
 ) {
     Theta_MAP <- Theta
     Theta_MAP$P = MAP$P
@@ -572,7 +567,7 @@ update_metrics <- function(
     )
 
     metrics$logpost[[iter]] <- metrics$loglik[[iter]] + get_logprior(
-        Theta_MAP_rescaled, likelihood, prior, sigmasq_type
+        Theta_MAP_rescaled, likelihood, prior
     )
 
     # top counts for MAP A

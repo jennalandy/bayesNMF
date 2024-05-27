@@ -10,7 +10,6 @@ bayesNMF(
   max_N = NULL,
   likelihood = "normal",
   prior = "truncnormal",
-  sigmasq_type = "noninformative",
   inits = NULL,
   fixed = NULL,
   prior_parameters = NULL,
@@ -33,8 +32,6 @@ bayesNMF(
 \item{likelihood}{string, one of c('normal','poisson')}
 
 \item{prior}{string, one of c('truncnormal','exponential')}
-
-\item{sigmasq_type}{string, one of c('eq_mu','invgamma','noninformative')}
 
 \item{inits}{(optional) list of initial values for P and E as well as sigmasq
 if `likelihood = "normal"`}

@@ -7,7 +7,6 @@
 #' @param max_N maximum number of latent factors if learning rank
 #' @param likelihood string, one of c('normal','poisson')
 #' @param prior string, one of c('truncnormal','exponential')
-#' @param sigmasq_type string, one of c('eq_mu','invgamma','noninformative')
 #' @param inits (optional) list of initial values for P and E as well as sigmasq
 #' if `likelihood = "normal"`
 #' @param fixed (ptional) list of parameters to fix and not include in Gibbs
@@ -30,7 +29,6 @@ bayesNMF <- function(
         max_N = NULL,
         likelihood = "normal",
         prior = "truncnormal",
-        sigmasq_type = "noninformative",
         inits = NULL,
         fixed = NULL,
         prior_parameters = NULL,
@@ -48,9 +46,6 @@ bayesNMF <- function(
     rescale_by = mean(M)/100
     M_truescale = M
     M = M/rescale_by
-    if (!is.null(fixed$sigmasq)) {
-        fixed$sigmasq = fixed$sigmasq/(rescale_by**2)
-    }
     if (!is.null(fixed$E)) {
         fixed$E <- fixed$E/rescale_by
     }
@@ -124,7 +119,6 @@ bayesNMF <- function(
         prior = prior,
         learn_A = learn_A,
         dims = dims,
-        sigmasq_type = sigmasq_type,
         inits = inits, fixed = fixed,
         prior_parameters = prior_parameters,
         recovery = recovery,
@@ -153,7 +147,7 @@ bayesNMF <- function(
         prob_inclusion = list()
     )
     if (likelihood == "normal") {
-        logs$sigmasq <- list()
+        logs$S <- list()
     } else if (likelihood == "poisson") {
         logs$Z <- list()
     }
@@ -200,8 +194,8 @@ bayesNMF <- function(
 
         # if Normal likelihood, update sigmasq
         if (likelihood == 'normal') {
-            if (!Theta$is_fixed$sigmasq & iter > 100) {
-                Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, sigmasq_type, gamma = gamma_sched[iter])
+            if (!Theta$is_fixed$S & iter > 100) {
+                Theta$S <- sample_S_normal(M, Theta, dims, gamma = gamma_sched[iter])
             }
         }
 
@@ -265,7 +259,7 @@ bayesNMF <- function(
             logs$q[[logiter]] <- Theta$q
             logs$prob_inclusion[[logiter]] <- Theta$prob_inclusion
             if (likelihood == "normal") {
-                logs$sigmasq[[logiter]] <- Theta$sigmasq * (rescale_by**2)
+                logs$S[[logiter]] <- Theta$S
             } else if (likelihood == "poisson") {
                 logs$Z[[logiter]] <- Theta$Z * rescale_by
             }
@@ -286,8 +280,7 @@ bayesNMF <- function(
             # log metrics
             out <- update_metrics(
                 metrics, MAP, iter, Theta, M_truescale, M,
-                likelihood, prior, dims, logfac, rescale_by,
-                sigmasq_type
+                likelihood, prior, dims, logfac, rescale_by
             )
             metrics <- out$metrics
             Theta_MAP_rescaled <- out$Theta_MAP_rescaled
@@ -303,8 +296,7 @@ bayesNMF <- function(
                 likelihood = likelihood,
                 prior = prior,
                 dims = dims,
-                logfac = logfac,
-                sigmasq_eq_mu = sigmasq_type == 'eq_mu'
+                logfac = logfac
             )
 
             # check whether convergence is allowed (i.e., whether tempering is over)
@@ -382,7 +374,6 @@ bayesNMF <- function(
                     true_P = true_P,
                     likelihood = likelihood,
                     prior = prior,
-                    sigmasq_type = sigmasq_type,
                     prior_parameters = prior_parameters,
                     fixed = fixed,
                     inits = inits,
