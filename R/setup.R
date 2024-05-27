@@ -62,9 +62,9 @@ set_truncnorm_hyperprior_parameters <- function(
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
         b_e = sqrt(dims$N) + 1,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.1,
+        alpha = 2,
         Alpha = matrix(alpha, nrow = dims$K, ncol = dims$G),
-        beta = 0.1,
+        beta = 1,
         Beta = matrix(beta, nrow = dims$K, ncol = dims$G),
         a = 0.8,
         b = 0.8
@@ -196,9 +196,9 @@ set_exponential_hyperprior_parameters <- function(
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
         b_e = 10,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.1,
+        alpha = 2,
         Alpha = matrix(alpha, nrow = dims$K, ncol = dims$G),
-        beta = 0.1,
+        beta = 1,
         Beta = matrix(beta, nrow = dims$K, ncol = dims$G),
         a = 0.8,
         b = 0.8
