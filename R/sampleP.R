@@ -12,10 +12,10 @@ get_mu_sigmasq_Pn_normal_exponential <- function(n, M, Theta, dims, gamma = 1) {
     Mhat_no_n <- get_Mhat_no_n(Theta, dims, n)
 
     # compute mean
-    mu_num_term_1 <- gamma * Theta$A[1,n] * sweep(
+    mu_num_term_1 <- gamma * sweep(
         (M - Mhat_no_n) / Theta$sigmasq, # dim KxG
         2, # multiply each row by E[n,]
-        Theta$E[n, ], # length G
+        Theta$A[1,n] * Theta$E[n, ], # length G
         "*"
     ) %>% # dim KxG
         rowSums() # length K

@@ -18,6 +18,7 @@ sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
                 rate = Theta$Beta[k,] + gamma * ((M - Mhat)[k,])**2 / 2
             )
         }
+        Sigmasq[Sigmasq > max(M)] <- max(M)
     } else if (sigmasq_type == 'noninformative') {
         for (k in 1:dims$K) {
             Sigmasq[k,] <- invgamma::rinvgamma(
@@ -25,19 +26,6 @@ sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
                 shape = 1 / 2,
                 rate = ((M - Mhat)[k,])**2 / 2
             )
-
-            # sapply(1:dims$G, function(g) {
-            #     sample = armspp::arms(
-            #         n_samples = 1,
-            #         log_pdf = function(x) {
-            #             -1*log(x) + gamma * log(dnorm(
-            #                 M[k,g], mean = Mhat[k,g], sd = sqrt(x)
-            #             ))
-            #         },
-            #         lower = 0, upper = 1000
-            #     )
-            #     return(sample)
-            # })
         }
         Sigmasq[Sigmasq > max(M)] <- max(M)
     } else if (sigmasq_type == "eq_mu") {
