@@ -154,6 +154,7 @@ bayesNMF <- function(
     )
     if (likelihood == "normal") {
         logs$sigmasq <- list()
+        logs$S <- list()
     } else if (likelihood == "poisson") {
         logs$Z <- list()
     }
@@ -202,6 +203,7 @@ bayesNMF <- function(
         if (likelihood == 'normal') {
             if (!Theta$is_fixed$sigmasq & iter > 100) {
                 Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, sigmasq_type, gamma = gamma_sched[iter])
+                Theta$S <- sample_S_normal(M, Theta, dims, gamma = gamma_sched[iter])
             }
         }
 
@@ -266,6 +268,7 @@ bayesNMF <- function(
             logs$prob_inclusion[[logiter]] <- Theta$prob_inclusion
             if (likelihood == "normal") {
                 logs$sigmasq[[logiter]] <- Theta$sigmasq * (rescale_by**2)
+                logs$S[[logiter]] <- Theta$S
             } else if (likelihood == "poisson") {
                 logs$Z[[logiter]] <- Theta$Z * rescale_by
             }

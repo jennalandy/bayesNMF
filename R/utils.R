@@ -110,8 +110,14 @@ get_logprior <- function(
 #' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
     Mhat = get_Mhat(Theta)
-    - sum(log(2 * pi * Theta$sigmasq)) / 2 -
-        sum((M - Mhat)**2/(2 * Theta$sigmasq))
+    Sigmasq_mat = sweep(
+        Theta$S,
+        1,
+        Theta$sigmasq,
+        '*'
+    )
+    - sum(log(2 * pi * Sigmasq_mat)) / 2 -
+        sum((M - Mhat)**2/(2 * Sigmasq_mat))
 }
 
 
@@ -505,6 +511,7 @@ get_MAP <- function(logs, keep, final = FALSE) {
     MAP$E <- MAP$E[keep_sigs,]
     if ("sigmasq" %in% names(logs)) {
         MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
+        MAP$S <- get_mean(logs$S[map.idx])
     }
 
     return(MAP)

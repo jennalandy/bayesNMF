@@ -63,9 +63,11 @@ set_truncnorm_hyperprior_parameters <- function(
         b_e = sqrt(dims$N) + 1,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 2,
-        Alpha = matrix(alpha, nrow = dims$K, ncol = dims$G),
+        Alpha = matrix(alpha, nrow = dims$K, ncol = 1),
         beta = 1,
-        Beta = matrix(beta, nrow = dims$K, ncol = dims$G),
+        Beta = matrix(beta, nrow = dims$K, ncol = 1),
+        a_s = 50,
+        b_s = 49,
         a = 0.8,
         b = 0.8
 ) {
@@ -102,10 +104,10 @@ set_truncnorm_hyperprior_parameters <- function(
         Theta$S_e = matrix(Theta$s_e, nrow = dims$N, ncol = dims$G)
     }
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = matrix(Theta$alpha, nrow = dims$K, ncol = dims$G)
+        Theta$Alpha = matrix(Theta$alpha, nrow = dims$K, ncol = 1)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = matrix(Theta$beta, nrow = dims$K, ncol = dims$G)
+        Theta$Beta = matrix(Theta$beta, nrow = dims$K, ncol = 1)
     }
     fill_list(Theta, list(
         M_p = M_p,
@@ -119,7 +121,9 @@ set_truncnorm_hyperprior_parameters <- function(
         Alpha = Alpha,
         Beta = Beta,
         a = a,
-        b = b
+        b = b,
+        a_s = a_s,
+        b_s = b_s
     ))
 }
 
@@ -197,9 +201,11 @@ set_exponential_hyperprior_parameters <- function(
         b_e = 10,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 2,
-        Alpha = matrix(alpha, nrow = dims$K, ncol = dims$G),
+        Alpha = matrix(alpha, nrow = dims$K, ncol = 1),
         beta = 1,
-        Beta = matrix(beta, nrow = dims$K, ncol = dims$G),
+        Beta = matrix(beta, nrow = dims$K, ncol = 1),
+        a_s = 50,
+        b_s = 49,
         a = 0.8,
         b = 0.8
 ) {
@@ -217,10 +223,10 @@ set_exponential_hyperprior_parameters <- function(
     }
 
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = matrix(Theta$alpha, nrow = dims$K, ncol = dims$G)
+        Theta$Alpha = matrix(Theta$alpha, nrow = dims$K, ncol = 1)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = matrix(Theta$beta, nrow = dims$K, ncol = dims$G)
+        Theta$Beta = matrix(Theta$beta, nrow = dims$K, ncol = 1)
     }
 
     fill_list(Theta, list(
@@ -231,7 +237,9 @@ set_exponential_hyperprior_parameters <- function(
         Alpha = Alpha,
         Beta = Beta,
         a = a,
-        b = b
+        b = b,
+        a_s = a_s,
+        b_s = b_s
     ))
 }
 
@@ -433,16 +441,15 @@ sample_prior_E <- function(Theta, dims, prior) {
 #' @param dims named list of dimensions N, K, G
 #'
 #' @return matrix, prior sample of sigmasq
-#' @noRd
+#' @noRdsample_prior_S
 sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
-    Sigmasq <- matrix(nrow = dims$K, ncol = dims$G)
+    Sigmasq <- matrix(nrow = dims$K, ncol = 1)
+    S <- matrix(nrow = dims$K, ncol = dims$G)
     if (sigmasq_type == 'invgamma') {
         for (k in 1:dims$K) {
-            for (g in 1:dims$G) {
-                Sigmasq[k,g] <- invgamma::rinvgamma(
-                    n = 1, shape = Theta$Alpha[k,g], rate = Theta$Beta[k,g]
-                )
-            }
+            Sigmasq[k,1] <- invgamma::rinvgamma(
+                n = 1, shape = Theta$Alpha[k,1], rate = Theta$Beta[k,1]
+            )
         }
     } else if (sigmasq_type == 'noninformative') {
         Sigmasq <- matrix(
@@ -457,6 +464,18 @@ sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
         Sigmasq <- get_Mhat(Theta)
     }
     return(Sigmasq)
+}
+
+sample_prior_S <- function(Theta, dims) {
+    S <- matrix(nrow = dims$K, ncol = dims$G)
+    for (k in 1:dims$K) {
+        for (g in 1:dims$G) {
+            S[k,g] <- invgamma::rinvgamma(
+                n = 1, shape = Theta$a_s, rate = Theta$b_s
+            )
+        }
+    }
+    return(S)
 }
 
 #' initialize Theta
@@ -566,6 +585,17 @@ initialize_Theta <- function(
         } else {
             Theta$sigmasq <- sample_prior_sigmasq(Theta, dims, sigmasq_type)
             is_fixed$sigmasq <- FALSE
+        }
+
+        if (!is.null(fixed$S)) {
+            Theta$S <- fixed$S
+            is_fixed$S <- TRUE
+        } else if (!is.null(inits$S)) {
+            Theta$S <- inits$S
+            is_fixed$S <- FALSE
+        } else {
+            Theta$S <- sample_prior_S(Theta, dims)
+            is_fixed$S <- FALSE
         }
     } else if (likelihood == 'poisson') {
         Theta$Z <- array(dim = c(dims$K, dims$N, dims$G))

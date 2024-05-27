@@ -9,22 +9,22 @@
 #' @noRd
 sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
     Mhat <- get_Mhat(Theta)
-    Sigmasq <- matrix(nrow = dims$K, ncol = dims$G)
+    Sigmasq <- matrix(nrow = dims$K, ncol = 1)
     if (sigmasq_type == 'invgamma') {
         for (k in 1:dims$K) {
-            Sigmasq[k,] <- invgamma::rinvgamma(
-                n = dims$G,
-                shape = Theta$Alpha[k,] + gamma * 1 / 2,
-                rate = Theta$Beta[k,] + gamma * ((M - Mhat)[k,])**2 / 2
+            Sigmasq[k,1] <- invgamma::rinvgamma(
+                n = 1,
+                shape = Theta$Alpha[k,1] + gamma * dims$G / 2,
+                rate = Theta$Beta[k,1] + gamma * sum(((M - Mhat)[k,])**2 / Theta$S[k,]) / 2
             )
         }
         Sigmasq[Sigmasq > max(M)] <- max(M)
     } else if (sigmasq_type == 'noninformative') {
         for (k in 1:dims$K) {
-            Sigmasq[k,] <- invgamma::rinvgamma(
+            Sigmasq[k,1] <- invgamma::rinvgamma(
                 n = dims$G,
-                shape = 1 / 2,
-                rate = ((M - Mhat)[k,])**2 / 2
+                shape = dims$G / 2,
+                rate = sum(((M - Mhat)[k,])**2 / Theta$S[k,]) / 2
             )
         }
         Sigmasq[Sigmasq > max(M)] <- max(M)
@@ -33,6 +33,19 @@ sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
     }
 
     return(Sigmasq)
+}
+
+sample_S_normal <- function(M, Theta, dims, gamma = 1) {
+    Mhat <- get_Mhat(Theta)
+    S <- matrix(nrow = dims$K, ncol = dims$G)
+    for (k in 1:dims$K) {
+        S[k,] <- invgamma::rinvgamma(
+            n = dims$G,
+            shape = Theta$a_s + gamma * 1/2,
+            rate = Theta$b_s + gamma * ((M - Mhat)[k,])**2 / (2 * Theta$sigmasq[k])
+        )
+    }
+    return(S)
 }
 
 
