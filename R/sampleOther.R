@@ -9,39 +9,24 @@
 #' @noRd
 sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
     Mhat <- get_Mhat(Theta)
-    Sigmasq <- matrix(nrow = dims$K, ncol = dims$G)
+    Sigmasq <- matrix(nrow = dims$K, ncol = 1)
     if (sigmasq_type == 'invgamma') {
         for (k in 1:dims$K) {
-            Sigmasq[k,] <- invgamma::rinvgamma(
-                n = dims$G,
-                shape = Theta$Alpha[k,] + gamma * 1 / 2,
-                rate = Theta$Beta[k,] + gamma * ((M - Mhat)[k,])**2 / 2
+            Sigmasq[k,1] <- invgamma::rinvgamma(
+                n = 1,
+                shape = Theta$Alpha[k,1] + gamma * dims$G / 2,
+                rate = Theta$Beta[k,1] + gamma * sum(((M - Mhat)[k,])**2 / (2 * colSums(M)))
             )
         }
     } else if (sigmasq_type == 'noninformative') {
         for (k in 1:dims$K) {
             Sigmasq[k,] <- invgamma::rinvgamma(
                 n = dims$G,
-                shape = 1 / 2,
-                rate = ((M - Mhat)[k,])**2 / 2
+                shape = dims$G / 2,
+                rate = sum(((M - Mhat)[k,])**2 / (2 * colSums(M)))
             )
-
-            # sapply(1:dims$G, function(g) {
-            #     sample = armspp::arms(
-            #         n_samples = 1,
-            #         log_pdf = function(x) {
-            #             -1*log(x) + gamma * log(dnorm(
-            #                 M[k,g], mean = Mhat[k,g], sd = sqrt(x)
-            #             ))
-            #         },
-            #         lower = 0, upper = 1000
-            #     )
-            #     return(sample)
-            # })
         }
-        Sigmasq[Sigmasq > max(M)] <- max(M)
-    } else if (sigmasq_type == "eq_mu") {
-        Sigmasq <- Mhat
+        # Sigmasq[Sigmasq > max(M)] <- max(M)
     }
 
     return(Sigmasq)

@@ -63,9 +63,9 @@ set_truncnorm_hyperprior_parameters <- function(
         b_e = sqrt(dims$N) + 1,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
-        Alpha = matrix(alpha, nrow = dims$K, ncol = dims$G),
+        Alpha = matrix(alpha, nrow = dims$K, ncol = 1),
         beta = 0.1,
-        Beta = matrix(beta, nrow = dims$K, ncol = dims$G),
+        Beta = matrix(beta, nrow = dims$K, ncol = 1),
         a = 0.8,
         b = 0.8
 ) {
@@ -102,10 +102,10 @@ set_truncnorm_hyperprior_parameters <- function(
         Theta$S_e = matrix(Theta$s_e, nrow = dims$N, ncol = dims$G)
     }
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = matrix(Theta$alpha, nrow = dims$K, ncol = dims$G)
+        Theta$Alpha = matrix(Theta$alpha, nrow = dims$K, ncol = 1)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = matrix(Theta$beta, nrow = dims$K, ncol = dims$G)
+        Theta$Beta = matrix(Theta$beta, nrow = dims$K, ncol = 1)
     }
     fill_list(Theta, list(
         M_p = M_p,
@@ -197,9 +197,9 @@ set_exponential_hyperprior_parameters <- function(
         b_e = 10,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
-        Alpha = matrix(alpha, nrow = dims$K, ncol = dims$G),
+        Alpha = matrix(alpha, nrow = dims$K, ncol = 1),
         beta = 0.1,
-        Beta = matrix(beta, nrow = dims$K, ncol = dims$G),
+        Beta = matrix(beta, nrow = dims$K, ncol = 1),
         a = 0.8,
         b = 0.8
 ) {
@@ -217,10 +217,10 @@ set_exponential_hyperprior_parameters <- function(
     }
 
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = matrix(Theta$alpha, nrow = dims$K, ncol = dims$G)
+        Theta$Alpha = matrix(Theta$alpha, nrow = dims$K, ncol = 1)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = matrix(Theta$beta, nrow = dims$K, ncol = dims$G)
+        Theta$Beta = matrix(Theta$beta, nrow = dims$K, ncol = 1)
     }
 
     fill_list(Theta, list(
@@ -435,26 +435,24 @@ sample_prior_E <- function(Theta, dims, prior) {
 #' @return matrix, prior sample of sigmasq
 #' @noRd
 sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
-    Sigmasq <- matrix(nrow = dims$K, ncol = dims$G)
+    Sigmasq <- matrix(nrow = dims$K, ncol = 1)
     if (sigmasq_type == 'invgamma') {
         for (k in 1:dims$K) {
-            for (g in 1:dims$G) {
-                Sigmasq[k,g] <- invgamma::rinvgamma(
-                    n = 1, shape = Theta$Alpha[k,g], rate = Theta$Beta[k,g]
-                )
-            }
+            Sigmasq[k,1] <- invgamma::rinvgamma(
+                n = 1, shape = Theta$Alpha[k,1], rate = Theta$Beta[k,1]
+            )
         }
     } else if (sigmasq_type == 'noninformative') {
         Sigmasq <- matrix(
             armspp::arms(
-                n_samples = dims$K * dims$G,
+                n_samples = dims$K * 1,
                 log_pdf = function(x) {-1*log(x)},
                 lower = 0, upper = 1000
             ),
-            nrow = dims$K, ncol = dims$G
+            nrow = dims$K, ncol = 1
         )
     } else if (sigmasq_type == 'eq_mu') {
-        Sigmasq <- get_Mhat(Theta)
+        Sigmasq <- rowMeans(get_Mhat(Theta))
     }
     return(Sigmasq)
 }
