@@ -20,7 +20,12 @@ sumLog <- function(vec) {
 #' @return matrix
 #' @noRd
 get_Mhat <- function(Theta) {
-    Theta$P %*% diag(Theta$A[1,]) %*% Theta$E
+    if (sum(Theta$A[1,]) == 0) {
+        Mhat <- matrix(0, nrow = nrow(Theta$P), ncol = ncol(Theta$E))
+    } else {
+        Mhat <- Theta$P %*% diag(Theta$A[1,]) %*% Theta$E
+    }
+    return(Mhat)
 }
 
 #' Estimate M from current values of Theta excluding signature N
