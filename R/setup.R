@@ -95,18 +95,33 @@ set_truncnorm_hyperprior_parameters <- function(
         Theta$M_e = matrix(Theta$m_e, nrow = dims$N, ncol = dims$G)
     }
 
-    if ("s_p" %in% names(Theta) & !("S_p" %in% names(Theta))) {
-        Theta$S_p = matrix(Theta$s_p, nrow = dims$K, ncol = dims$N)
+    for (matrix in c("S_p", "A_p", "B_p")) {
+        element = tolower(matrix)
+        print(paste(element, matrix))
+        Theta <- fill_matrix(
+            Theta,
+            element = element, matrix = matrix,
+            nrow = dims$K, ncol = dims$N
+        )
+        print(Theta[[matrix]])
     }
-    if ("s_e" %in% names(Theta) & !("S_e" %in% names(Theta))) {
-        Theta$S_e = matrix(Theta$s_e, nrow = dims$N, ncol = dims$G)
+
+    for (matrix in c("S_e", "A_e", "B_e")) {
+        element = tolower(matrix)
+        Theta <- fill_matrix(
+            Theta,
+            element = element, matrix = matrix,
+            nrow = dims$N, ncol = dims$G
+        )
     }
+
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
         Theta$Alpha = rep(Theta$alpha, dims$K)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
         Theta$Beta = rep(Theta$beta, dims$K)
     }
+
     fill_list(Theta, list(
         M_p = M_p,
         M_e = M_e,
@@ -203,17 +218,21 @@ set_exponential_hyperprior_parameters <- function(
         a = 0.8,
         b = 0.8
 ) {
-    if ("a_p" %in% names(Theta) & !("A_p" %in% names(Theta))) {
-        Theta$A_p = matrix(Theta$a_p, nrow = dims$K, ncol = dims$N)
+    for (matrix in c("A_p", "B_p")) {
+        element = tolower(matrix)
+        Theta <- fill_matrix(
+            Theta,
+            element = element, matrix = matrix,
+            nrow = dims$K, ncol = dims$N
+        )
     }
-    if ("b_p" %in% names(Theta) & !("B_p" %in% names(Theta))) {
-        Theta$B_p = matrix(Theta$b_p, nrow = dims$K, ncol = dims$N)
-    }
-    if ("a_e" %in% names(Theta) & !("A_e" %in% names(Theta))) {
-        Theta$A_e = matrix(Theta$a_e, nrow = dims$N, ncol = dims$G)
-    }
-    if ("b_e" %in% names(Theta) & !("B_e" %in% names(Theta))) {
-        Theta$B_e = matrix(Theta$b_e, nrow = dims$N, ncol = dims$G)
+    for (matrix in c("A_e", "B_e")) {
+        element = tolower(matrix)
+        Theta <- fill_matrix(
+            Theta,
+            element = element, matrix = matrix,
+            nrow = dims$N, ncol = dims$G
+        )
     }
 
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
@@ -305,29 +324,23 @@ set_gamma_hyperprior_parameters <- function(
         a = 0.8,
         b = 0.8
 ) {
-    if ("a_p" %in% names(Theta) & !("A_p" %in% names(Theta))) {
-        Theta$A_p = matrix(Theta$a_p, nrow = dims$K, ncol = dims$N)
+
+    for (matrix in c("A_p", "B_p", "C_p", "D_p")) {
+        element = tolower(matrix)
+        Theta <- fill_matrix(
+            Theta,
+            element = element, matrix = matrix,
+            nrow = dims$K, ncol = dims$N
+        )
     }
-    if ("b_p" %in% names(Theta) & !("B_p" %in% names(Theta))) {
-        Theta$B_p = matrix(Theta$b_p, nrow = dims$K, ncol = dims$N)
-    }
-    if ("c_p" %in% names(Theta) & !("C_p" %in% names(Theta))) {
-        Theta$C_p = matrix(Theta$c_p, nrow = dims$K, ncol = dims$N)
-    }
-    if ("d_p" %in% names(Theta) & !("D_p" %in% names(Theta))) {
-        Theta$D_p = matrix(Theta$d_p, nrow = dims$K, ncol = dims$N)
-    }
-    if ("a_e" %in% names(Theta) & !("A_e" %in% names(Theta))) {
-        Theta$A_e = matrix(Theta$a_e, nrow = dims$N, ncol = dims$G)
-    }
-    if ("b_e" %in% names(Theta) & !("B_e" %in% names(Theta))) {
-        Theta$B_e = matrix(Theta$b_e, nrow = dims$N, ncol = dims$G)
-    }
-    if ("c_e" %in% names(Theta) & !("C_e" %in% names(Theta))) {
-        Theta$C_e = matrix(Theta$c_e, nrow = dims$N, ncol = dims$G)
-    }
-    if ("d_e" %in% names(Theta) & !("D_e" %in% names(Theta))) {
-        Theta$D_e = matrix(Theta$d_e, nrow = dims$N, ncol = dims$G)
+
+    for (matrix in c("A_e", "B_e", "C_e", "D_e")) {
+        element = tolower(matrix)
+        Theta <- fill_matrix(
+            Theta,
+            element = element, matrix = matrix,
+            nrow = dims$N, ncol = dims$G
+        )
     }
 
     fill_list(Theta, list(

@@ -492,7 +492,7 @@ get_quantile <- function(matrix_list, quantiles = c(0.025, 0.975)) {
 }
 
 #' Any named item in `fill_with` that is not specified in `list` gets
-#' transfered into `list`. Final `list` is returned.
+#' transferred into `list`. Final `list` is returned.
 #'
 #' @param list list of user specified values
 #' @param fill_with list of default values
@@ -506,6 +506,23 @@ fill_list <- function(list, fill_with) {
         }
     }
     return(list)
+}
+
+#' Create a matrix full of element values if element is provided and matrix is not
+#'
+#' @param Theta list of parameters
+#' @param element name of element
+#' @param matrix name of matrix
+#' @param nrow row dimension of matrix
+#' @param ncol column dimension of matrix
+#'
+#' @return Theta, list of p
+#' @noRd
+fill_matrix <- function(Theta, element, matrix, nrow, ncol) {
+    if (element %in% names(Theta) & !(matrix %in% names(Theta))) {
+        Theta[[matrix]] = matrix(Theta[[element]], nrow = nrow, ncol = ncol)
+    }
+    return(Theta)
 }
 
 
