@@ -58,8 +58,7 @@ get_metric <- function(
     likelihood = NULL,
     prior = NULL,
     dims = NULL,
-    logfac = NULL,
-    sigmasq_eq_mu = FALSE
+    logfac = NULL
 ) {
     if (metric %in% c('loglikelihood', 'logposterior', 'BIC')) {
         if (likelihood == 'normal') {
@@ -72,7 +71,7 @@ get_metric <- function(
         } else if (metric == 'BIC') {
             return(get_BIC(loglik, Theta, dims, likelihood, prior))
         }
-        logpost = loglik + get_logprior(Theta, likelihood, prior, sigmasq_eq_mu)
+        logpost = loglik + get_logprior(Theta, likelihood, prior)
         return(-1 * logpost)
     } else if (metric == 'RMSE') {
         get_RMSE(M, Mhat)
@@ -108,8 +107,7 @@ check_converged <- function(
     likelihood = NULL,
     prior = NULL,
     dims = NULL,
-    logfac = NULL,
-    sigmasq_eq_mu = FALSE
+    logfac = NULL
 ) {
     MAP_metric = get_metric(
         convergence_control$metric, Mhat, M,
@@ -183,21 +181,4 @@ check_converged <- function(
 
 
     return(convergence_status)
-}
-
-#' compute BIC where number of parameters depends on likelihood-prior combination
-#'
-#' @param loglik scalar, log likelihood at Theta
-#' @param Theta list, current values of all unknowns
-#' @param dims list, named list of dimensions
-#' @param likelihood string, one of c("normal", "poisson")
-#' @param prior string, one of c("truncnormal","exponential","gamma")
-#'
-#' @return scalar, BIC
-#' @noRd
-get_BIC <- function(loglik, Theta, dims, likelihood, prior) {
-    N = sum(Theta$A[1,])
-    n_params = N * (dims$G + dims$K)
-
-    return(n_params * log(dims$G) - 2 * loglik)
 }

@@ -28,4 +28,5 @@ for (k in 1:K) {
 M <- round(M)
 
 true_P <- P
+true_E <- E
 rm(list = c('P','E','N','G','sigs'))

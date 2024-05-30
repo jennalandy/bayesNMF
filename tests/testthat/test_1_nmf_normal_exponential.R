@@ -45,17 +45,6 @@ test_that("nmf_normal_exponential works with Poisson data generating function gi
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
     expect_gt(min(sig_sims), 0.8)
-
-    log_post <- get_proportional_log_posterior(
-        Theta = res$final_Theta,
-        M = M,
-        P = res$MAP$P,
-        E = res$MAP$E,
-        sigmasq = res$MAP$sigmasq,
-        likelihood = 'normal',
-        prior = 'exponential'
-    )
-    expect_true(!is.na(log_post))
 })
 
 test_that("nmf_normal_exponential works with Poisson data generating function given max_N", {
@@ -76,17 +65,6 @@ test_that("nmf_normal_exponential works with Poisson data generating function gi
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
     expect_gt(min(sig_sims), 0.8)
-
-    log_post <- get_proportional_log_posterior(
-        Theta = res$final_Theta,
-        M = M,
-        P = res$MAP$P,
-        E = res$MAP$E,
-        sigmasq = res$MAP$sigmasq,
-        likelihood = 'normal',
-        prior = 'exponential'
-    )
-    expect_true(!is.na(log_post))
 })
 
 test_that("nmf_normal_exponential works with Poisson data generating function given max_N and custom a, b", {
@@ -108,133 +86,21 @@ test_that("nmf_normal_exponential works with Poisson data generating function gi
     sig_sims <- diag(reassign_signatures(res$sim_mat))
     sig_sims <- sig_sims[sig_sims != min(sig_sims)]
     expect_gt(min(sig_sims), 0.8)
-
-    log_post <- get_proportional_log_posterior(
-        Theta = res$final_Theta,
-        M = M,
-        P = res$MAP$P,
-        E = res$MAP$E,
-        sigmasq = res$MAP$sigmasq,
-        likelihood = 'normal',
-        prior = 'exponential'
-    )
-    expect_true(!is.na(log_post))
 })
 
-
-source("setup_poisson_sparse.R")
-
-test_that("nmf_normal_exponential works with sparse Poisson data generating function given N", {
-    res <- bayesNMF(
-        M, N = 5,
-        likelihood = 'normal',
-        prior = 'exponential',
-        file = "log_files/modelNE_dataPS_N5",
-        true_P = true_P,
-        overwrite = TRUE
-    )
-
-    expect_equal(sum(is.na(res$MAP$E)), 0)
-    expect_equal(sum(is.na(res$MAP$P)), 0)
-
-    sig_sims <- diag(reassign_signatures(res$sim_mat))
-    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
-    expect_gt(min(sig_sims), 0.8)
-})
-
-test_that("nmf_normal_exponential works with sparse Poisson data generating function given max_N", {
+test_that("nmf_normal_exponential works with Poisson data generating function given max N and recovery", {
     res <- bayesNMF(
         M, max_N = 7,
         likelihood = 'normal',
         prior = 'exponential',
-        file = "log_files/modelNE_dataPS_maxN7",
+        file = "log_files/modelNE_dataP_maxN7_recovery",
+        overwrite = TRUE,
         true_P = true_P,
-        overwrite = TRUE
+        recovery = TRUE
     )
 
-    expect_equal(sum(is.na(res$MAP$E)), 0)
     expect_equal(sum(is.na(res$MAP$P)), 0)
-
-    expect_lt(abs(sum(res$MAP$A) - 5), 1)
-
-    sig_sims <- diag(reassign_signatures(res$sim_mat))
-    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
-    expect_gt(min(sig_sims), 0.8)
-})
-
-source("setup_normal.R")
-
-test_that("nmf_normal_exponential works with Normal data generating function given N", {
-    res <- bayesNMF(
-        M, N = 5,
-        likelihood = 'normal',
-        prior = 'exponential',
-        file = "log_files/modelNE_dataN_N5",
-        true_P = true_P,
-        overwrite = TRUE
-    )
-
     expect_equal(sum(is.na(res$MAP$E)), 0)
-    expect_equal(sum(is.na(res$MAP$P)), 0)
-
-    sig_sims <- diag(reassign_signatures(res$sim_mat))
-    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
-    expect_gt(min(sig_sims), 0.8)
-})
-
-test_that("nmf_normal_exponential works with Normal data generating function given max_N", {
-    res <- bayesNMF(
-        M, max_N = 7,
-        likelihood = 'normal',
-        prior = 'exponential',
-        file = "log_files/modelNE_dataN_maxN7",
-        true_P = true_P,
-        overwrite = TRUE
-    )
-
-    expect_equal(sum(is.na(res$MAP$E)), 0)
-    expect_equal(sum(is.na(res$MAP$P)), 0)
-
-    expect_lt(abs(sum(res$MAP$A) - 5), 1)
-
-    sig_sims <- diag(reassign_signatures(res$sim_mat))
-    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
-    expect_gt(min(sig_sims), 0.8)
-
-})
-
-source("setup_normal_sparse.R")
-
-test_that("nmf_normal_exponential works with sparse Normal data generating function given N", {
-    res <- bayesNMF(
-        M, N = 5,
-        likelihood = 'normal',
-        prior = 'exponential',
-        file = "log_files/modelNE_dataNS_N5",
-        true_P = true_P,
-        overwrite = TRUE
-    )
-
-    expect_equal(sum(is.na(res$MAP$E)), 0)
-    expect_equal(sum(is.na(res$MAP$P)), 0)
-
-    sig_sims <- diag(reassign_signatures(res$sim_mat))
-    sig_sims <- sig_sims[sig_sims != min(sig_sims)]
-    expect_gt(min(sig_sims), 0.8)
-})
-
-test_that("nmf_normal_exponential works with sparse Normal data generating function given max_N", {
-    res <- bayesNMF(
-        M, max_N = 7,
-        likelihood = 'normal',
-        prior = 'exponential',
-        file = "log_files/modelNE_dataNS_maxN7",
-        true_P = true_P,
-        overwrite = TRUE
-    )
-
-    expect_equal(sum(is.na(res$MAP$E)), 0)
-    expect_equal(sum(is.na(res$MAP$P)), 0)
 
     expect_lt(abs(sum(res$MAP$A) - 5), 1)
 

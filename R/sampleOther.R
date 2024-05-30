@@ -7,27 +7,13 @@
 #'
 #' @return vector length K
 #' @noRd
-sample_sigmasq_normal <- function(M, Theta, dims, sigmasq_type, gamma = 1){
+sample_sigmasq_normal <- function(M, Theta, dims, gamma = 1){
     Mhat <- get_Mhat(Theta)
-    if (sigmasq_type == 'invgamma') {
-        sigmasq <- sapply(1:dims$K, function(k) {
-            s <- 1/rgamma(
-                n = 1,
-                shape = Theta$Alpha[k] + gamma * dims$G / 2,
-                rate = Theta$Beta[k] + gamma * sum(((M - Mhat)[k,])**2) / 2
-            )
-            return(s)
-        })
-
-    } else if (sigmasq_type == 'noninformative') {
-        sigmasq <- sapply(1:dims$K, function(k) {
-            armspp::arms(n_samples = 1, log_pdf = function(x) {
-                -1*log(x) + gamma * sum(log(dnorm(M[k,], mean = Mhat[k,], sd = sqrt(x))))
-            }, lower = 0, upper = 1000)
-        })
-    } else if (sigmasq_type == "eq_mu") {
-        sigmasq <- rowMeans(Mhat)
-    }
+    sigmasq <- sapply(1:dims$K, function(k) {
+        armspp::arms(n_samples = 1, log_pdf = function(x) {
+            -1*log(x) + gamma * sum(log(dnorm(M[k,], mean = Mhat[k,], sd = sqrt(x))))
+        }, lower = 0, upper = 1000)
+    })
 
     return(sigmasq)
 }

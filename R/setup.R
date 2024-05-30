@@ -49,7 +49,7 @@ set_truncnorm_hyperprior_parameters <- function(
         S_p = matrix(s_p, nrow = dims$K, ncol = dims$N),
         a_p = dims$N + 1,
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = sqrt(dims$N) + 1,
+        b_p = 100,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
         mean_e = 10/sqrt(dims$N),
         m_e = uniroot(function(x) {
@@ -60,7 +60,7 @@ set_truncnorm_hyperprior_parameters <- function(
         S_e = matrix(s_e, nrow = dims$N, ncol = dims$G),
         a_e = dims$N + 1,
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = sqrt(dims$N) + 1,
+        b_e = 100,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
         Alpha = rep(alpha, dims$K),
@@ -97,13 +97,11 @@ set_truncnorm_hyperprior_parameters <- function(
 
     for (matrix in c("S_p", "A_p", "B_p")) {
         element = tolower(matrix)
-        print(paste(element, matrix))
         Theta <- fill_matrix(
             Theta,
             element = element, matrix = matrix,
             nrow = dims$K, ncol = dims$N
         )
-        print(Theta[[matrix]])
     }
 
     for (matrix in c("S_e", "A_e", "B_e")) {
@@ -305,21 +303,21 @@ sample_exponential_prior_parameters <- function(Theta, dims, recovery, recovery_
 set_gamma_hyperprior_parameters <- function(
         Theta,
         dims,
-        a_p = 10 * sqrt(dims$N),
+        a_p = 1,
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = 10,
+        b_p = 1,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
         c_p = 100,
         C_p = matrix(c_p, nrow = dims$K, ncol = dims$N),
-        d_p = 10,
+        d_p = 10 * sqrt(dims$N),
         D_p = matrix(d_p, nrow = dims$K, ncol = dims$N),
-        a_e = 10 * sqrt(dims$N),
+        a_e = 1,
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = 10,
+        b_e = 1,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         c_e = 100,
         C_e = matrix(c_e, nrow = dims$N, ncol = dims$G),
-        d_e = 10,
+        d_e = 10 * sqrt(dims$N),
         D_e = matrix(d_e, nrow = dims$N, ncol = dims$G),
         a = 0.8,
         b = 0.8
@@ -447,17 +445,8 @@ sample_prior_E <- function(Theta, dims, prior) {
 #'
 #' @return matrix, prior sample of sigmasq
 #' @noRd
-sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
-    if (sigmasq_type == 'invgamma') {
-        sapply(1:dims$K, function(k) {
-            1/rgamma(n = 1, shape = Theta$Alpha[k], rate = Theta$Beta[k])
-        })
-    } else if (sigmasq_type == 'noninformative') {
-        armspp::arms(n_samples = dims$K, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)
-    } else if (sigmasq_type == 'eq_mu') {
-        rowMeans(get_Mhat(Theta))
-    }
-
+sample_prior_sigmasq <- function(Theta, dims) {
+    armspp::arms(n_samples = dims$K, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)
 }
 
 #' initialize Theta
@@ -473,7 +462,7 @@ sample_prior_sigmasq <- function(Theta, dims, sigmasq_type) {
 #' @noRd
 initialize_Theta <- function(
         M, likelihood, prior, learn_A,
-        dims, sigmasq_type,
+        dims,
         inits,
         fixed,
         prior_parameters,
@@ -565,7 +554,7 @@ initialize_Theta <- function(
             Theta$sigmasq <- inits$sigmasq
             is_fixed$sigmasq <- FALSE
         } else {
-            Theta$sigmasq <- sample_prior_sigmasq(Theta, dims, sigmasq_type)
+            Theta$sigmasq <- sample_prior_sigmasq(Theta, dims)
             is_fixed$sigmasq <- FALSE
         }
     } else if (likelihood == 'poisson') {
