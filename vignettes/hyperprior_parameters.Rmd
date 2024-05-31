@@ -1,0 +1,137 @@
+---
+title: "Setting Prior Parameters"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{priors}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: references.bib
+---
+
+```{r}
+source("./plot_priors.R")
+```
+
+
+## Data Scaling
+
+In order to have prior distributions that are realistic for any provided dataset, we rescale the dataset such that the average value in the matrix is 100.
+
+$$\tilde M = M\cdot \frac{100}{\bar M}$$
+By default, we set hyperprior parameters such that the priors for each element of **$P$ and $E$ are centered at $10/\sqrt(N)$** so the prior of $\hat M = PE$ is also centered at 100. 
+
+$$\mathbb{E}\left[(PE)_{kg}\right] = \mathbb{E}\left[\sum_nP_{kn}E_{ng}\right] = \sum_n\mathbb E\left[P_{kn}\right]\mathbb{E}\left[E_{ng}\right] = \sum_n \frac{10}{\sqrt{N}}\cdot \frac{10}{\sqrt{N}} = 100$$
+
+This ensures that the scale of our priors is a reasonable starting place. *All results are translated back to the input scale.*
+
+## Default Priors
+
+### Gamma
+
+```{r fig.height = 5, fig.width = 8}
+dims <- list(G = 1, N = 5, K = 1)
+plot_gamma_priors(dims, title = "Default Gamma Prior")
+```
+
+### Exponential
+
+```{r fig.height = 5, fig.width = 8}
+dims <- list(G = 1, N = 5, K = 1)
+plot_exponential_priors(dims, title = "Default Exponential Prior")
+```
+
+### Truncated Normal
+
+```{r fig.height = 5, fig.width = 8}
+dims <- list(G = 1, N = 5, K = 1)
+plot_truncnorm_priors(dims, title = "Default Truncated Normal Prior")
+```
+
+## Custom Hyperprior Parameters
+
+Custom priors can be specified to `bayesNMF` with the `prior_parameters` argument. We recommend playing with the code below to ensure that the scale of the induced prior on $\hat M = PE$ is still reasonable. Be sure to include the correct dimensions of your data in the `dims` list.
+
+### Gamma
+
+$$
+\begin{align*}
+    P_{kn} &\sim Gamma(\alpha^P_{kn}, \beta^P_{kn})\\
+    E_{ng} &\sim Gamma(\alpha^E_{ng}, \beta^E_{ng})\\\\
+    \beta^P_{kn} &\sim Gamma(a^P_{kn}, b^P_{kn})\\
+    \beta^E_{ng} &\sim Gamma(a^E_{ng}, b^E_{ng})\\
+    \alpha^P_{kn} &\sim Gamma(c^P_{kn}, d^P_{kn})\\
+    \alpha^E_{ng} &\sim Gamma(c^E_{ng}, d^E_{ng})\\
+\end{align*}
+$$
+
+```{r fig.height = 5, fig.width = 8}
+dims <- list(G = 10, N = 2, K = 10)
+plot_gamma_priors(
+    dims, title = "Custom Gamma Prior",
+    prior_parameters = list(
+        a_p = 20,
+        b_p = 50,
+        c_p = 10,
+        d_p = 4
+    )
+)
+```
+
+### Exponential
+
+$$
+\begin{align*}
+    P_{kn} &\sim Exp(\lambda = \lambda^P_{kn})\\
+    E_{ng} &\sim Exp(\lambda = \lambda^E_{ng})\\\\
+    \lambda^P_{kn} &\sim Gamma(a^P_{kn}, b^P_{kn})\\
+    \lambda^E_{ng} &\sim Gamma(a^E_{ng}, b^E_{ng})
+\end{align*}
+$$
+```{r fig.height = 5, fig.width = 8}
+dims <- list(G = 100, N = 5, K = 96)
+plot_exponential_priors(
+    dims, title = "Custom Exponential Prior",
+    prior_parameters = list(
+        a_p = 200,
+        b_p = 100,
+        a_e = 1,
+        b_e = 10
+    )
+)
+```
+
+
+### Truncated Normal
+
+$$
+\begin{align*}
+    P_{kn} &\sim TruncNorm(\mu = \mu^P_{kn}, \sigma^2 = \sigma^{2P}_{kn}, a = 0, b = \infty)\\
+    E_{ng} &\sim TruncNorm(\mu = \mu^E_{ng}, \sigma^2 = \sigma^{2E}_{ng}, a = 0, b = \infty)\\
+    p(\sigma^2_k) &\propto 1/\sigma^2_k\\\\
+    \mu_{kn}^P &\sim Normal(m_{kn}^P, s_{kn}^P)\\
+    \sigma^{2P}_{kn} &\sim InvGamma(a_{kn}^P, b_{kn}^P)\\
+    \mu_{ng}^E &\sim Normal(m_{ng}^E, s_{ng}^E)\\
+    \sigma^{2E}_{ng} &\sim InvGamma(a_{ng}^E, b_{ng}^E)
+\end{align*}
+$$
+
+Note that the parameter $\mu$ in a truncated normal is not the mean. For a truncated normal distribution with parameters $\mu$, $\sigma^2$ and bounded by $a$ and $b$, its mean is
+
+$$
+\mu + \sigma \cdot \frac{\varphi(\frac{a - \mu}{\sigma}) - \varphi(\frac{b - \mu}{\sigma})}{\Phi(\frac{b - \mu}{\sigma}) - \Phi(\frac{a - \mu}{\sigma})}
+$$
+where $\varphi$ is the standard normal pdf and $\Phi$ is the standard normal cdf.
+
+
+```{r fig.height = 5, fig.width = 8}
+dims <- list(G = 100, N = 5, K = 96)
+plot_truncnorm_priors(
+    dims, title = "Custom Truncated Normal Prior",
+    prior_parameters = list(
+        m_p = 100/dims$N,
+        s_p = 0.0,
+        m_e = 0.1,
+        s_e = 1
+    )
+)
+```

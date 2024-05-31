@@ -2,7 +2,6 @@
 #'
 #' @param Theta list of parameters
 #' @param dims named list of dimensions N, K, G
-#' @param mean_p mean for the prior location parameter of `P`
 #' @param m_p see `M_p`
 #' @param M_p location parameter for the prior location parameter of `P`
 #' size K x N. Defaults to all same value `m_p`
@@ -13,7 +12,6 @@
 #' @param A_p shape parameter for the gamma prior on `P`, matrix
 #' @param b_p see `B_p`
 #' @param B_p rate parameter for the gamma prior on `P`, matrix
-#' @param mean_e mean for the prior location parameter of `E`
 #' @param m_e see `M_e`
 #' @param M_e location parameter for the prior location parameter of `E`
 #' size N x G. Defaults to all same value `m_e`
@@ -40,27 +38,21 @@
 set_truncnorm_hyperprior_parameters <- function(
         Theta,
         dims,
-        mean_p = 10/sqrt(dims$N),
-        m_p = uniroot(function(x) {
-            x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - mean_p
-        }, interval = c(0, 100))$root,
+        m_p = 10/sqrt(dims$N),
         M_p = matrix(m_p, nrow = dims$K, ncol = dims$N),
         s_p = m_p, #mu_p/10,
         S_p = matrix(s_p, nrow = dims$K, ncol = dims$N),
         a_p = dims$N + 1,
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = 100,
+        b_p = sqrt(dims$N) + 1,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
-        mean_e = 10/sqrt(dims$N),
-        m_e = uniroot(function(x) {
-            x + sqrt(x) * dnorm(-sqrt(x))/(pnorm(-sqrt(x)) - 1) - mean_e
-        }, interval = c(0, 100))$root,
+        m_e = 10/sqrt(dims$N),
         M_e = matrix(m_e, nrow = dims$N, ncol = dims$G),
         s_e = m_e, #mu_e/10,
         S_e = matrix(s_e, nrow = dims$N, ncol = dims$G),
         a_e = dims$N + 1,
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = 100,
+        b_e = sqrt(dims$N) + 1,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
         Alpha = rep(alpha, dims$K),
@@ -201,11 +193,11 @@ sample_truncnormal_prior_parameters <- function(Theta, dims, recovery, recovery_
 set_exponential_hyperprior_parameters <- function(
         Theta,
         dims,
-        a_p = sqrt(dims$N),
+        a_p = sqrt(dims$N) + 1,
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
         b_p = 10,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
-        a_e = sqrt(dims$N),
+        a_e = sqrt(dims$N) + 1,
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
         b_e = 10,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
@@ -303,21 +295,21 @@ sample_exponential_prior_parameters <- function(Theta, dims, recovery, recovery_
 set_gamma_hyperprior_parameters <- function(
         Theta,
         dims,
-        a_p = 1,
+        a_p = 10*sqrt(dims$N),
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = 1,
+        b_p = 10,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
         c_p = 100,
         C_p = matrix(c_p, nrow = dims$K, ncol = dims$N),
-        d_p = 10 * sqrt(dims$N),
+        d_p = 10,
         D_p = matrix(d_p, nrow = dims$K, ncol = dims$N),
-        a_e = 1,
+        a_e = 10*sqrt(dims$N),
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = 1,
+        b_e = 10,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         c_e = 100,
         C_e = matrix(c_e, nrow = dims$N, ncol = dims$G),
-        d_e = 10 * sqrt(dims$N),
+        d_e = 10,
         D_e = matrix(d_e, nrow = dims$N, ncol = dims$G),
         a = 0.8,
         b = 0.8
