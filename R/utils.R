@@ -790,15 +790,13 @@ get_credible_intervals <- function(logs, map.idx) {
 
 #' Get Posterior pmf of latent rank
 #'
-#' @param logs list, list of Gibbs sampler logs
-#' @param gamma_sched numeric vector, tempering schedule
+#' @param A_list list, list of A matrices
 #'
 #' @return table, posterior pmf of latent rank
 #' @noRd
-get_posterior_counts_N <- function(logs, gamma_sched) {
-    keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
-    rank_logs = sapply(logs$A[keep], function(A) {sum(A)})
-    rank_logs = factor(rank_logs, levels = 1:ncol(logs$A[[1]]))
+get_posterior_counts_N <- function(A_list) {
+    rank_logs = sapply(A_list, function(A) {sum(A)})
+    rank_logs = factor(rank_logs, levels = 1:ncol(A_list[[1]]))
     posterior_counts <- table(rank_logs)
     return(posterior_counts)
 }
