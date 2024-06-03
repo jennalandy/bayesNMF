@@ -128,10 +128,10 @@ dims <- list(G = 100, N = 5, K = 96)
 plot_truncnorm_priors(
     dims, title = "Custom Truncated Normal Prior",
     prior_parameters = list(
-        m_p = 100/dims$N,
-        s_p = 0.0,
-        m_e = 0.1,
-        s_e = 1
+        m_p = 10/sqrt(dims$N),
+        s_p = 1/sqrt(dims$N),
+        m_e = 10/sqrt(dims$N),
+        s_e = 1/sqrt(dims$N)
     )
 )
 ```
