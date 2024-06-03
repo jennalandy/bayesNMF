@@ -307,19 +307,19 @@ bayesNMF <- function(
                 first_MAP = FALSE
                 # forces convergence after gamma == 1
                 convergence_status$best_MAP_metric = Inf
-                if (store_logs) {
-                    keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
-                    running_posterior_counts <- get_posterior_counts_N(logs$A[keep])
-                } else {
-                    running_posterior_counts <- get_posterior_counts_N(logs$A)
-                }
+                # if (store_logs) {
+                #     keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
+                #     running_posterior_counts <- get_posterior_counts_N(logs$A[keep])
+                # } else {
+                #     running_posterior_counts <- get_posterior_counts_N(logs$A)
+                # }
             } else if (gamma_sched[iter] == 1) {
-                if (store_logs) {
-                    keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
-                    running_posterior_counts <- running_posterior_counts + get_posterior_counts_N(logs$A[keep])
-                } else {
-                    running_posterior_counts <- running_posterior_counts + get_posterior_counts_N(logs$A)
-                }
+                # if (store_logs) {
+                #     keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
+                #     running_posterior_counts <- running_posterior_counts + get_posterior_counts_N(logs$A[keep])
+                # } else {
+                #     running_posterior_counts <- running_posterior_counts + get_posterior_counts_N(logs$A)
+                # }
             }
 
             # if not storing logs, store current best MAP to return if needed
@@ -371,7 +371,7 @@ bayesNMF <- function(
                     MAP$E <- MAP$E[keep_sigs, ]
                     credible_intervals <- store_credible_intervals
                 }
-                posterior_pmf_N <- running_posterior_counts/sum(running_posterior_counts)
+                # posterior_pmf_N <- running_posterior_counts/sum(running_posterior_counts)
             }
 
             # plot metrics
@@ -408,7 +408,7 @@ bayesNMF <- function(
             )
             if (done) {
                 res$credible_intervals <- credible_intervals
-                res$posterior_N <- posterior_pmf_N
+                # res$posterior_N <- posterior_pmf_N
             }
             if (store_logs) {
                 res$logs = logs
