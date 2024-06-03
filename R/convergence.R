@@ -26,6 +26,10 @@ new_convergence_control <- function(
     minA = 0,
     metric = "BIC"
 ) {
+    if (miniters >= maxiters) {
+        warning("miniters >= maxiters, setting miniters to 0.")
+        miniters = 0
+    }
     list(
         MAP_over = MAP_over,
         MAP_every = MAP_every,

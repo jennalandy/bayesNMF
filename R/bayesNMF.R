@@ -307,6 +307,19 @@ bayesNMF <- function(
                 first_MAP = FALSE
                 # forces convergence after gamma == 1
                 convergence_status$best_MAP_metric = Inf
+                if (store_logs) {
+                    keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
+                    running_posterior_counts <- get_posterior_counts_N(logs$A[keep])
+                } else {
+                    running_posterior_counts <- get_posterior_counts_N(logs$A)
+                }
+            } else if (gamma_sched[iter] == 1) {
+                if (store_logs) {
+                    keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
+                    running_posterior_counts <- running_posterior_counts + get_posterior_counts_N(logs$A[keep])
+                } else {
+                    running_posterior_counts <- running_posterior_counts + get_posterior_counts_N(logs$A)
+                }
             }
 
             # if not storing logs, store current best MAP to return if needed
@@ -315,14 +328,6 @@ bayesNMF <- function(
                 !store_logs &
                 !is.null(convergence_status$best_iter)
             ) {
-                # update running counts of posterior distributon of rank N
-                if (gamma_sched[iter] == 1 & first_MAP) {
-                    running_posterior_counts <- get_posterior_counts_N(logs, gamma_sched)
-                } else if (gamma_sched[iter] == 1) {
-                    running_posterior_counts <- running_posterior_counts +
-                        get_posterior_counts_N(logs, gamma_sched)
-                }
-
                 # update stored MAP if this is the best_iter
                 if (convergence_status$best_iter == iter) {
                     store_MAP <- MAP
@@ -359,16 +364,14 @@ bayesNMF <- function(
                     keep <- burn_in:stop
                     MAP <- get_MAP(logs, keep, final = TRUE)
                     credible_intervals <- get_credible_intervals(logs, MAP$idx)
-                    posterior_pmf_N <- get_posterior_counts_N(logs, gamma_sched)
-                    posterior_pmf_N <- posterior_pmf_N/sum(posterior_pmf_N)
                 } else {
                     MAP <- store_MAP
                     keep_sigs <- which(MAP$A[1,] == 1)
                     MAP$P <- MAP$P[, keep_sigs]
                     MAP$E <- MAP$E[keep_sigs, ]
                     credible_intervals <- store_credible_intervals
-                    posterior_pmf_N <- running_posterior_counts/sum(running_posterior_counts)
                 }
+                posterior_pmf_N <- running_posterior_counts/sum(running_posterior_counts)
             }
 
             # plot metrics
