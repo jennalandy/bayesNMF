@@ -42,7 +42,7 @@ bayesNMF <- function(
     START = Sys.time()
 
     # rescale input data to fit scale of priors
-    rescale_by = mean(M)/100
+    rescale_by = 1
     M_truescale = M
     M = M/rescale_by
     if (!is.null(fixed$sigmasq)) {

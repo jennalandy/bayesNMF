@@ -36,9 +36,10 @@
 #' @return named list of prior parameters
 #' @noRd
 set_truncnorm_hyperprior_parameters <- function(
+        M,
         Theta,
         dims,
-        m_p = 10/sqrt(dims$N),
+        m_p = sqrt(mean(M))/sqrt(dims$N),
         M_p = matrix(m_p, nrow = dims$K, ncol = dims$N),
         s_p = m_p, #mu_p/10,
         S_p = matrix(s_p, nrow = dims$K, ncol = dims$N),
@@ -46,7 +47,7 @@ set_truncnorm_hyperprior_parameters <- function(
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
         b_p = sqrt(dims$N) + 1,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
-        m_e = 10/sqrt(dims$N),
+        m_e = sqrt(mean(M))/sqrt(dims$N),
         M_e = matrix(m_e, nrow = dims$N, ncol = dims$G),
         s_e = m_e, #mu_e/10,
         S_e = matrix(s_e, nrow = dims$N, ncol = dims$G),
@@ -473,7 +474,7 @@ initialize_Theta <- function(
     # hyperprior and prior parameters
     Theta = prior_parameters
     if (prior == 'truncnormal') {
-        Theta <- set_truncnorm_hyperprior_parameters(Theta, dims)
+        Theta <- set_truncnorm_hyperprior_parameters(M, Theta, dims)
         Theta <- sample_truncnormal_prior_parameters(Theta, dims, recovery, recovery_priors)
     } else if (prior == 'exponential') {
         Theta <- set_exponential_hyperprior_parameters(Theta, dims)
