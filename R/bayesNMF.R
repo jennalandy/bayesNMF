@@ -367,8 +367,15 @@ bayesNMF <- function(
                 } else {
                     MAP <- store_MAP
                     keep_sigs <- which(MAP$A[1,] == 1)
-                    MAP$P <- MAP$P[, keep_sigs]
-                    MAP$E <- MAP$E[keep_sigs, ]
+                    if (dims$N > 1) {
+                        MAP$P <- MAP$P[, keep_sigs]
+                        MAP$E <- MAP$E[keep_sigs, ]
+                    } else {
+                        if (length(keep_sigs) == 0) {
+                            MAP$P <- matrix(0, nrow = dims$K, ncol = 1)
+                            MAP$E <- matrix(0, nrow = 1, ncol = dims$G)
+                        }
+                    }
                     credible_intervals <- store_credible_intervals
                 }
                 # posterior_pmf_N <- running_posterior_counts/sum(running_posterior_counts)
