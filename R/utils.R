@@ -405,7 +405,7 @@ get_heatmap <- function(
 #' @param sim_mat similarity matrix
 #'
 #' @return matrix
-#' @noRd
+#' @export
 assign_signatures <- function(sim_mat) {
     reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
     reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]

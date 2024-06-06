@@ -38,7 +38,8 @@
 set_truncnorm_hyperprior_parameters <- function(
         Theta,
         dims,
-        m_p = 10/sqrt(dims$N),
+        M,
+        m_p = sqrt(mean(M))/sqrt(dims$N),
         M_p = matrix(m_p, nrow = dims$K, ncol = dims$N),
         s_p = m_p, #mu_p/10,
         S_p = matrix(s_p, nrow = dims$K, ncol = dims$N),
@@ -46,7 +47,7 @@ set_truncnorm_hyperprior_parameters <- function(
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
         b_p = sqrt(dims$N) + 1,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
-        m_e = 10/sqrt(dims$N),
+        m_e = sqrt(mean(M))/sqrt(dims$N),
         M_e = matrix(m_e, nrow = dims$N, ncol = dims$G),
         s_e = m_e, #mu_e/10,
         S_e = matrix(s_e, nrow = dims$N, ncol = dims$G),
@@ -193,13 +194,14 @@ sample_truncnormal_prior_parameters <- function(Theta, dims, recovery, recovery_
 set_exponential_hyperprior_parameters <- function(
         Theta,
         dims,
+        M,
         a_p = sqrt(dims$N) + 1,
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = 10,
+        b_p = sqrt(mean(M)),
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
         a_e = sqrt(dims$N) + 1,
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = 10,
+        b_e = sqrt(mean(M)),
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 0.1,
         Alpha = rep(alpha, dims$K),
@@ -295,11 +297,12 @@ sample_exponential_prior_parameters <- function(Theta, dims, recovery, recovery_
 set_gamma_hyperprior_parameters <- function(
         Theta,
         dims,
+        M,
         a_p = 10*sqrt(dims$N),
         A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
         b_p = 10,
         B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
-        c_p = 100,
+        c_p = 10*sqrt(mean(M)),
         C_p = matrix(c_p, nrow = dims$K, ncol = dims$N),
         d_p = 10,
         D_p = matrix(d_p, nrow = dims$K, ncol = dims$N),
@@ -307,7 +310,7 @@ set_gamma_hyperprior_parameters <- function(
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
         b_e = 10,
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        c_e = 100,
+        c_e = 10*sqrt(mean(M)),
         C_e = matrix(c_e, nrow = dims$N, ncol = dims$G),
         d_e = 10,
         D_e = matrix(d_e, nrow = dims$N, ncol = dims$G),
@@ -473,13 +476,13 @@ initialize_Theta <- function(
     # hyperprior and prior parameters
     Theta = prior_parameters
     if (prior == 'truncnormal') {
-        Theta <- set_truncnorm_hyperprior_parameters(Theta, dims)
+        Theta <- set_truncnorm_hyperprior_parameters(Theta, dims, M)
         Theta <- sample_truncnormal_prior_parameters(Theta, dims, recovery, recovery_priors)
     } else if (prior == 'exponential') {
-        Theta <- set_exponential_hyperprior_parameters(Theta, dims)
+        Theta <- set_exponential_hyperprior_parameters(Theta, dims, M)
         Theta <- sample_exponential_prior_parameters(Theta, dims, recovery, recovery_priors)
     } else if (prior == 'gamma') {
-        Theta <- set_gamma_hyperprior_parameters(Theta, dims)
+        Theta <- set_gamma_hyperprior_parameters(Theta, dims, M)
         Theta <- sample_gamma_prior_parameters(Theta, dims, recovery, recovery_priors)
     }
 
