@@ -30,21 +30,21 @@ This ensures that the scale of our priors is a reasonable starting place. *All r
 
 ```{r fig.height = 5, fig.width = 8}
 dims <- list(G = 1, N = 5, K = 1)
-plot_gamma_priors(dims, title = "Default Gamma Prior")
+plot_gamma_priors(M, dims, title = "Default Gamma Prior")
 ```
 
 ### Exponential
 
 ```{r fig.height = 5, fig.width = 8}
 dims <- list(G = 1, N = 5, K = 1)
-plot_exponential_priors(dims, title = "Default Exponential Prior")
+plot_exponential_priors(M, dims, title = "Default Exponential Prior")
 ```
 
 ### Truncated Normal
 
 ```{r fig.height = 5, fig.width = 8}
 dims <- list(G = 1, N = 5, K = 1)
-plot_truncnorm_priors(dims, title = "Default Truncated Normal Prior")
+plot_truncnorm_priors(M, dims, title = "Default Truncated Normal Prior")
 ```
 
 ## Custom Hyperprior Parameters
