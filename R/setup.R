@@ -55,9 +55,9 @@ set_truncnorm_hyperprior_parameters <- function(
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
         b_e = sqrt(dims$N),
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.1,
+        alpha = 3,
         Alpha = rep(alpha, dims$K),
-        beta = 0.1,
+        beta = 3,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
@@ -203,9 +203,9 @@ set_exponential_hyperprior_parameters <- function(
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
         b_e = 10 * sqrt(mean(M)),
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.1,
+        alpha = 3,
         Alpha = rep(alpha, dims$K),
-        beta = 0.1,
+        beta = 3,
         Beta = rep(beta, dims$K),
         a = 0.8,
         b = 0.8
@@ -441,7 +441,7 @@ sample_prior_E <- function(Theta, dims, prior) {
 #' @return matrix, prior sample of sigmasq
 #' @noRd
 sample_prior_sigmasq <- function(Theta, dims) {
-    armspp::arms(n_samples = dims$K, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)
+    rinvgamma(dims$K, shape = Theta$Alpha, rate = Theta$Beta)
 }
 
 #' initialize Theta
