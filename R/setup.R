@@ -441,7 +441,7 @@ sample_prior_E <- function(Theta, dims, prior) {
 #' @return matrix, prior sample of sigmasq
 #' @noRd
 sample_prior_sigmasq <- function(Theta, dims) {
-    rinvgamma(dims$G, shape = Theta$Alpha, rate = Theta$Beta)
+    invgamma::rinvgamma(dims$G, shape = Theta$Alpha, rate = Theta$Beta)
 }
 
 #' initialize Theta
