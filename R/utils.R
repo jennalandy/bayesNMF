@@ -107,13 +107,9 @@ get_logprior <- function(
 #' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
     Mhat = get_Mhat(Theta)
-    - dims$K * sum(log(2 * pi * Theta$sigmasq)) / 2 -
-        sum(sweep(
-            (M - Mhat)**2,
-            2,
-            1/(2 * Theta$sigmasq), # Length G
-            '*'
-        ))
+    loglik = (- dims$K * sum(log(2 * pi * Theta$sigmasq)) / 2 -
+        sum(colSums((M - Mhat)**2) / (2*Theta$sigmasq)))
+    return(loglik)
 }
 
 
@@ -495,6 +491,7 @@ plot_metrics <- function(metrics, plotfile, stop, learn_A, gamma_sched, iter, tr
     plot_one(x, unlist(metrics$KL), vblue, vgreen, xlab = "Iteration", ylab = "KL Divergence")
 
     plot_one(x, unlist(metrics$N), vblue, vgreen, xlab = "Iteration", ylab = "Latent Rank")
+    plot_one(x, unlist(metrics$MAP_A_counts), vblue, vgreen, xlab = "Iteration", ylab = "MAP A Counts")
     if (!is.null(true_P)) {
         abline(h = ncol(true_P))
     }

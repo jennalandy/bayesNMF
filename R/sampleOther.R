@@ -59,9 +59,15 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
 sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = "truncnormal", gamma = 1) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
+    Theta_A0$sigmasq <- sample_sigmasq_normal(
+        M, Theta_A0, dims, gamma = gamma
+    )
 
     Theta_A1 <- Theta
     Theta_A1$A[1,n] <- 1
+    Theta_A1$sigmasq <- sample_sigmasq_normal(
+        M, Theta_A1, dims, gamma = gamma
+    )
 
     if (likelihood == 'normal') {
         loglik_0 <- get_loglik_normal(M, Theta_A0, dims)
