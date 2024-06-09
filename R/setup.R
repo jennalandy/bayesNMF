@@ -56,9 +56,9 @@ set_truncnorm_hyperprior_parameters <- function(
         b_e = sqrt(dims$N),
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 3,
-        Alpha = rep(alpha, dims$K),
+        Alpha = rep(alpha, dims$G),
         beta = 3,
-        Beta = rep(beta, dims$K),
+        Beta = rep(beta, dims$G),
         a = 0.8,
         b = 0.8
 ) {
@@ -107,10 +107,10 @@ set_truncnorm_hyperprior_parameters <- function(
     }
 
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = rep(Theta$alpha, dims$K)
+        Theta$Alpha = rep(Theta$alpha, dims$G)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = rep(Theta$beta, dims$K)
+        Theta$Beta = rep(Theta$beta, dims$G)
     }
 
     fill_list(Theta, list(
@@ -204,9 +204,9 @@ set_exponential_hyperprior_parameters <- function(
         b_e = 10 * sqrt(mean(M)),
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 3,
-        Alpha = rep(alpha, dims$K),
+        Alpha = rep(alpha, dims$G),
         beta = 3,
-        Beta = rep(beta, dims$K),
+        Beta = rep(beta, dims$G),
         a = 0.8,
         b = 0.8
 ) {
@@ -228,10 +228,10 @@ set_exponential_hyperprior_parameters <- function(
     }
 
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = rep(Theta$alpha, dims$K)
+        Theta$Alpha = rep(Theta$alpha, dims$G)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = rep(Theta$beta, dims$K)
+        Theta$Beta = rep(Theta$beta, dims$G)
     }
 
     fill_list(Theta, list(
@@ -441,7 +441,7 @@ sample_prior_E <- function(Theta, dims, prior) {
 #' @return matrix, prior sample of sigmasq
 #' @noRd
 sample_prior_sigmasq <- function(Theta, dims) {
-    rinvgamma(dims$K, shape = Theta$Alpha, rate = Theta$Beta)
+    rinvgamma(dims$G, shape = Theta$Alpha, rate = Theta$Beta)
 }
 
 #' initialize Theta

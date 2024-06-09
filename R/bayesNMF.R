@@ -205,7 +205,11 @@ bayesNMF <- function(
         # update A and q
         if (!Theta$is_fixed$A) {
             for (n in sample(1:dims$N)) {
-                sample_An_out <- sample_An(n, M, Theta, dims, logfac, likelihood = likelihood,  prior = prior, gamma = gamma_sched[iter])
+                sample_An_out <- sample_An(
+                    n, M, Theta, dims, logfac,
+                    likelihood = likelihood, prior = prior,
+                    gamma = gamma_sched[iter]
+                )
                 Theta$A[1, n] <- sample_An_out$sampled
                 Theta$prob_inclusion[1,n] <- sample_An_out$prob_inclusion
             }

@@ -9,11 +9,11 @@
 #' @noRd
 sample_sigmasq_normal <- function(M, Theta, dims, gamma = 1){
     Mhat <- get_Mhat(Theta)
-    sigmasq <- sapply(1:dims$K, function(k) {
+    sigmasq <- sapply(1:dims$G, function(g) {
         rinvgamma(
             1,
-            shape = Theta$Alpha[k] + dims$G/2,
-            rate = Theta$Beta[k] + (1/2) * sum((M[k,] - Mhat[k,])**2)
+            shape = Theta$Alpha[g] + gamma * dims$K/2,
+            rate = Theta$Beta[g] + gamma * (1/2) * sum((M[,g] - Mhat[,g])**2)
         )
     })
 
