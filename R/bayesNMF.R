@@ -58,8 +58,6 @@ bayesNMF <- function(
             if (recovery_priors == "cosmic") {
                 if (likelihood == 'normal' & prior == 'truncnormal') {
                     recovery_priors <- normal_truncnormal_recovery_priors
-                } else if (likelihood == 'normal' & prior == 'exponential') {
-                    recovery_priors <- normal_exponential_recovery_priors
                 } else {
                     stop("Recovery priors not defined for this likelihood/prior combination")
                 }
@@ -71,6 +69,11 @@ bayesNMF <- function(
 
     # check N/max_N combination is valid
     N <- validate_N(N, max_N, recovery_priors)
+    if (recovery) {
+        scale_by <- sqrt(mean(M)/N) / mean(recovery_priors$Mu_p)
+        recovery_priors$Mu_p <- recovery_priors$Mu_p * scale_by
+        recovery_priors$Sigmasq_p <- recovery_priors$Sigmasq_p * (scale_by**2)
+    }
 
     # check prior and likelihood are valid
     validate_model(likelihood, prior)

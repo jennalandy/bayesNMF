@@ -59,32 +59,12 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
 sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = "truncnormal", gamma = 1) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
-    # Theta_A0$sigmasq <- sample_sigmasq_normal(
-    #     M, Theta_A0, dims, gamma = gamma
-    # )
-    # if (gamma == 1 & Theta$A[1,n] == 1) {
-    #     for (n in 1:dims$N) {
-    #         Theta_A0$E[n, ] <- sample_En(
-    #             n, M, Theta_A0, dims,
-    #             likelihood = likelihood, prior = prior,
-    #             gamma = 1#gamma_sched[iter]
-    #         )
-    #     }
-    # }
 
     Theta_A1 <- Theta
     Theta_A1$A[1,n] <- 1
-    # Theta_A1$sigmasq <- sample_sigmasq_normal(
-    #     M, Theta_A1, dims, gamma = gamma
-    # )
 
-    # if (likelihood == 'normal') {
-    #     loglik_0 <- get_loglik_normal(M, Theta_A0, dims)
-    #     loglik_1 <- get_loglik_normal(M, Theta_A1, dims)
-    # } else if (likelihood == 'poisson') {
-        loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
-        loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
-    # }
+    loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
+    loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
 
     log_p0 = log(1 - Theta$q[1,n]) + gamma * loglik_0
     log_p1 = log(Theta$q[1,n]) + gamma * loglik_1

@@ -519,9 +519,12 @@ initialize_Theta <- function(
         is_fixed$q <- FALSE
     } else {
         Theta$q <- matrix(
-            rbeta(dims$S * dims$N, Theta$a, Theta$b),
-            nrow = dims$S, ncol = dims$N
+            rbeta(dims$N, Theta$a, Theta$b),
+            nrow = 1, ncol = dims$N
         )
+        if (recovery) {
+            Theta$q[,1:recovery_priors$N_r] <- rbeta(recovery_priors$N_r, 1, 0.05)
+        }
         is_fixed$q <- FALSE
     }
 
