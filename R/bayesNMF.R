@@ -84,15 +84,15 @@ bayesNMF <- function(
     }
 
     # precompute log factorials for Poisson likelihood
-    if (likelihood == 'poisson') {
+    # if (likelihood == 'poisson') {
         logfac = vector(length = max(M))
         logfac[1] = 0
         for (i in 2:length(logfac)) {
             logfac[i] = log(i) + logfac[i-1]
         }
-    } else {
-        logfac = NULL
-    }
+    # } else {
+    #     logfac = NULL
+    # }
 
     # set up dimensions
     dims = list(
