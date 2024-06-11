@@ -55,10 +55,10 @@ set_truncnorm_hyperprior_parameters <- function(
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
         b_e = sqrt(dims$N),
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.1,
-        Alpha = rep(alpha, dims$K),
-        beta = 0.1,
-        Beta = rep(beta, dims$K),
+        alpha = 3,
+        Alpha = rep(alpha, dims$G),
+        beta = 3,
+        Beta = rep(beta, dims$G),
         a = 0.8,
         b = 0.8
 ) {
@@ -107,10 +107,10 @@ set_truncnorm_hyperprior_parameters <- function(
     }
 
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = rep(Theta$alpha, dims$K)
+        Theta$Alpha = rep(Theta$alpha, dims$G)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = rep(Theta$beta, dims$K)
+        Theta$Beta = rep(Theta$beta, dims$G)
     }
 
     fill_list(Theta, list(
@@ -203,10 +203,10 @@ set_exponential_hyperprior_parameters <- function(
         A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
         b_e = 10 * sqrt(mean(M)),
         B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        alpha = 0.1,
-        Alpha = rep(alpha, dims$K),
-        beta = 0.1,
-        Beta = rep(beta, dims$K),
+        alpha = 3,
+        Alpha = rep(alpha, dims$G),
+        beta = 3,
+        Beta = rep(beta, dims$G),
         a = 0.8,
         b = 0.8
 ) {
@@ -228,10 +228,10 @@ set_exponential_hyperprior_parameters <- function(
     }
 
     if ("alpha" %in% names(Theta) & !("Alpha" %in% names(Theta))) {
-        Theta$Alpha = rep(Theta$alpha, dims$K)
+        Theta$Alpha = rep(Theta$alpha, dims$G)
     }
     if ("beta" %in% names(Theta) & !("Beta" %in% names(Theta))) {
-        Theta$Beta = rep(Theta$beta, dims$K)
+        Theta$Beta = rep(Theta$beta, dims$G)
     }
 
     fill_list(Theta, list(
@@ -441,7 +441,7 @@ sample_prior_E <- function(Theta, dims, prior) {
 #' @return matrix, prior sample of sigmasq
 #' @noRd
 sample_prior_sigmasq <- function(Theta, dims) {
-    armspp::arms(n_samples = dims$K, log_pdf = function(x) {-1*log(x)}, lower = 0, upper = 1000)
+    invgamma::rinvgamma(dims$G, shape = Theta$Alpha, rate = Theta$Beta)
 }
 
 #' initialize Theta
@@ -519,9 +519,12 @@ initialize_Theta <- function(
         is_fixed$q <- FALSE
     } else {
         Theta$q <- matrix(
-            rbeta(dims$S * dims$N, Theta$a, Theta$b),
-            nrow = dims$S, ncol = dims$N
+            rbeta(dims$N, Theta$a, Theta$b),
+            nrow = 1, ncol = dims$N
         )
+        if (recovery) {
+            Theta$q[,1:recovery_priors$N_r] <- rbeta(recovery_priors$N_r, 1, 0.05)
+        }
         is_fixed$q <- FALSE
     }
 

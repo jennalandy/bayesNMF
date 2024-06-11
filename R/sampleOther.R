@@ -9,10 +9,12 @@
 #' @noRd
 sample_sigmasq_normal <- function(M, Theta, dims, gamma = 1){
     Mhat <- get_Mhat(Theta)
-    sigmasq <- sapply(1:dims$K, function(k) {
-        armspp::arms(n_samples = 1, log_pdf = function(x) {
-            -1*log(x) + gamma * sum(log(dnorm(M[k,], mean = Mhat[k,], sd = sqrt(x))))
-        }, lower = 0, upper = 1000)
+    sigmasq <- sapply(1:dims$G, function(g) {
+        invgamma::rinvgamma(
+            1,
+            shape = Theta$Alpha[g] + gamma * dims$K/2,
+            rate = Theta$Beta[g] + gamma * (1/2) * sum((M[,g] - Mhat[,g])**2)
+        )
     })
 
     return(sigmasq)
@@ -61,13 +63,8 @@ sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = 
     Theta_A1 <- Theta
     Theta_A1$A[1,n] <- 1
 
-    if (likelihood == 'normal') {
-        loglik_0 <- get_loglik_normal(M, Theta_A0, dims)
-        loglik_1 <- get_loglik_normal(M, Theta_A1, dims)
-    } else if (likelihood == 'poisson') {
-        loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
-        loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
-    }
+    loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
+    loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
 
     log_p0 = log(1 - Theta$q[1,n]) + gamma * loglik_0
     log_p1 = log(Theta$q[1,n]) + gamma * loglik_1

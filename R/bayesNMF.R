@@ -58,8 +58,6 @@ bayesNMF <- function(
             if (recovery_priors == "cosmic") {
                 if (likelihood == 'normal' & prior == 'truncnormal') {
                     recovery_priors <- normal_truncnormal_recovery_priors
-                } else if (likelihood == 'normal' & prior == 'exponential') {
-                    recovery_priors <- normal_exponential_recovery_priors
                 } else {
                     stop("Recovery priors not defined for this likelihood/prior combination")
                 }
@@ -71,6 +69,11 @@ bayesNMF <- function(
 
     # check N/max_N combination is valid
     N <- validate_N(N, max_N, recovery_priors)
+    if (recovery) {
+        scale_by <- sqrt(mean(M)/N) / mean(recovery_priors$Mu_p)
+        recovery_priors$Mu_p <- recovery_priors$Mu_p * scale_by
+        recovery_priors$Sigmasq_p <- recovery_priors$Sigmasq_p * (scale_by**2)
+    }
 
     # check prior and likelihood are valid
     validate_model(likelihood, prior)
@@ -84,15 +87,15 @@ bayesNMF <- function(
     }
 
     # precompute log factorials for Poisson likelihood
-    if (likelihood == 'poisson') {
+    # if (likelihood == 'poisson') {
         logfac = vector(length = max(M))
         logfac[1] = 0
         for (i in 2:length(logfac)) {
             logfac[i] = log(i) + logfac[i-1]
         }
-    } else {
-        logfac = NULL
-    }
+    # } else {
+    #     logfac = NULL
+    # }
 
     # set up dimensions
     dims = list(
@@ -184,28 +187,42 @@ bayesNMF <- function(
         # update P
         if (!Theta$is_fixed$P) {
             for (n in sample(1:dims$N)) {
-                Theta$P[, n] <- sample_Pn(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
+                Theta$P[, n] <- sample_Pn(
+                    n, M, Theta, dims,
+                    likelihood = likelihood, prior = prior,
+                    gamma = 1#gamma_sched[iter]
+                )
             }
         }
 
         # update E
         if (!Theta$is_fixed$E) {
             for (n in sample(1:dims$N)) {
-                Theta$E[n, ] <- sample_En(n, M, Theta, dims, likelihood = likelihood, prior = prior, gamma = gamma_sched[iter])
+                Theta$E[n, ] <- sample_En(
+                    n, M, Theta, dims,
+                    likelihood = likelihood, prior = prior,
+                    gamma = 1#gamma_sched[iter]
+                )
             }
         }
 
         # if Normal likelihood, update sigmasq
         if (likelihood == 'normal') {
             if (!Theta$is_fixed$sigmasq) {
-                Theta$sigmasq <- sample_sigmasq_normal(M, Theta, dims, gamma = gamma_sched[iter])
+                Theta$sigmasq <- sample_sigmasq_normal(
+                    M, Theta, dims, gamma = 1#gamma_sched[iter]
+                )
             }
         }
 
         # update A and q
         if (!Theta$is_fixed$A) {
             for (n in sample(1:dims$N)) {
-                sample_An_out <- sample_An(n, M, Theta, dims, logfac, likelihood = likelihood,  prior = prior, gamma = gamma_sched[iter])
+                sample_An_out <- sample_An(
+                    n, M, Theta, dims, logfac,
+                    likelihood = likelihood, prior = prior,
+                    gamma = gamma_sched[iter]
+                )
                 Theta$A[1, n] <- sample_An_out$sampled
                 Theta$prob_inclusion[1,n] <- sample_An_out$prob_inclusion
             }
@@ -220,7 +237,10 @@ bayesNMF <- function(
         if (likelihood == 'poisson') {
             for (k in sample(1:dims$K)) {
                 for (g in sample(1:dims$G)) {
-                    Theta$Z[k,,g] <- sample_Zkg_poisson(k, g, M, Theta, dims, gamma = gamma_sched[iter])
+                    Theta$Z[k,,g] <- sample_Zkg_poisson(
+                        k, g, M, Theta, dims,
+                        gamma = 1#gamma_sched[iter]
+                    )
                 }
             }
         }
@@ -229,26 +249,46 @@ bayesNMF <- function(
         for (n in 1:dims$N) {
             if (prior == "truncnormal") {
                 if (!Theta$is_fixed$prior_P[n]) {
-                    Theta$Mu_p[,n] <- sample_Mu_Pn(n, Theta, dims, gamma = gamma_sched[iter])
-                    Theta$Sigmasq_p[,n] <- sample_Sigmasq_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    Theta$Mu_p[,n] <- sample_Mu_Pn(
+                        n, Theta, dims, gamma = 1#gamma_sched[iter]
+                    )
+                    Theta$Sigmasq_p[,n] <- sample_Sigmasq_Pn(
+                        n, Theta, dims, gamma = 1#gamma_sched[iter]
+                    )
                 }
-                Theta$Mu_e[n,] <- sample_Mu_En(n, Theta, dims, gamma = gamma_sched[iter])
-                Theta$Sigmasq_e[n,] <- sample_Sigmasq_En(n, Theta, dims, gamma = gamma_sched[iter])
+                Theta$Mu_e[n,] <- sample_Mu_En(
+                    n, Theta, dims, gamma = 1#gamma_sched[iter]
+                )
+                Theta$Sigmasq_e[n,] <- sample_Sigmasq_En(
+                    n, Theta, dims, gamma = 1#gamma_sched[iter]
+                )
             } else if (prior == "exponential") {
                 if (!Theta$is_fixed$prior_P[n]) {
-                    Theta$Lambda_p[,n] <- sample_Lambda_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    Theta$Lambda_p[,n] <- sample_Lambda_Pn(
+                        n, Theta, dims, gamma = gamma_sched[iter]
+                    )
                 }
-                Theta$Lambda_e[n,] <- sample_Lambda_En(n, Theta, dims, gamma = gamma_sched[iter])
+                Theta$Lambda_e[n,] <- sample_Lambda_En(
+                    n, Theta, dims, gamma = gamma_sched[iter]
+                )
             } else if (prior == "gamma") {
                 if (!Theta$is_fixed$prior_P[n]) {
-                    Theta$Beta_p[,n] <- sample_Beta_Pn(n, Theta, dims, gamma = gamma_sched[iter])
+                    Theta$Beta_p[,n] <- sample_Beta_Pn(
+                        n, Theta, dims, gamma = gamma_sched[iter]
+                    )
                     for (k in 1:dims$K) {
-                        Theta$Alpha_p[k,n] <- sample_Alpha_Pkn(k, n, Theta, dims, gamma = gamma_sched[iter])
+                        Theta$Alpha_p[k,n] <- sample_Alpha_Pkn(
+                            k, n, Theta, dims, gamma = gamma_sched[iter]
+                        )
                     }
                 }
-                Theta$Beta_e[n,] <- sample_Beta_En(n, Theta, dims, gamma = gamma_sched[iter])
+                Theta$Beta_e[n,] <- sample_Beta_En(
+                    n, Theta, dims, gamma = gamma_sched[iter]
+                )
                 for (g in 1:dims$G) {
-                    Theta$Alpha_e[n,g] <- sample_Alpha_Eng(n, g, Theta, dims, gamma = gamma_sched[iter])
+                    Theta$Alpha_e[n,g] <- sample_Alpha_Eng(
+                        n, g, Theta, dims, gamma = gamma_sched[iter]
+                    )
                 }
             }
         }
