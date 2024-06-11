@@ -1,3 +1,29 @@
+log_target_Pn_poisson_truncnorm <- function(M, Pn, n, Theta) {
+    Theta$P[,n] <- Pn
+    Mhat <- get_Mhat(Theta)
+    log_prior <- log(truncnorm::dtruncnorm(
+        Pn,
+        mean = Theta$Mu_p[,n],
+        sd = sqrt(Theta$Sigmasq_p[,n]),
+        a = 0,
+        b = Inf
+    ))
+    log_likelihood <- rowSums(dpois(M, lambda = Mhat, log = TRUE))
+    log_target <- log_prior + log_likelihood
+    return(log_target)
+}
+
+log_target_Pn_poisson_exp <- function(M, Pn, n, Theta) {
+    Theta$P[,n] <- Pn
+    Mhat <- get_Mhat(Theta)
+    log_prior <- log(dexp(
+        Pn, Theta$Lambda_p[,n]
+    ))
+    log_likelihood <- rowSums(dpois(M, lambda = Mhat, log = TRUE))
+    log_target <- log_prior + log_likelihood
+    return(log_target)
+}
+
 #' get mu and sigmasq for P[,n] in Normal-Exponential model
 #'
 #' @param n signature index
@@ -89,7 +115,8 @@ sample_Pn_normal <- function(n, M, Theta, dims, prior = 'truncnormal', gamma = 1
     sigmasq_P = mu_sigmasq_P$sigmasq
 
     # sample from truncated normal
-    truncnorm::rtruncnorm(1, mean = mu_P, sd = sqrt(sigmasq_P), a = 0, b = Inf)
+    proposal <- truncnorm::rtruncnorm(1, mean = mu_P, sd = sqrt(sigmasq_P), a = 0, b = Inf)
+
 }
 
 #' sample P[,n] for Poisson likelihood
@@ -181,14 +208,38 @@ sample_Pn_norm_exp <- function(n, M, Theta, dims, gamma) {
 #'
 #' @return vector length K
 #' @noRd
-sample_Pn <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1) {
+sample_Pn <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1, acceptance = TRUE) {
     if (likelihood == 'normal') {
         if (prior == 'truncnormal' | (prior == "exponential" & gamma > 0.5 & Theta$A[1,n] == 1)) {
-            sample_Pn_normal(n, M, Theta, dims, prior, gamma)
+            proposal <- sample_Pn_normal(n, M, Theta, dims, prior, gamma)
         } else {
-            sample_Pn_norm_exp(n, M, Theta, dims, gamma)
+            proposal <- sample_Pn_norm_exp(n, M, Theta, dims, gamma)
+        }
+        if (acceptance) {
+            if (prior == "truncnormal") {
+                acceptance <- exp(
+                    log_target_Pn_poisson_truncnorm(M, proposal, n, Theta) -
+                    log_target_Pn_poisson_truncnorm(M, Theta$P[,n], n, Theta)
+                )
+            } else {
+                acceptance <- exp(
+                    log_target_Pn_poisson_exp(M, proposal, n, Theta) -
+                    log_target_Pn_poisson_exp(M, Theta$P[,n], n, Theta)
+                )
+            }
+            acceptance[acceptance > 1] = 1
+            acceptance[is.na(acceptance)] <- 0.5 # get this from 0/0, so give it a 50-50 chance
+            accepted <- runif(dims$K) < acceptance
+            sampled <- Theta$P[,n]
+            sampled[accepted] <- proposal[accepted]
+        } else {
+            sampled <- proposal
         }
     } else if (likelihood == 'poisson') {
-        sample_Pn_poisson(n, M, Theta, dims, prior, gamma)
+        sampled <- sample_Pn_poisson(n, M, Theta, dims, prior, gamma)
     }
+    return(list(
+        sampled = sampled,
+        acceptance = acceptance
+    ))
 }
