@@ -129,7 +129,7 @@ bayesNMF <- function(
         recovery = recovery,
         recovery_priors = recovery_priors
     )
-    Theta$prob_inclusion <- Theta$q
+    Theta$prob_inclusion <- Theta$A
     Theta$P_acceptance <- Theta$P
     Theta$E_acceptance <- Theta$E
 
@@ -223,8 +223,9 @@ bayesNMF <- function(
             }
         }
 
-        # update A and q
+        # update A and n
         if (!Theta$is_fixed$A) {
+            Theta$n <- sample_n(Theta, dims)
             for (n in sample(1:dims$N)) {
                 sample_An_out <- sample_An(
                     n, M, Theta, dims, logfac,
@@ -233,11 +234,6 @@ bayesNMF <- function(
                 )
                 Theta$A[1, n] <- sample_An_out$sampled
                 Theta$prob_inclusion[1,n] <- sample_An_out$prob_inclusion
-            }
-        }
-        if (!Theta$is_fixed$q) {
-            for (n in sample(1:dims$N)) {
-                Theta$q[1, n] <- sample_qn(n, Theta, gamma = gamma_sched[iter])
             }
         }
 

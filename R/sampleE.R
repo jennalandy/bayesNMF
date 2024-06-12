@@ -13,7 +13,7 @@ log_target_En_poisson_truncnorm <- function(M, En, n, Theta) {
     return(log_target)
 }
 
-log_target_En_poisson_exp <- function(M, Pn, n, Theta) {
+log_target_En_poisson_exp <- function(M, En, n, Theta) {
     Theta$E[n,] <- En
     Mhat <- get_Mhat(Theta)
     log_prior <- log(dexp(

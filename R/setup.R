@@ -517,30 +517,28 @@ initialize_Theta <- function(
     } else if (!is.null(inits$q)) {
         Theta$q <- inits$q
         is_fixed$q <- FALSE
-    } else {
-        Theta$q <- matrix(
-            rbeta(dims$N, Theta$a, Theta$b),
-            nrow = 1, ncol = dims$N
-        )
-        if (recovery) {
-            Theta$q[,1:recovery_priors$N_r] <- rbeta(recovery_priors$N_r, 1, 0.05)
-        }
-        is_fixed$q <- FALSE
     }
 
     if (!is.null(fixed$A)) {
+        Theta$A <- fixed$A
+        Theta$n <- sum(Theta$A)
         is_fixed$A <- TRUE
     } else if (!is.null(inits$A)) {
         Theta$A <- inits$A
+        N <- sum(Theta$A)
     } else if (!learn_A) {
         Theta$A <- matrix(
-            as.numeric(rep(1, dims$S * dims$N)),
-            nrow = dims$S, ncol = dims$N
+            as.numeric(rep(1, dims$N)),
+            nrow = 1, ncol = dims$N
         )
     } else {
+        Theta$n <- sample(1:dims$N, 1)
+        if (is.null(Theta$q)) {
+            Theta$q <- rep(Theta$n/dims$N, dims$N)
+        }
         Theta$A <- matrix(
-            as.numeric(runif(dims$S * dims$N) < c(Theta$q)),
-            nrow = dims$S, ncol = dims$N
+            as.numeric(runif(dims$N) < c(Theta$q)),
+            nrow = 1, ncol = dims$N
         )
     }
 
