@@ -44,6 +44,14 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
     rmultinom(1, size = M[k,g], prob = probs)
 }
 
+sample_n <- function(Theta, dims) {
+    probs = sapply(1:dims$N, function(n) {
+        (1/dims$N) * ((n/dims$N) ** sum(Theta$A)) * ((1 - n/dims$N) ** (dims$N - sum(Theta$A)))
+    })
+    probs = probs/sum(probs)
+    sample(1:dims$N, size = 1, prob = probs)
+}
+
 #' Sample An
 #'
 #' @param n integer, signature index
@@ -66,8 +74,8 @@ sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = 
     loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
     loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
 
-    log_p0 = log(1 - Theta$q[1,n]) + gamma * loglik_0
-    log_p1 = log(Theta$q[1,n]) + gamma * loglik_1
+    log_p0 = log(1 - Theta$n/dims$N) + gamma * loglik_0
+    log_p1 = log(Theta$n/dims$N) + gamma * loglik_1
 
     log_p = log_p1 - sumLog(c(log_p0, log_p1))
     p = exp(log_p)
