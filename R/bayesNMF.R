@@ -130,6 +130,8 @@ bayesNMF <- function(
         recovery_priors = recovery_priors
     )
     Theta$prob_inclusion <- Theta$q
+    Theta$P_acceptance <- Theta$P
+    Theta$E_acceptance <- Theta$E
 
     # set up metrics and logs
     metrics <- list(
@@ -147,6 +149,8 @@ bayesNMF <- function(
     logs <- list(
         P = list(),
         E = list(),
+        P_acceptance = list(),
+        E_acceptance = list(),
         A = list(),
         q = list(),
         prob_inclusion = list()
@@ -187,22 +191,26 @@ bayesNMF <- function(
         # update P
         if (!Theta$is_fixed$P) {
             for (n in sample(1:dims$N)) {
-                Theta$P[, n] <- sample_Pn(
+                sample_Pn_out <- sample_Pn(
                     n, M, Theta, dims,
                     likelihood = likelihood, prior = prior,
                     gamma = 1#gamma_sched[iter]
                 )
+                Theta$P[, n] <- sample_Pn_out$sampled
+                Theta$P_acceptance[, n] <- sample_Pn_out$acceptance
             }
         }
 
         # update E
         if (!Theta$is_fixed$E) {
             for (n in sample(1:dims$N)) {
-                Theta$E[n, ] <- sample_En(
+                sample_En_out <- sample_En(
                     n, M, Theta, dims,
                     likelihood = likelihood, prior = prior,
                     gamma = 1#gamma_sched[iter]
                 )
+                Theta$E[n, ] <- sample_En_out$sampled
+                Theta$E_acceptance[n, ] <- sample_En_out$acceptance
             }
         }
 
@@ -298,6 +306,8 @@ bayesNMF <- function(
         if (store_logs | iter >= convergence_control$MAP_every + 1) {
             logs$P[[logiter]] <- Theta$P
             logs$E[[logiter]] <- Theta$E * rescale_by
+            logs$P_acceptance[[logiter]] <- Theta$P_acceptance
+            logs$E_acceptance[[logiter]] <- Theta$E_acceptance
             logs$A[[logiter]] <- Theta$A
             logs$q[[logiter]] <- Theta$q
             logs$prob_inclusion[[logiter]] <- Theta$prob_inclusion

@@ -522,7 +522,9 @@ get_MAP <- function(logs, keep, final = FALSE) {
     MAP <- list(
         A = A_MAP$matrix,
         P = get_mean(logs$P[map.idx]),
+        P_acceptance = get_mean(logs$P_acceptance[map.idx]),
         E = get_mean(logs$E[map.idx]),
+        E_acceptance = get_mean(logs$E_acceptance[map.idx]),
         q = get_mean(logs$q[map.idx]),
         prob_inclusion = get_mean(logs$prob_inclusion[map.idx]),
         idx = map.idx,
