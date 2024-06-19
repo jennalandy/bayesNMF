@@ -1,3 +1,4 @@
+vignettes/examples/*
 .Rhistory
 .Rbuildignore
 .Rproj.user/

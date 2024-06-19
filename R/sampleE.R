@@ -1,3 +1,12 @@
+#' Compute log target pdf for updating En with Poisson-Truncated Normal model
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param En vector length K, value of En to evaluate
+#' @param n integer, signature index
+#' @param Theta list of parameters
+#'
+#' @return scalar
+#' @noRd
 log_target_En_poisson_truncnorm <- function(M, En, n, Theta) {
     Theta$E[n,] <- En
     Mhat <- get_Mhat(Theta)
@@ -13,6 +22,15 @@ log_target_En_poisson_truncnorm <- function(M, En, n, Theta) {
     return(log_target)
 }
 
+#' Compute log target pdf for updating En with Poisson-Exponential model
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param En vector length K, value of En to evaluate
+#' @param n integer, signature index
+#' @param Theta list of parameters
+#'
+#' @return scalar
+#' @noRd
 log_target_En_poisson_exp <- function(M, En, n, Theta) {
     Theta$E[n,] <- En
     Mhat <- get_Mhat(Theta)
@@ -104,61 +122,27 @@ get_mu_sigmasq_En_normal_truncnormal <- function(n, M, Theta, dims, gamma = 1) {
 #'
 #' @return vector of length G
 #' @noRd
-sample_En_normal <- function(n, M, Theta, dims, prior = 'truncnormal', gamma = 1) {
+sample_En_normal <- function(n, M, Theta, dims, prior, gamma = 1) {
     if (prior == 'truncnormal') {
-        mu_sigmasq_E <- get_mu_sigmasq_En_normal_truncnormal(n, M, Theta, dims, gamma = gamma)
+        mu_sigmasq_E <- get_mu_sigmasq_En_normal_truncnormal(
+            n, M, Theta, dims, gamma = gamma
+        )
     } else if (prior == 'exponential') {
-        mu_sigmasq_E <- get_mu_sigmasq_En_normal_exponential(n, M, Theta, dims, gamma = gamma)
+        if (Theta$A[1,n] == 0) {
+            # sample from prior, doesn't collapse like truncnormal
+            sampled <- stats::rexp(dims$G, Theta$Lambda_e[n,])
+            return(sampled)
+        }
+        mu_sigmasq_E <- get_mu_sigmasq_En_normal_exponential(
+            n, M, Theta, dims, gamma = gamma
+        )
     }
     mu_E = mu_sigmasq_E$mu
     sigmasq_E = mu_sigmasq_E$sigmasq
 
     # sample from truncated normal
-    truncnorm::rtruncnorm(1, mean = mu_E, sd = sqrt(sigmasq_E), a = 0, b = Inf)
-}
-
-#' Sample Eng for Normal-Exponential Model with adaptive rejection metropolis sampling
-#'
-#' @param n signature index
-#' @param g tumor genome index
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param gamma double, tempering parameter
-#'
-#' @return scalar
-#' @noRd
-sample_Eng_norm_exp <- function(n, g, M, Theta, dims, gamma) {
-    previous = Theta$E[n,g]
-    log_pdf <- function(Eng) {
-        Theta$E[n,g] <- Eng
-        Mhat <- get_Mhat(Theta)
-        -Theta$Lambda_e[n,g] * Eng -
-            gamma * sum((M[,g] - Mhat[,g]) ** 2 / (2 * Theta$sigmasq))
-    }
-    armspp::arms(
-        n_samples = 1,
-        log_pdf = log_pdf,
-        lower = 0,
-        upper = 10000,
-        previous = previous,
-        metropolis = TRUE
-    )
-}
-
-#' Sample En for Normal-Exponential Model with adaptive rejection metropolis sampling
-#'
-#' @param n signature index
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#' @param gamma double, tempering parameter
-#'
-#' @return vector of length G
-#' @noRd
-sample_En_norm_exp <- function(n, M, Theta, dims, gamma) {
-    sapply(1:dims$G, function(g) {
-        sample_Eng_norm_exp(n, g, M, Theta, dims, gamma)
-    })
+    sampled <- truncnorm::rtruncnorm(1, mean = mu_E, sd = sqrt(sigmasq_E), a = 0, b = Inf)
+    return(sampled)
 }
 
 #' Sample E[n,g] for Poisson likelihood
@@ -173,7 +157,7 @@ sample_En_norm_exp <- function(n, M, Theta, dims, gamma) {
 #'
 #' @return vector of length G
 #' @noRd
-sample_En_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
+sample_En_poisson <- function(n, M, Theta, dims, prior, gamma = 1) {
     if (prior == 'gamma') {
         sampled <- sapply(1:dims$G, function(g) {
             rgamma(
@@ -203,22 +187,14 @@ sample_En_poisson <- function(n, M, Theta, dims, prior = 'gamma', gamma = 1) {
 #' @param dims list of dimensions
 #' @param likelihood string, one of c('normal','poisson')
 #' @param prior string, one of c('truncnormal','exponential','gamma')
-#' @param gamma double, tempering parameter
+#' @param gamma double, tempering parameter. DO NOT CHANGE, KEEP gamma = 1
 #'
 #' @return vector of length G
 #' @noRd
-sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncnormal', gamma = 1, acceptance = TRUE) {
-    # if (gamma < 1) {
-    #     Theta$A[1,n] <- 1
-    # }
-    if (likelihood == 'normal') {
-        if (prior == 'truncnormal' | (prior == "exponential" & gamma > 0.25 & Theta$A[1,n] == 1) ) {
-            proposal <- sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
-        } else {
-            # aarms sampling when gamma is small and prior is not conjugate
-            proposal <- sample_En_norm_exp(n, M, Theta, dims, gamma = gamma)
-        }
-        if (acceptance) {
+sample_En <- function(n, M, Theta, dims, likelihood, prior, fast, gamma = 1) {
+    if (likelihood == 'normal' | (likelihood == 'poisson' & fast)) {
+        proposal <- sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
+        if (fast) {
             if (prior == 'truncnormal') {
                 acceptance <- exp(
                     log_target_En_poisson_truncnorm(M, proposal, n, Theta) -
@@ -230,16 +206,18 @@ sample_En <- function(n, M, Theta, dims, likelihood = 'normal', prior = 'truncno
                     log_target_En_poisson_exp(M, Theta$E[n,], n, Theta)
                 )
             }
-            acceptance[acceptance > 1] = 1
-            acceptance[is.na(acceptance)] <- 0.5 # get this from 0/0, so give it a 50-50 chance
+            # acceptance prob is NaN if 0/0, so give it a 50-50 chance
+            acceptance[is.na(acceptance)] <- 0.5
             accepted <- runif(dims$G) < acceptance
             sampled <- Theta$E[n,]
             sampled[accepted] <- proposal[accepted]
         } else {
             sampled <- proposal
+            acceptance <- 1
         }
-    } else if (likelihood == 'poisson') {
-        sampled <- sample_En_poisson(n, M, Theta, dims, prior = prior, gamma = gamma)
+    } else {
+        # likelihood == 'poisson' & !fast
+        sampled <- sample_En_poisson(n, M, Theta, dims, prior, gamma = gamma)
     }
     return(list(
         sampled = sampled,

@@ -16,7 +16,6 @@ sample_sigmasq_normal <- function(M, Theta, dims, gamma = 1){
             rate = Theta$Beta[g] + gamma * (1/2) * sum((M[,g] - Mhat[,g])**2)
         )
     })
-
     return(sigmasq)
 }
 
@@ -28,6 +27,7 @@ sample_sigmasq_normal <- function(M, Theta, dims, gamma = 1){
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
 #' @param dims list of dimensions
+#' @param gamma double, tempering parameter
 #'
 #' @return vector length K
 #' @noRd
@@ -44,30 +44,69 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
     rmultinom(1, size = M[k,g], prob = probs)
 }
 
+#' Sample n
+#'
+#' @param Theta list of parameters
+#' @param dims list of dimensions
+#' @param clip numeric, prior probabilities of inclusion will be clipped by
+#' `clip`/N away from 0 and 1
+#' @param gamma double, tempering parameter
+#'
+#' @return scalar
+#' @noRd
+sample_n <- function(Theta, dims, clip, gamma = 1) {
+    probs = sapply(0:dims$N, function(n) {
+        tmp <- list(n = n)
+        prob_A <- update_q(tmp, dims, clip)
+        prob <- 1/(dims$N + 1) * (
+            (prob_A ** sum(Theta$A)) *
+            ((1 - prob_A) ** (dims$N - sum(Theta$A)))
+        ) ** gamma
+        return(prob)
+    })
+    probs = probs/sum(probs)
+    n <- sample(0:dims$N, size = 1, prob = probs)
+    return(n)
+}
+
 #' Sample An
 #'
 #' @param n integer, signature index
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
 #' @param dims list of dimension values
-#' @param logfac vector, logfac[i] = log(i!), only needed for `likelihood = 'poisson'`
 #' @param likelihood string, one of c('normal','poisson')
+#' @param prior string, one of c('gamma','exponential','truncnormal')
+#' @param logfac vector, logfac[i] = log(i!), use NULL if
+#' `likelihood == 'normal'`.
 #' @param gamma double, tempering parameter
 #'
 #' @return integer
 #' @noRd
-sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = "truncnormal", gamma = 1) {
+sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, gamma) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
 
     Theta_A1 <- Theta
     Theta_A1$A[1,n] <- 1
 
-    loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
-    loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
+    if (likelihood == 'poisson') {
+        loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
+        loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
+    } else {
+        # likelihood == 'normal'
+        loglik_0 <- get_loglik_normal(M, Theta_A0, dims)
+        loglik_1 <- get_loglik_normal(M, Theta_A1, dims)
+    }
 
-    log_p0 = log(1 - Theta$q[1,n]) + gamma * loglik_0
-    log_p1 = log(Theta$q[1,n]) + gamma * loglik_1
+    n_params_0 <- sum(Theta_A0$A) * (dims$G + dims$K)
+    n_params_1 <- sum(Theta_A1$A) * (dims$G + dims$K)
+
+    neg_BIC_0 <- 2 * loglik_0 - n_params_0 * log(dims$G)
+    neg_BIC_1 <- 2 * loglik_1 - n_params_1 * log(dims$G)
+
+    log_p0 = log(1 - Theta$q) + gamma * neg_BIC_0
+    log_p1 = log(Theta$q) + gamma * neg_BIC_1
 
     log_p = log_p1 - sumLog(c(log_p0, log_p1))
     p = exp(log_p)
@@ -88,14 +127,18 @@ sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = 
     ))
 }
 
-#' Sample qn
+#' Update prior probability of inclusion, q
 #'
-#' @param n integer, signature index
 #' @param Theta list of parameters
-#' @param gamma double, tempering parameter
+#' @param dims list of dimension values
+#' @param clip numeric, prior probabilities of inclusion will be clipped by
+#' `clip`/N away from 0 and 1
 #'
-#' @return double
+#' @return scalar
 #' @noRd
-sample_qn <- function(n, Theta, gamma = 1) {
-    rbeta(1, Theta$a + gamma*Theta$A[1, n], Theta$b + gamma*(1 - Theta$A[1, n]))
+update_q <- function(Theta, dims, clip) {
+    Theta$q <- Theta$n/dims$N
+    if (Theta$q == 0) {Theta$q = Theta$q + clip/dims$N}
+    if (Theta$q == 1) {Theta$q = Theta$q - clip/dims$N}
+    return(Theta$q)
 }

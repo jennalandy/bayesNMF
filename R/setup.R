@@ -448,21 +448,28 @@ sample_prior_sigmasq <- function(Theta, dims) {
 #'
 #' @param likelihood string, one of c('poisson','normal')
 #' @param prior string, one of c('exponential','truncnormal','gamma')
+#' @param fast boolean, if `likelihood == 'poisson'` and `fast = TRUE`, updates
+#' from the corresponding `likelihood == 'normal'` model are used as proposals
+#' in an efficient Gibb's sampler
 #' @param learn_A boolean, whether A will be learned or will be fixed
 #' @param dims named list of dimensions
 #' @param inits list of initial values, optional
 #' @param prior_parameters list of named prior parameters, optional
+#' @param clip numeric, prior probabilities of inclusion will be clipped by
+#' `clip`/N away from 0 and 1
 #'
 #' @return named list of initialized unknowns
 #' @noRd
 initialize_Theta <- function(
-        M, likelihood, prior, learn_A,
+        M, likelihood, prior, fast,
+        learn_A,
         dims,
         inits,
         fixed,
         prior_parameters,
         recovery,
-        recovery_priors
+        recovery_priors,
+        clip
 ) {
     is_fixed = list(
         A = !learn_A,
@@ -517,34 +524,35 @@ initialize_Theta <- function(
     } else if (!is.null(inits$q)) {
         Theta$q <- inits$q
         is_fixed$q <- FALSE
-    } else {
-        Theta$q <- matrix(
-            rbeta(dims$N, Theta$a, Theta$b),
-            nrow = 1, ncol = dims$N
-        )
-        if (recovery) {
-            Theta$q[,1:recovery_priors$N_r] <- rbeta(recovery_priors$N_r, 1, 0.05)
-        }
-        is_fixed$q <- FALSE
     }
 
     if (!is.null(fixed$A)) {
+        Theta$A <- fixed$A
+        Theta$n <- sum(Theta$A)
         is_fixed$A <- TRUE
     } else if (!is.null(inits$A)) {
         Theta$A <- inits$A
+        Theta$n <- sum(Theta$A)
     } else if (!learn_A) {
         Theta$A <- matrix(
-            as.numeric(rep(1, dims$S * dims$N)),
-            nrow = dims$S, ncol = dims$N
+            as.numeric(rep(1, dims$N)),
+            nrow = 1, ncol = dims$N
         )
     } else {
+        Theta$n <- sample(0:dims$N, 1)
+        if (is.null(Theta$q)) {
+            Theta$q <- Theta$n/dims$N
+            if (Theta$q == 0) {Theta$q = Theta$q + clip/dims$N}
+            if (Theta$q == 1) {Theta$q = Theta$q - clip/dims$N}
+            Theta$q
+        }
         Theta$A <- matrix(
-            as.numeric(runif(dims$S * dims$N) < c(Theta$q)),
-            nrow = dims$S, ncol = dims$N
+            as.numeric(runif(dims$N) < Theta$q),
+            nrow = 1, ncol = dims$N
         )
     }
 
-    if (likelihood == 'normal') {
+    if (likelihood == 'normal' | (likelihood == 'poisson' & fast)) {
         if (!is.null(fixed$sigmasq)) {
             Theta$sigmasq <- fixed$sigmasq
             is_fixed$sigmasq <- TRUE
@@ -555,7 +563,8 @@ initialize_Theta <- function(
             Theta$sigmasq <- sample_prior_sigmasq(Theta, dims)
             is_fixed$sigmasq <- FALSE
         }
-    } else if (likelihood == 'poisson') {
+    } else {
+        # likelihood == 'poisson' & !fast
         Theta$Z <- array(dim = c(dims$K, dims$N, dims$G))
         for (k in 1:dims$K) {
             for (g in 1:dims$G) {
