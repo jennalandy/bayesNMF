@@ -11,6 +11,8 @@
 #' if `likelihood = "normal"`
 #' @param fixed (ptional) list of parameters to fix and not include in Gibbs
 #' updates.
+#' @param clip numeric, prior probabilities of inclusion will be clipped by
+#' `clip`/N away from 0 and 1
 #' @param prior_parameters list, optional specification of prior parameters
 #' @param file file name without extension of log, save, and plot files
 #' @param true_P (optional) true latent factors matrix P to compare to in a heatmap
@@ -30,12 +32,15 @@ bayesNMF <- function(
         prior = "truncnormal",
         inits = NULL,
         fixed = NULL,
+        clip = 0.4,
         prior_parameters = NULL,
         recovery = FALSE,
         recovery_priors = "cosmic",
         file = paste0('nmf_', likelihood, '_', prior),
         true_P = NULL,
-        convergence_control = new_convergence_control(),
+        convergence_control = new_convergence_control(
+            maxiters = ifelse(recovery, 5000, 2000)
+        ),
         store_logs = TRUE,
         overwrite = FALSE
 ) {
@@ -127,7 +132,8 @@ bayesNMF <- function(
         inits = inits, fixed = fixed,
         prior_parameters = prior_parameters,
         recovery = recovery,
-        recovery_priors = recovery_priors
+        recovery_priors = recovery_priors,
+        clip = clip
     )
     Theta$prob_inclusion <- Theta$A
     Theta$P_acceptance <- Theta$P
@@ -152,8 +158,8 @@ bayesNMF <- function(
         P_acceptance = list(),
         E_acceptance = list(),
         A = list(),
-        q = list(),
-        prob_inclusion = list()
+        prob_inclusion = list(),
+        n = list()
     )
     if (likelihood == "normal") {
         logs$sigmasq <- list()
@@ -187,14 +193,13 @@ bayesNMF <- function(
     stop = NULL
     START_ITER <- Sys.time()
     while (iter <= convergence_control$maxiters & !done) {
-
         # update P
         if (!Theta$is_fixed$P) {
             for (n in sample(1:dims$N)) {
                 sample_Pn_out <- sample_Pn(
                     n, M, Theta, dims,
                     likelihood = likelihood, prior = prior,
-                    gamma = 1#gamma_sched[iter]
+                    gamma = 1
                 )
                 Theta$P[, n] <- sample_Pn_out$sampled
                 Theta$P_acceptance[, n] <- sample_Pn_out$acceptance
@@ -207,7 +212,7 @@ bayesNMF <- function(
                 sample_En_out <- sample_En(
                     n, M, Theta, dims,
                     likelihood = likelihood, prior = prior,
-                    gamma = 1#gamma_sched[iter]
+                    gamma = 1
                 )
                 Theta$E[n, ] <- sample_En_out$sampled
                 Theta$E_acceptance[n, ] <- sample_En_out$acceptance
@@ -218,17 +223,17 @@ bayesNMF <- function(
         if (likelihood == 'normal') {
             if (!Theta$is_fixed$sigmasq) {
                 Theta$sigmasq <- sample_sigmasq_normal(
-                    M, Theta, dims, gamma = 1#gamma_sched[iter]
+                    M, Theta, dims, gamma = 1
                 )
             }
         }
 
         # update A and n
         if (!Theta$is_fixed$A) {
-            Theta$n <- sample_n(Theta, dims)
+            Theta$n <- sample_n(Theta, dims, clip, gamma = gamma_sched[iter])
             for (n in sample(1:dims$N)) {
                 sample_An_out <- sample_An(
-                    n, M, Theta, dims, logfac,
+                    n, M, Theta, dims, logfac, clip,
                     likelihood = likelihood, prior = prior,
                     gamma = gamma_sched[iter]
                 )
@@ -243,7 +248,7 @@ bayesNMF <- function(
                 for (g in sample(1:dims$G)) {
                     Theta$Z[k,,g] <- sample_Zkg_poisson(
                         k, g, M, Theta, dims,
-                        gamma = 1#gamma_sched[iter]
+                        gamma = 1
                     )
                 }
             }
@@ -254,17 +259,17 @@ bayesNMF <- function(
             if (prior == "truncnormal") {
                 if (!Theta$is_fixed$prior_P[n]) {
                     Theta$Mu_p[,n] <- sample_Mu_Pn(
-                        n, Theta, dims, gamma = 1#gamma_sched[iter]
+                        n, Theta, dims, gamma = 1
                     )
                     Theta$Sigmasq_p[,n] <- sample_Sigmasq_Pn(
-                        n, Theta, dims, gamma = 1#gamma_sched[iter]
+                        n, Theta, dims, gamma = 1
                     )
                 }
                 Theta$Mu_e[n,] <- sample_Mu_En(
-                    n, Theta, dims, gamma = 1#gamma_sched[iter]
+                    n, Theta, dims, gamma = 1
                 )
                 Theta$Sigmasq_e[n,] <- sample_Sigmasq_En(
-                    n, Theta, dims, gamma = 1#gamma_sched[iter]
+                    n, Theta, dims, gamma = 1
                 )
             } else if (prior == "exponential") {
                 if (!Theta$is_fixed$prior_P[n]) {
@@ -305,7 +310,7 @@ bayesNMF <- function(
             logs$P_acceptance[[logiter]] <- Theta$P_acceptance
             logs$E_acceptance[[logiter]] <- Theta$E_acceptance
             logs$A[[logiter]] <- Theta$A
-            logs$q[[logiter]] <- Theta$q
+            logs$n[[logiter]] <- Theta$n
             logs$prob_inclusion[[logiter]] <- Theta$prob_inclusion
             if (likelihood == "normal") {
                 logs$sigmasq[[logiter]] <- Theta$sigmasq * (rescale_by**2)
@@ -429,6 +434,7 @@ bayesNMF <- function(
 
             # plot metrics
             plot_metrics(metrics, plotfile, stop, learn_A, gamma_sched, iter, true_P)
+            print(table(unlist(logs$n[keep])))
 
             # save results
             metrics_df = data.frame(matrix(nrow = length(unlist(metrics$BIC)), ncol = 0))

@@ -12,12 +12,14 @@ bayesNMF(
   prior = "truncnormal",
   inits = NULL,
   fixed = NULL,
+  clip = 0.4,
   prior_parameters = NULL,
   recovery = FALSE,
   recovery_priors = "cosmic",
   file = paste0("nmf_", likelihood, "_", prior),
   true_P = NULL,
-  convergence_control = new_convergence_control(),
+  convergence_control = new_convergence_control(maxiters = ifelse(recovery, 5000,
+    2000)),
   store_logs = TRUE,
   overwrite = FALSE
 )
@@ -38,6 +40,9 @@ if `likelihood = "normal"`}
 
 \item{fixed}{(ptional) list of parameters to fix and not include in Gibbs
 updates.}
+
+\item{clip}{numeric, prior probabilities of inclusion will be clipped by
+`clip`/N away from 0 and 1}
 
 \item{prior_parameters}{list, optional specification of prior parameters}
 

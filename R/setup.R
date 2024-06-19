@@ -452,6 +452,8 @@ sample_prior_sigmasq <- function(Theta, dims) {
 #' @param dims named list of dimensions
 #' @param inits list of initial values, optional
 #' @param prior_parameters list of named prior parameters, optional
+#' @param clip numeric, prior probabilities of inclusion will be clipped by
+#' `clip`/N away from 0 and 1
 #'
 #' @return named list of initialized unknowns
 #' @noRd
@@ -462,7 +464,8 @@ initialize_Theta <- function(
         fixed,
         prior_parameters,
         recovery,
-        recovery_priors
+        recovery_priors,
+        clip
 ) {
     is_fixed = list(
         A = !learn_A,
@@ -525,16 +528,19 @@ initialize_Theta <- function(
         is_fixed$A <- TRUE
     } else if (!is.null(inits$A)) {
         Theta$A <- inits$A
-        N <- sum(Theta$A)
+        Theta$n <- sum(Theta$A)
     } else if (!learn_A) {
         Theta$A <- matrix(
             as.numeric(rep(1, dims$N)),
             nrow = 1, ncol = dims$N
         )
     } else {
-        Theta$n <- sample(1:dims$N, 1)
+        Theta$n <- sample(0:dims$N, 1)
         if (is.null(Theta$q)) {
-            Theta$q <- rep(Theta$n/dims$N, dims$N)
+            prob <- Theta$n/dims$N
+            if (prob == 0) {prob = prob + clip/dims$N}
+            if (prob == 1) {prob = prob - clip/dims$N}
+            Theta$q <- rep(prob, dims$N)
         }
         Theta$A <- matrix(
             as.numeric(runif(dims$N) < c(Theta$q)),

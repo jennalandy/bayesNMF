@@ -44,12 +44,17 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
     rmultinom(1, size = M[k,g], prob = probs)
 }
 
-sample_n <- function(Theta, dims) {
-    probs = sapply(1:dims$N, function(n) {
-        (1/dims$N) * ((n/dims$N) ** sum(Theta$A)) * ((1 - n/dims$N) ** (dims$N - sum(Theta$A)))
+sample_n <- function(Theta, dims, clip, gamma = 1) {
+    probs_A <- (0:dims$N)/dims$N
+    names(probs_A) <- 0:dims$N
+    probs_A[probs_A == 0] <- clip/dims$N
+    probs_A[probs_A == 1] <- 1 - clip/dims$N
+    probs = sapply(0:dims$N, function(n) {
+        prob_A <- probs_A[as.character(n)]
+        (1/(dims$N + 1)) * ((prob_A ** sum(Theta$A)) * ((1 - prob_A) ** (dims$N - sum(Theta$A)))) ** gamma
     })
     probs = probs/sum(probs)
-    sample(1:dims$N, size = 1, prob = probs)
+    sample(0:dims$N, size = 1, prob = probs)
 }
 
 #' Sample An
@@ -59,12 +64,14 @@ sample_n <- function(Theta, dims) {
 #' @param Theta list of parameters
 #' @param dims list of dimension values
 #' @param logfac vector, logfac[i] = log(i!), only needed for `likelihood = 'poisson'`
+#' @param clip numeric, prior probabilities of inclusion will be clipped by
+#' `clip`/N away from 0 and 1
 #' @param likelihood string, one of c('normal','poisson')
 #' @param gamma double, tempering parameter
 #'
 #' @return integer
 #' @noRd
-sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = "truncnormal", gamma = 1) {
+sample_An <- function(n, M, Theta, dims, logfac, clip, likelihood = 'normal', prior = "truncnormal", gamma = 1) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
 
@@ -74,8 +81,20 @@ sample_An <- function(n, M, Theta, dims, logfac, likelihood = 'normal', prior = 
     loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
     loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
 
-    log_p0 = log(1 - Theta$n/dims$N) + gamma * loglik_0
-    log_p1 = log(Theta$n/dims$N) + gamma * loglik_1
+    n_params_0 <- sum(Theta_A0$A) * (dims$G + dims$K)
+    n_params_1 <- sum(Theta_A1$A) * (dims$G + dims$K)
+
+    neg_BIC_0 <- 2 * loglik_0 - n_params_0 * log(dims$G)
+    neg_BIC_1 <- 2 * loglik_1 - n_params_1 * log(dims$G)
+
+    prior_prob <- Theta$n/dims$N
+    if (prior_prob == 0) {prior_prob = prior_prob + clip/dims$N}
+    if (prior_prob == 1) {prior_prob = prior_prob - clip/dims$N}
+
+    # log_p0 = log(1 - prior_prob) + gamma * loglik_0
+    # log_p1 = log(prior_prob) + gamma * loglik_1
+    log_p0 = log(1 - prior_prob) + gamma * neg_BIC_0
+    log_p1 = log(prior_prob) + gamma * neg_BIC_1
 
     log_p = log_p1 - sumLog(c(log_p0, log_p1))
     p = exp(log_p)
