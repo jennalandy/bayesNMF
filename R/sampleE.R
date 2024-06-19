@@ -22,6 +22,35 @@ log_target_En_poisson_truncnorm <- function(M, En, n, Theta) {
     return(log_target)
 }
 
+#' Compute log proposal pdf for updating En with Normal-Truncated Normal model
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param En vector length K, value of En to evaluate
+#' @param n integer, signature index
+#' @param Theta list of parameters
+#'
+#' @return scalar
+#' @noRd
+log_proposal_En_normal_truncnorm <- function(M, En, n, Theta) {
+    Theta$E[n,] <- En
+    Mhat <- get_Mhat(Theta)
+    log_prior <- log(truncnorm::dtruncnorm(
+        En,
+        mean = Theta$Mu_e[n,],
+        sd = sqrt(Theta$Sigmasq_e[n,]),
+        a = 0,
+        b = Inf
+    ))
+    sigmasq_mat <- matrix(
+        rep(Theta$sigmasq, nrow(M)),
+        nrow = nrow(M),
+        byrow = TRUE
+    )
+    log_likelihood <- colSums(dnorm(M, mean = Mhat, sd = sqrt(sigmasq_mat), log = TRUE))
+    log_proposal <- log_prior + log_likelihood
+    return(log_proposal)
+}
+
 #' Compute log target pdf for updating En with Poisson-Exponential model
 #'
 #' @param M mutational catalog matrix, K x G
@@ -40,6 +69,31 @@ log_target_En_poisson_exp <- function(M, En, n, Theta) {
     log_likelihood <- colSums(dpois(M, lambda = Mhat, log = TRUE))
     log_target <- log_prior + log_likelihood
     return(log_target)
+}
+
+#' Compute log proposal pdf for updating En with Normal-Exponential model
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param En vector length K, value of En to evaluate
+#' @param n integer, signature index
+#' @param Theta list of parameters
+#'
+#' @return scalar
+#' @noRd
+log_proposal_En_normal_exp <- function(M, En, n, Theta) {
+    Theta$E[n,] <- En
+    Mhat <- get_Mhat(Theta)
+    log_prior <- log(dexp(
+        En, Theta$Lambda_e[n,]
+    ))
+    sigmasq_mat <- matrix(
+        rep(Theta$sigmasq, nrow(M)),
+        nrow = nrow(M),
+        byrow = TRUE
+    )
+    log_likelihood <- colSums(dnorm(M, mean = Mhat, sd = sqrt(sigmasq_mat), log = TRUE))
+    log_proposal <- log_prior + log_likelihood
+    return(log_proposal)
 }
 
 #' Get mu and sigmasq for E[n,] in Normal-Exponential model
@@ -193,32 +247,37 @@ sample_En_poisson <- function(n, M, Theta, dims, prior, gamma = 1) {
 #' @noRd
 sample_En <- function(n, M, Theta, dims, likelihood, prior, fast, gamma = 1) {
     if (likelihood == 'normal' | (likelihood == 'poisson' & fast)) {
-        proposal <- sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
-        if (fast) {
-            if (prior == 'truncnormal') {
-                acceptance <- exp(
-                    log_target_En_poisson_truncnorm(M, proposal, n, Theta) -
-                    log_target_En_poisson_truncnorm(M, Theta$E[n,], n, Theta)
-                )
-            } else {
-                acceptance <- exp(
-                    log_target_En_poisson_exp(M, proposal, n, Theta) -
-                    log_target_En_poisson_exp(M, Theta$E[n,], n, Theta)
-                )
-            }
-            # acceptance prob is NaN if 0/0, so give it a 50-50 chance
-            acceptance[is.na(acceptance)] <- 0.5
-            accepted <- runif(dims$G) < acceptance
-            sampled <- Theta$E[n,]
-            sampled[accepted] <- proposal[accepted]
-        } else {
-            sampled <- proposal
-            acceptance <- 1
-        }
+        sampled <- sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
+        # if (fast) {
+        #     if (prior == 'truncnormal') {
+        #         acceptance <- exp(
+        #             log_target_En_poisson_truncnorm(M, proposal, n, Theta) +
+        #             log_proposal_En_normal_truncnorm(M, Theta$E[n,], n, Theta) -
+        #             log_target_En_poisson_truncnorm(M, Theta$E[n,], n, Theta) -
+        #             log_proposal_En_normal_truncnorm(M, proposal, n, Theta)
+        #         )
+        #     } else {
+        #         acceptance <- exp(
+        #             log_target_En_poisson_exp(M, proposal, n, Theta) +
+        #             log_proposal_En_normal_exp(M, Theta$E[n,], n, Theta) -
+        #             log_target_En_poisson_exp(M, Theta$E[n,], n, Theta) -
+        #             log_proposal_En_normal_exp(M, proposal, n, Theta)
+        #         )
+        #     }
+        #     # acceptance prob is NaN if 0/0, so give it a 50-50 chance
+        #     acceptance[is.na(acceptance)] <- 0.5
+        #     accepted <- runif(dims$G) < acceptance
+        #     sampled <- Theta$E[n,]
+        #     sampled[accepted] <- proposal[accepted]
+        # } else {
+        #     sampled <- proposal
+        #     acceptance <- 1
+        # }
     } else {
         # likelihood == 'poisson' & !fast
         sampled <- sample_En_poisson(n, M, Theta, dims, prior, gamma = gamma)
     }
+    acceptance <- 1
     return(list(
         sampled = sampled,
         acceptance = acceptance

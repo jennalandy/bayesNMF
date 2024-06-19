@@ -131,7 +131,6 @@ bayesNMF <- function(
                 print(e)
             }, interrupt = function(e) {
                 sink()
-                print(e)
             })
         } else if (learn_rank_method == "heuristic") {
             BICs <- data.frame(
@@ -166,7 +165,6 @@ bayesNMF <- function(
                     print(e)
                 }, interrupt = function(e) {
                     sink()
-                    print(e)
                 })
                 BICs$BIC[BICs$rank == r] <- res_N$metrics$BIC[
                     res_N$metrics$sample_idx == res_N$converged_at
