@@ -1,4 +1,230 @@
 #' Bayesian Non-Negative Matrix Factorization
+#' @description Bayesian Non-Negative Matrix Factorization.
+#'
+#' @param M matrix, data with samples as columns and features as rows
+#' @param rank integer or vector, number of latent factors, integers
+#' (e.g., \code{rank = 5}) or vector (e.g., \code{rank = 1:5}) are accepted.
+#' If a vector is provided, values must be sequential and start at 0 or 1
+#' (e.g., \code{1:5} or \code{0:5}) for \code{learn_rank_method = "BFI"}, but can be
+#' nonsequential (e.g., \code{c(2,4,5)}) for \code{learn_rank_method = "heuristic"}.
+#' @param learn_rank_method string, method used to learn latent rank, used if
+#' a vector is provided for \code{rank}, one of c("BFI","heuristic") is used.
+#' Bayesian Factor Inclusion (BFI) learns rank automatically as a part of the
+#' Bayesian model with a binary Factor inclusion matrix. The heuristic approach
+#' runs a fixed-rank Bayesian NMF for each value in \code{rank}, and selects
+#' the model that minimizes BIC.
+#' @param likelihood string, one of \code{c('normal','poisson')}, represents the
+#' distribution used for likelihood f(M|P, E).
+#' @param prior string, one of \code{c('truncnormal','exponential','gamma')}, represents
+#' the distribution used for priors on P and E.
+#' @param fast boolean, if \code{bast = TRUE}, \code{likelihood = 'poisson'},
+#' and \code{fast = TRUE}, then updates from the corresponding
+#' \code{likelihood = 'normal'} model are used as proposals
+#' in an efficient Gibb's sampler. Only available for \code{likelihood = 'poisson'}
+#' and \code{prior = c('truncnormal', 'exponential')}. Defaults \code{TRUE} when possible.
+#' @param inits (optional) list, initial values for P and E (may also provide
+#' sigmasq if \code{likelihood = "normal"} and/or A if \code{rank} is a vector).
+#' @param fixed (optional) list, parameters values to fix at constant
+#' values, rather than learning them through Gibbs updates.
+#' @param clip numeric, if \code{rank} is a vector and \code{learn_rank_method = "BFI"},
+#'  prior probabilities of factor inclusion will be clipped by
+#' \code{clip}/N away from 0 and 1.
+#' @param prior_parameters (optional) list, specification of prior parameters.
+#' @param recovery boolean, if TRUE, additional factors are included with priors
+#' at previously discovered factors. In this case, \code{rank} denotes the number of
+#' additional latent factors on top of those with priors in \code{recovery_priors}.
+#' @param recovery_priors "cosmic" or list, prior parameters for recovered
+#' latent factors. If \code{recovery_priors = "cosmic"}, pre-computed priors
+#' based on the 79 COSMIC signatures are used.
+#' @param file string, file name (without extension) used for log, rds,
+#' and pdf files created by this function.
+#' @param true_P (optional) matrix, reference latent factors matrix P to
+#' compare estimated factors to with a heatmap.
+#' @param convergence_control list, specification of convergence parameters.
+#' See documentation for \code{new_convergence_control}.
+#' @param store_logs boolean, if \code{store_logs = TRUE}, each iteration of the
+#' Gibb's sampler is stored in resulting \code{.rds} file. Otherwise, only MAP is
+#' saved.
+#' @param overwrite boolean, if \code{overwrite = TRUE}, the log, safe, and plot files of
+#' previous runs with the same \code{file} will be overwritten
+#'
+#' @return list
+#' @export
+bayesNMF <- function(
+    M, rank,
+    learn_rank_method = "BFI",
+    likelihood = "poisson",
+    prior = "truncnormal",
+    fast = (likelihood == "poisson" &
+                prior %in% c('truncnormal','exponential')),
+    inits = NULL,
+    fixed = NULL,
+    clip = 0.4,
+    prior_parameters = NULL,
+    recovery = FALSE,
+    recovery_priors = "cosmic",
+    file = paste0('nmf_', likelihood, '_', prior),
+    true_P = NULL,
+    convergence_control = new_convergence_control(
+        maxiters = ifelse(recovery, 5000, 2000)
+    ),
+    store_logs = TRUE,
+    overwrite = FALSE
+) {
+    # set up file names
+    final_file = file
+    savefile = paste0(file, '.rds')
+    logfile = paste0(file, '.log')
+    tail = 0
+    while (!overwrite & (file.exists(savefile) | file.exists(logfile))) {
+        tail = tail + 1
+        final_file = paste0(file, '_', tail)
+        savefile = paste0(file, '_', tail, '.rds')
+        logfile = paste0(file, '_', tail, '.log')
+    }
+
+    # if learning rank, consider "learn_rank_method"
+    learn_A <- length(rank) > 1 & is.null(fixed$A)
+    if (learn_A) {
+        if (learn_rank_method == "BFI") {
+            max_N = max(rank)
+            min_N = min(rank)
+            if (!setequal(min_N:max_N, rank)) {
+                stop(paste(
+                    "rank =", paste0("c(", paste(rank, collapse = ','), ")"),
+                    "is not sequential. rank must be sequential",
+                    "to use learn_rank_method = 'BFI'. Try a sequential rank",
+                    "or learn_rank_method = 'heuristic'."
+                ))
+            }
+            if (min_N > 1) {
+                stop(paste(
+                    "Minimum rank > 1 is not permitted with learn_rank_method =",
+                    "'BFI'. Try rank =", paste0(1, ":", max_N),
+                    "or use learn_rank_method = 'heuristic'."
+                ))
+            }
+            tryCatch({
+                sink(file = logfile)
+                res <- inner_bayesNMF(
+                    M = M,
+                    N = NULL,
+                    max_N = max_N,
+                    likelihood = likelihood,
+                    prior = prior,
+                    fast = fast,
+                    inits = inits,
+                    fixed = fixed,
+                    clip = clip,
+                    prior_parameters = prior_parameters,
+                    recovery = recovery,
+                    recovery_priors = recovery_priors,
+                    file = final_file,
+                    true_P = true_P,
+                    convergence_control = convergence_control,
+                    store_logs = store_logs,
+                    overwrite = overwrite
+                )
+                sink()
+            }, error = function(e) {
+                sink()
+                print(e)
+            }, interrupt = function(e) {
+                sink()
+                print(e)
+            })
+        } else if (learn_rank_method == "heuristic") {
+            BICs <- data.frame(
+                rank = rank,
+                BIC = rep(NA, length(rank))
+            )
+            all_models <- list()
+            for (r in rank) {
+                tryCatch({
+                    sink(file = paste0(final_file, '_rank', r, '.log'))
+                    res_N <- inner_bayesNMF(
+                        M = M,
+                        N = r,
+                        likelihood = likelihood,
+                        prior = prior,
+                        fast = fast,
+                        inits = inits,
+                        fixed = fixed,
+                        clip = clip,
+                        prior_parameters = prior_parameters,
+                        recovery = recovery,
+                        recovery_priors = recovery_priors,
+                        file = paste0(final_file, "_rank", r),
+                        true_P = true_P,
+                        convergence_control = convergence_control,
+                        store_logs = store_logs,
+                        overwrite = overwrite
+                    )
+                    sink()
+                }, error = function(e) {
+                    sink()
+                    print(e)
+                }, interrupt = function(e) {
+                    sink()
+                    print(e)
+                })
+                BICs$BIC[BICs$rank == r] <- res_N$metrics$BIC[
+                    res_N$metrics$sample_idx == res_N$converged_at
+                ]
+                all_models[[r]] <- res_N
+            }
+            best_rank <- BICs %>%
+                filter(BIC == min(BIC)) %>%
+                pull(rank)
+            plot <- BICs %>%
+                ggplot(aes(x = rank, y = BIC)) +
+                geom_point() +
+                geom_line()
+            res <- list(
+                best_rank = best_rank,
+                best_model = all_models[[best_rank]],
+                BICs = BICs,
+                all_models = all_models,
+                plot = plot
+            )
+            saveRDS(res, file = savefile)
+        } else {
+            stop(paste("learn_rank_method =", paste0("'", learn_rank_method, "'"),
+                       "not defined,", "must be one of c('BFI','heuristic')."))
+        }
+    } else {
+        tryCatch({
+            sink(file = logfile)
+            res <- inner_bayesNMF(
+                M = M,
+                N = rank,
+                max_N = NULL,
+                likelihood = likelihood,
+                prior = prior,
+                fast = fast,
+                inits = inits,
+                fixed = fixed,
+                clip = clip,
+                prior_parameters = prior_parameters,
+                recovery = recovery,
+                recovery_priors = recovery_priors,
+                file = final_file,
+                true_P = true_P,
+                convergence_control = convergence_control,
+                store_logs = store_logs,
+                overwrite = overwrite
+            )
+            sink()
+        }, error = function(e) {
+            sink()
+            print(e)
+        })
+    }
+    return(res)
+}
+
+
+#' Bayesian Non-Negative Matrix Factorization
 #' @description Perform single-study Bayesian NMF with the provided likelihood and prior
 #' combination. Exact rank `N` or maximum rank `max_N` must be provided.
 #'
@@ -6,14 +232,20 @@
 #' @param N fixed number of latent factors
 #' @param max_N maximum number of latent factors if learning rank
 #' @param likelihood string, one of c('normal','poisson')
-#' @param prior string, one of c('truncnormal','exponential')
-#' @param inits (optional) list of initial values for P and E as well as sigmasq
-#' if `likelihood = "normal"`
-#' @param fixed (ptional) list of parameters to fix and not include in Gibbs
+#' @param prior string, one of c('truncnormal','exponential','gamma')
+#' @param fast boolean, if `likelihood == 'poisson'` and `fast = TRUE`, updates
+#' from the corresponding `likelihood == 'normal'` model are used as proposals
+#' in an efficient Gibb's sampler. Defaults TRUE when possible.
+#' @param inits (optional) list of initial values for P and E (and sigmasq
+#' if `likelihood = "normal"`)
+#' @param fixed (optional) list of parameters to fix and not include in Gibbs
 #' updates.
 #' @param clip numeric, prior probabilities of inclusion will be clipped by
 #' `clip`/N away from 0 and 1
 #' @param prior_parameters list, optional specification of prior parameters
+#' @param recovery boolean, whether to set priors of a subset of factors at
+#' previously discovered factors
+#' @param recovery_priors "cosmic" or list of prior parameters
 #' @param file file name without extension of log, save, and plot files
 #' @param true_P (optional) true latent factors matrix P to compare to in a heatmap
 #' @param convergence_control list, specification of convergence parameters.
@@ -23,13 +255,15 @@
 #' previous runs with the same `file` will be overwritten
 #'
 #' @return list
-#' @export
-bayesNMF <- function(
+#' @noRd
+inner_bayesNMF <- function(
         M,
         N = NULL,
         max_N = NULL,
-        likelihood = "normal",
+        likelihood = "poisson",
         prior = "truncnormal",
+        fast = (likelihood == "poisson" &
+                prior %in% c('truncnormal','exponential')),
         inits = NULL,
         fixed = NULL,
         clip = 0.4,
@@ -44,18 +278,13 @@ bayesNMF <- function(
         store_logs = TRUE,
         overwrite = FALSE
 ) {
-    START = Sys.time()
+    savefile = paste0(file, '.rds')
+    plotfile = paste0(file, '.pdf')
 
-    # rescale input data to fit scale of priors
-    rescale_by = 1
-    M_truescale = M
-    M = M/rescale_by
-    if (!is.null(fixed$sigmasq)) {
-        fixed$sigmasq = fixed$sigmasq/(rescale_by**2)
-    }
-    if (!is.null(fixed$E)) {
-        fixed$E <- fixed$E/rescale_by
-    }
+    START = Sys.time()
+    print(START)
+    print(paste("maxiters =", convergence_control$maxiters))
+    print(paste("fast", fast))
 
     # check recovery/discovery
     if (recovery) {
@@ -81,7 +310,7 @@ bayesNMF <- function(
     }
 
     # check prior and likelihood are valid
-    validate_model(likelihood, prior)
+    validate_model(likelihood, prior, fast)
 
     # set up tempering schedule
     learn_A <- !is.null(max_N) & is.null(fixed$A)
@@ -90,17 +319,14 @@ bayesNMF <- function(
     } else {
         gamma_sched <- rep(1, convergence_control$maxiters)
     }
+    print(paste("learn_A",learn_A))
 
     # precompute log factorials for Poisson likelihood
-    # if (likelihood == 'poisson') {
-        logfac = vector(length = max(M))
-        logfac[1] = 0
-        for (i in 2:length(logfac)) {
-            logfac[i] = log(i) + logfac[i-1]
-        }
-    # } else {
-    #     logfac = NULL
-    # }
+    logfac = vector(length = max(M))
+    logfac[1] = 0
+    for (i in 2:length(logfac)) {
+        logfac[i] = log(i) + logfac[i-1]
+    }
 
     # set up dimensions
     dims = list(
@@ -110,23 +336,12 @@ bayesNMF <- function(
         S = 1
     )
 
-    # set up file names
-    savefile = paste0(file, '.rds')
-    logfile = paste0(file, '.log')
-    plotfile = paste0(file, '.pdf')
-    tail = 0
-    while (!overwrite & (file.exists(savefile) | file.exists(logfile))) {
-        tail = tail + 1
-        savefile = paste0(file, '_', tail, '.rds')
-        logfile = paste0(file, '_', tail, '.log')
-        plotfile = paste0(file, '_', tail, '.pdf')
-    }
-
     # set up Theta
     Theta <- initialize_Theta(
         M = M,
         likelihood = likelihood,
         prior = prior,
+        fast = fast,
         learn_A = learn_A,
         dims = dims,
         inits = inits, fixed = fixed,
@@ -161,9 +376,10 @@ bayesNMF <- function(
         prob_inclusion = list(),
         n = list()
     )
-    if (likelihood == "normal") {
+    if (likelihood == "normal" | (likelihood == "poisson" & fast)) {
         logs$sigmasq <- list()
-    } else if (likelihood == "poisson") {
+    } else {
+        # likelihood == "poisson" & !fast
         logs$Z <- list()
     }
 
@@ -177,10 +393,6 @@ bayesNMF <- function(
         best_iter = NULL
     )
 
-    # start logging
-    sink(file = logfile)
-    print(START)
-    print(paste("maxiters =", convergence_control$maxiters))
     PREV = Sys.time()
     print(paste("starting iterations,", PREV))
     avg_time = 0
@@ -198,8 +410,7 @@ bayesNMF <- function(
             for (n in sample(1:dims$N)) {
                 sample_Pn_out <- sample_Pn(
                     n, M, Theta, dims,
-                    likelihood = likelihood, prior = prior,
-                    gamma = 1
+                    likelihood, prior, fast
                 )
                 Theta$P[, n] <- sample_Pn_out$sampled
                 Theta$P_acceptance[, n] <- sample_Pn_out$acceptance
@@ -211,8 +422,7 @@ bayesNMF <- function(
             for (n in sample(1:dims$N)) {
                 sample_En_out <- sample_En(
                     n, M, Theta, dims,
-                    likelihood = likelihood, prior = prior,
-                    gamma = 1
+                    likelihood, prior, fast
                 )
                 Theta$E[n, ] <- sample_En_out$sampled
                 Theta$E_acceptance[n, ] <- sample_En_out$acceptance
@@ -220,7 +430,7 @@ bayesNMF <- function(
         }
 
         # if Normal likelihood, update sigmasq
-        if (likelihood == 'normal') {
+        if (likelihood == 'normal' | (likelihood == 'poisson' & fast)) {
             if (!Theta$is_fixed$sigmasq) {
                 Theta$sigmasq <- sample_sigmasq_normal(
                     M, Theta, dims, gamma = 1
@@ -231,10 +441,11 @@ bayesNMF <- function(
         # update A and n
         if (!Theta$is_fixed$A) {
             Theta$n <- sample_n(Theta, dims, clip, gamma = gamma_sched[iter])
+            Theta$q <- update_q(Theta, dims, clip)
             for (n in sample(1:dims$N)) {
                 sample_An_out <- sample_An(
-                    n, M, Theta, dims, logfac, clip,
-                    likelihood = likelihood, prior = prior,
+                    n, M, Theta, dims,
+                    likelihood, prior, logfac,
                     gamma = gamma_sched[iter]
                 )
                 Theta$A[1, n] <- sample_An_out$sampled
@@ -243,7 +454,7 @@ bayesNMF <- function(
         }
 
         # if Poisson likelihood, update latent counts Z
-        if (likelihood == 'poisson') {
+        if (likelihood == 'poisson' & !fast) {
             for (k in sample(1:dims$K)) {
                 for (g in sample(1:dims$G)) {
                     Theta$Z[k,,g] <- sample_Zkg_poisson(
@@ -306,16 +517,17 @@ bayesNMF <- function(
         # only if storing logs or if we will use it for MAP
         if (store_logs | iter >= convergence_control$MAP_every + 1) {
             logs$P[[logiter]] <- Theta$P
-            logs$E[[logiter]] <- Theta$E * rescale_by
+            logs$E[[logiter]] <- Theta$E
             logs$P_acceptance[[logiter]] <- Theta$P_acceptance
             logs$E_acceptance[[logiter]] <- Theta$E_acceptance
             logs$A[[logiter]] <- Theta$A
             logs$n[[logiter]] <- Theta$n
             logs$prob_inclusion[[logiter]] <- Theta$prob_inclusion
-            if (likelihood == "normal") {
-                logs$sigmasq[[logiter]] <- Theta$sigmasq * (rescale_by**2)
-            } else if (likelihood == "poisson") {
-                logs$Z[[logiter]] <- Theta$Z * rescale_by
+            if (likelihood == "normal" | (likelihood == "poisson" & fast)) {
+                logs$sigmasq[[logiter]] <- Theta$sigmasq
+            } else {
+                # likelihood == "poisson" & !fast
+                logs$Z[[logiter]] <- Theta$Z
             }
             logiter = logiter + 1
         }
@@ -333,20 +545,21 @@ bayesNMF <- function(
 
             # log metrics
             out <- update_metrics(
-                metrics, MAP, iter, Theta, M_truescale, M,
-                likelihood, prior, dims, logfac, rescale_by
+                metrics, MAP, iter, Theta, M,
+                likelihood, prior, dims, logfac
             )
             metrics <- out$metrics
-            Theta_MAP_rescaled <- out$Theta_MAP_rescaled
+            Theta_MAP <- out$Theta_MAP
+            Mhat_MAP <- out$Mhat_MAP
 
             # check convergence
             convergence_status <- check_converged(
                 iter, gamma_sched[iter],
-                Mhat_MAP_rescaled, M,
+                Mhat_MAP, M,
                 convergence_status,
                 convergence_control,
                 first_MAP,
-                Theta = Theta_MAP_rescaled,
+                Theta = Theta_MAP,
                 likelihood = likelihood,
                 prior = prior,
                 dims = dims,
@@ -434,7 +647,6 @@ bayesNMF <- function(
 
             # plot metrics
             plot_metrics(metrics, plotfile, stop, learn_A, gamma_sched, iter, true_P)
-            print(table(unlist(logs$n[keep])))
 
             # save results
             metrics_df = data.frame(matrix(nrow = length(unlist(metrics$BIC)), ncol = 0))
@@ -446,7 +658,7 @@ bayesNMF <- function(
                 MAP = MAP,
                 metrics = metrics_df,
                 model = list(
-                    M = M_truescale,
+                    M = M,
                     true_P = true_P,
                     likelihood = likelihood,
                     prior = prior,
@@ -492,7 +704,5 @@ bayesNMF <- function(
         saveRDS(res, file = savefile)
     }
 
-    # end log
-    sink()
     return(res)
 }

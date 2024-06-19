@@ -6,10 +6,11 @@
 \usage{
 bayesNMF(
   M,
-  N = NULL,
-  max_N = NULL,
-  likelihood = "normal",
+  rank,
+  learn_rank_method = "BFI",
+  likelihood = "poisson",
   prior = "truncnormal",
+  fast = (likelihood == "poisson" & prior \%in\% c("truncnormal", "exponential")),
   inits = NULL,
   fixed = NULL,
   clip = 0.4,
@@ -25,43 +26,72 @@ bayesNMF(
 )
 }
 \arguments{
-\item{M}{mutational catalog matrix, K x G}
+\item{M}{matrix, data with samples as columns and features as rows}
 
-\item{N}{fixed number of latent factors}
+\item{rank}{integer or vector, number of latent factors, integers
+(e.g., \code{rank = 5}) or vector (e.g., \code{rank = 1:5}) are accepted.
+If a vector is provided, values must be sequential and start at 0 or 1
+(e.g., \code{1:5} or \code{0:5}) for \code{learn_rank_method = "BFI"}, but can be
+nonsequential (e.g., \code{c(2,4,5)}) for \code{learn_rank_method = "heuristic"}.}
 
-\item{max_N}{maximum number of latent factors if learning rank}
+\item{learn_rank_method}{string, method used to learn latent rank, used if
+a vector is provided for \code{rank}, one of c("BFI","heuristic") is used.
+Bayesian Factor Inclusion (BFI) learns rank automatically as a part of the
+Bayesian model with a binary Factor inclusion matrix. The heuristic approach
+runs a fixed-rank Bayesian NMF for each value in \code{rank}, and selects
+the model that minimizes BIC.}
 
-\item{likelihood}{string, one of c('normal','poisson')}
+\item{likelihood}{string, one of \code{c('normal','poisson')}, represents the
+distribution used for likelihood f(M|P, E).}
 
-\item{prior}{string, one of c('truncnormal','exponential')}
+\item{prior}{string, one of \code{c('truncnormal','exponential','gamma')}, represents
+the distribution used for priors on P and E.}
 
-\item{inits}{(optional) list of initial values for P and E as well as sigmasq
-if `likelihood = "normal"`}
+\item{fast}{boolean, if \code{bast = TRUE}, \code{likelihood = 'poisson'},
+and \code{fast = TRUE}, then updates from the corresponding
+\code{likelihood = 'normal'} model are used as proposals
+in an efficient Gibb's sampler. Only available for \code{likelihood = 'poisson'}
+and \code{prior = c('truncnormal', 'exponential')}. Defaults \code{TRUE} when possible.}
 
-\item{fixed}{(ptional) list of parameters to fix and not include in Gibbs
-updates.}
+\item{inits}{(optional) list, initial values for P and E (may also provide
+sigmasq if \code{likelihood = "normal"} and/or A if \code{rank} is a vector).}
 
-\item{clip}{numeric, prior probabilities of inclusion will be clipped by
-`clip`/N away from 0 and 1}
+\item{fixed}{(optional) list, parameters values to fix at constant
+values, rather than learning them through Gibbs updates.}
 
-\item{prior_parameters}{list, optional specification of prior parameters}
+\item{clip}{numeric, if \code{rank} is a vector and \code{learn_rank_method = "BFI"},
+ prior probabilities of factor inclusion will be clipped by
+\code{clip}/N away from 0 and 1.}
 
-\item{file}{file name without extension of log, save, and plot files}
+\item{prior_parameters}{(optional) list, specification of prior parameters.}
 
-\item{true_P}{(optional) true latent factors matrix P to compare to in a heatmap}
+\item{recovery}{boolean, if TRUE, additional factors are included with priors
+at previously discovered factors. In this case, \code{rank} denotes the number of
+additional latent factors on top of those with priors in \code{recovery_priors}.}
+
+\item{recovery_priors}{"cosmic" or list, prior parameters for recovered
+latent factors. If \code{recovery_priors = "cosmic"}, pre-computed priors
+based on the 79 COSMIC signatures are used.}
+
+\item{file}{string, file name (without extension) used for log, rds,
+and pdf files created by this function.}
+
+\item{true_P}{(optional) matrix, reference latent factors matrix P to
+compare estimated factors to with a heatmap.}
 
 \item{convergence_control}{list, specification of convergence parameters.
-See documentation for `new_convergence_control`.}
+See documentation for \code{new_convergence_control}.}
 
-\item{store_logs}{boolean, whether to store each sample in resulting .rds file}
+\item{store_logs}{boolean, if \code{store_logs = TRUE}, each iteration of the
+Gibb's sampler is stored in resulting \code{.rds} file. Otherwise, only MAP is
+saved.}
 
-\item{overwrite}{if `overwrite = TRUE`, the log, safe, and plot files of
-previous runs with the same `file` will be overwritten}
+\item{overwrite}{boolean, if \code{overwrite = TRUE}, the log, safe, and plot files of
+previous runs with the same \code{file} will be overwritten}
 }
 \value{
 list
 }
 \description{
-Perform single-study Bayesian NMF with the provided likelihood and prior
-combination. Exact rank `N` or maximum rank `max_N` must be provided.
+Bayesian Non-Negative Matrix Factorization.
 }

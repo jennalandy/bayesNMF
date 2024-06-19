@@ -551,20 +551,20 @@ get_MAP <- function(logs, keep, final = FALSE) {
 #' @param MAP list, maximum a-posteriori estimates
 #' @param iter integer, current iteration
 #' @param Theta list, current state of Theta
-#' @param M_truescale matrix, true M matrix
-#' @param M matrix, rescaled M matrix
+#' @param M matrix, data matrix
 #' @param likelihood string, one of c("normal", "poisson")
 #' @param prior string, one of c("truncnormal","exponential","gamma")
 #' @param dims list, named list of dimensions
 #' @param logfac vector, logfac[i] = log(i!), only needed for `likelihood = 'poisson'`
-#' @param rescale_by double, rescale factor
 #'
 #' @return list, updated metrics
 #' @noRd
 update_metrics <- function(
-        metrics, MAP, iter, Theta, M_truescale, M,
-        likelihood, prior, dims, logfac, rescale_by
+        metrics, MAP, iter, Theta, M,
+        likelihood, prior, dims, logfac
 ) {
+    metrics$sample_idx[[iter]] <- iter
+
     Theta_MAP <- Theta
     Theta_MAP$P = MAP$P
     Theta_MAP$E = MAP$E
@@ -573,39 +573,30 @@ update_metrics <- function(
     if (likelihood == 'normal') {
         Theta_MAP$sigmasq = MAP$sigmasq
     }
-
-    Theta_MAP_rescaled <- Theta_MAP
-    Theta_MAP_rescaled$E = MAP$E/rescale_by
-    if (likelihood == 'normal') {
-        Theta_MAP_rescaled$sigmasq = MAP$sigmasq/(rescale_by**2)
-    }
     Mhat_MAP <- get_Mhat(Theta_MAP)
-    Mhat_MAP_rescaled <- get_Mhat(Theta_MAP_rescaled)
 
-    metrics$sample_idx[[iter]] <- iter
+    # reconstruction errors: RMSE and KL
+    metrics$RMSE[[iter]] <- get_RMSE(M, Mhat_MAP)
+    metrics$KL[[iter]] <- get_KLDiv(M, Mhat_MAP)
 
-    # RMSE and KL on true scale
-    metrics$RMSE[[iter]] <- get_RMSE(M_truescale, Mhat_MAP)
-    metrics$KL[[iter]] <- get_KLDiv(M_truescale, Mhat_MAP)
-
-    # likelihood-based metrics on rescaled scale
+    # likelihood-based metrics
     if (likelihood == 'normal') {
-        metrics$loglik[[iter]] <- get_loglik_normal(M, Theta_MAP_rescaled, dims)
+        metrics$loglik[[iter]] <- get_loglik_normal(M, Theta_MAP, dims)
     } else if (likelihood == 'poisson') {
-        metrics$loglik[[iter]] <- get_loglik_poisson(M, Theta_MAP_rescaled, dims, logfac)
+        metrics$loglik[[iter]] <- get_loglik_poisson(M, Theta_MAP, dims, logfac)
     }
     metrics$N[[iter]] <- sum(Theta_MAP$A[1,])
     metrics$n_params[[iter]] <- metrics$N[[iter]] * (dims$G + dims$K + 2)
     metrics$BIC[[iter]] <- get_BIC(
         loglik = metrics$loglik[[iter]],
-        Theta = Theta_MAP_rescaled,
+        Theta = Theta_MAP,
         dims = dims,
         likelihood = likelihood,
         prior = prior
     )
 
     metrics$logpost[[iter]] <- metrics$loglik[[iter]] + get_logprior(
-        Theta_MAP_rescaled, likelihood, prior
+        Theta_MAP, likelihood, prior
     )
 
     # top counts for MAP A
@@ -613,7 +604,8 @@ update_metrics <- function(
 
     return(list(
         metrics = metrics,
-        Theta_MAP_rescaled = Theta_MAP_rescaled
+        Theta_MAP = Theta_MAP,
+        Mhat_MAP = Mhat_MAP
     ))
 }
 
@@ -707,6 +699,7 @@ get_posterior_counts_N <- function(A_list) {
 #'
 #' @param N integer, fixed rank
 #' @param max_N integer, maximum rank
+#' @param recovery_priors list of prior parameters
 #'
 #' @return integer, N or max_N
 #' @noRd
@@ -729,19 +722,28 @@ validate_N <- function(N, max_N, recovery_priors) {
 #'
 #' @param likelihood string, one of c('normal','poisson')
 #' @param prior string, one of c('truncnormal','exponential','gamma')
+#' @param fast boolean, if `likelihood == 'poisson'` and `fast = TRUE`, updates
+#' from the corresponding `likelihood == 'normal'` model are used as proposals
+#' in an efficient Gibb's sampler
 #'
 #' @return NULL
 #' @noRd
-validate_model <- function(likelihood, prior) {
+validate_model <- function(likelihood, prior, fast) {
     if (!(likelihood %in% c('normal', 'poisson'))) {
-        stop("likelihood must be one of c('normal')")
+        stop("likelihood must be one of c('poisson','normal')")
     } else if (likelihood == 'normal') {
         if (!(prior %in% c('truncnormal','exponential'))) {
             stop("prior must be one of c('truncnormal','exponential') with `likelihood = 'normal'`")
         }
     } else if (likelihood == 'poisson') {
-        if (!(prior %in% c('gamma','exponential'))) {
-            stop("prior must be one of c('gamma','exponential') with `likelihood = 'poisson'`")
+        if (!(prior %in% c('gamma','exponential','truncnormal'))) {
+            stop("prior must be one of c('gamma','exponential','truncnormal') with `likelihood = 'poisson'`")
+        }
+        if (prior == 'gamma' & fast) {
+            stop('gamma prior cannot be used with fast sampler')
+        }
+        if (prior == 'truncnormal' & !fast) {
+            stop('truncnormal prior can only be used with fast sampler')
         }
     }
 }

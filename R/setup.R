@@ -448,6 +448,9 @@ sample_prior_sigmasq <- function(Theta, dims) {
 #'
 #' @param likelihood string, one of c('poisson','normal')
 #' @param prior string, one of c('exponential','truncnormal','gamma')
+#' @param fast boolean, if `likelihood == 'poisson'` and `fast = TRUE`, updates
+#' from the corresponding `likelihood == 'normal'` model are used as proposals
+#' in an efficient Gibb's sampler
 #' @param learn_A boolean, whether A will be learned or will be fixed
 #' @param dims named list of dimensions
 #' @param inits list of initial values, optional
@@ -458,7 +461,8 @@ sample_prior_sigmasq <- function(Theta, dims) {
 #' @return named list of initialized unknowns
 #' @noRd
 initialize_Theta <- function(
-        M, likelihood, prior, learn_A,
+        M, likelihood, prior, fast,
+        learn_A,
         dims,
         inits,
         fixed,
@@ -537,18 +541,18 @@ initialize_Theta <- function(
     } else {
         Theta$n <- sample(0:dims$N, 1)
         if (is.null(Theta$q)) {
-            prob <- Theta$n/dims$N
-            if (prob == 0) {prob = prob + clip/dims$N}
-            if (prob == 1) {prob = prob - clip/dims$N}
-            Theta$q <- rep(prob, dims$N)
+            Theta$q <- Theta$n/dims$N
+            if (Theta$q == 0) {Theta$q = Theta$q + clip/dims$N}
+            if (Theta$q == 1) {Theta$q = Theta$q - clip/dims$N}
+            Theta$q
         }
         Theta$A <- matrix(
-            as.numeric(runif(dims$N) < c(Theta$q)),
+            as.numeric(runif(dims$N) < Theta$q),
             nrow = 1, ncol = dims$N
         )
     }
 
-    if (likelihood == 'normal') {
+    if (likelihood == 'normal' | (likelihood == 'poisson' & fast)) {
         if (!is.null(fixed$sigmasq)) {
             Theta$sigmasq <- fixed$sigmasq
             is_fixed$sigmasq <- TRUE
@@ -559,7 +563,8 @@ initialize_Theta <- function(
             Theta$sigmasq <- sample_prior_sigmasq(Theta, dims)
             is_fixed$sigmasq <- FALSE
         }
-    } else if (likelihood == 'poisson') {
+    } else {
+        # likelihood == 'poisson' & !fast
         Theta$Z <- array(dim = c(dims$K, dims$N, dims$G))
         for (k in 1:dims$K) {
             for (g in 1:dims$G) {
