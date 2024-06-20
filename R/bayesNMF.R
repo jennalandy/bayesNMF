@@ -441,7 +441,7 @@ inner_bayesNMF <- function(
 
         # update A and n
         if (!Theta$is_fixed$A) {
-            Theta$n <- sample_n(Theta, dims, clip, gamma = gamma_sched[iter])
+            Theta$n <- sample_n(Theta, dims, clip)
             Theta$q <- update_q(Theta, dims, clip)
             for (n in sample(1:dims$N)) {
                 sample_An_out <- sample_An(
