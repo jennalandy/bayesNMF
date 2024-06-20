@@ -174,12 +174,12 @@ bayesNMF <- function(
                 all_models[[r]] <- res_N
             }
             best_rank <- BICs %>%
-                filter(BIC == min(BIC)) %>%
-                pull(rank)
+                dplyr::filter(BIC == min(BIC)) %>%
+                dplyr::pull(rank)
             plot <- BICs %>%
-                ggplot(aes(x = rank, y = BIC)) +
-                geom_point() +
-                geom_line()
+                ggplot2::ggplot(ggplot2::aes(x = rank, y = BIC)) +
+                ggplot2::geom_point() +
+                ggplot2::geom_line()
             res <- list(
                 best_rank = best_rank,
                 best_model = all_models[[best_rank]],
