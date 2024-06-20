@@ -83,7 +83,7 @@ sample_n <- function(Theta, dims, clip, gamma = 1) {
 #'
 #' @return integer
 #' @noRd
-sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, gamma) {
+sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank, gamma) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
 
@@ -99,14 +99,20 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, gamma) {
         loglik_1 <- get_loglik_normal(M, Theta_A1, dims)
     }
 
-    n_params_0 <- sum(Theta_A0$A) * (dims$G + dims$K)
-    n_params_1 <- sum(Theta_A1$A) * (dims$G + dims$K)
+    if (sparse_rank) {
+        n_params_0 <- sum(Theta_A0$A) * (dims$G + dims$K)
+        n_params_1 <- sum(Theta_A1$A) * (dims$G + dims$K)
 
-    neg_BIC_0 <- 2 * loglik_0 - n_params_0 * log(dims$G)
-    neg_BIC_1 <- 2 * loglik_1 - n_params_1 * log(dims$G)
+        neg_BIC_0 <- 2 * loglik_0 - n_params_0 * log(dims$G)
+        neg_BIC_1 <- 2 * loglik_1 - n_params_1 * log(dims$G)
 
-    log_p0 = log(1 - Theta$q) + gamma * neg_BIC_0
-    log_p1 = log(Theta$q) + gamma * neg_BIC_1
+        log_p0 = log(1 - Theta$q) + gamma * neg_BIC_0
+        log_p1 = log(Theta$q) + gamma * neg_BIC_1
+    } else {
+        log_p0 = log(1 - Theta$q) + gamma * loglik_0
+        log_p1 = log(Theta$q) + gamma * loglik_1
+    }
+
 
     log_p = log_p1 - sumLog(c(log_p0, log_p1))
     p = exp(log_p)

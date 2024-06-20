@@ -8,6 +8,7 @@ bayesNMF(
   M,
   rank,
   learn_rank_method = "BFI",
+  sparse_rank = TRUE,
   likelihood = "poisson",
   prior = "truncnormal",
   fast = (likelihood == "poisson" & prior \%in\% c("truncnormal", "exponential")),

@@ -53,6 +53,7 @@
 bayesNMF <- function(
     M, rank,
     learn_rank_method = "BFI",
+    sparse_rank = TRUE,
     likelihood = "poisson",
     prior = "truncnormal",
     fast = (likelihood == "poisson" &
@@ -110,6 +111,7 @@ bayesNMF <- function(
                     M = M,
                     N = NULL,
                     max_N = max_N,
+                    sparse_rank = sparse_rank,
                     likelihood = likelihood,
                     prior = prior,
                     fast = fast,
@@ -258,6 +260,7 @@ inner_bayesNMF <- function(
         M,
         N = NULL,
         max_N = NULL,
+        sparse_rank = TRUE,
         likelihood = "poisson",
         prior = "truncnormal",
         fast = (likelihood == "poisson" &
@@ -444,6 +447,7 @@ inner_bayesNMF <- function(
                 sample_An_out <- sample_An(
                     n, M, Theta, dims,
                     likelihood, prior, logfac,
+                    sparse_rank = sparse_rank,
                     gamma = gamma_sched[iter]
                 )
                 Theta$A[1, n] <- sample_An_out$sampled
