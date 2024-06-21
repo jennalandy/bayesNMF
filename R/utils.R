@@ -184,7 +184,7 @@ get_BIC <- function(loglik, Theta, dims, likelihood, prior) {
 #'
 #' @return vector of gamma values
 #' @noRd
-get_gamma_sched <- function(len = 5000, n_temp = 1000) {
+get_gamma_sched <- function(len = 5000, n_temp = 2000) {
     nX = round(n_temp / 374)
     gamma_sched <- c(
         rep(0, nX),
