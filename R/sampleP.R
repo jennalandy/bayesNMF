@@ -249,10 +249,10 @@ sample_Pn <- function(n, M, Theta, dims, likelihood, prior, fast, gamma = 1) {
         if (likelihood == 'poisson' & fast) {
             if (prior == "truncnormal") {
                 acceptance <- exp(
-                    log_target_Pn_poisson_truncnorm(M, proposal, n, Theta) +
-                    log_proposal_Pn_normal_truncnorm(M, Theta$P[,n], n, Theta) -
-                    log_target_Pn_poisson_truncnorm(M, Theta$P[,n], n, Theta) -
-                    log_proposal_Pn_normal_truncnorm(M, proposal, n, Theta)
+                    log_target_Pn_poisson_truncnorm(M, proposal, n, Theta) -
+                    # log_proposal_Pn_normal_truncnorm(M, Theta$P[,n], n, Theta) -
+                    log_target_Pn_poisson_truncnorm(M, Theta$P[,n], n, Theta)
+                    # log_proposal_Pn_normal_truncnorm(M, proposal, n, Theta)
                 )
             } else {
                 acceptance <- exp(
@@ -264,6 +264,7 @@ sample_Pn <- function(n, M, Theta, dims, likelihood, prior, fast, gamma = 1) {
             }
             # acceptance prob is NaN if 0/0, so give it a 50-50 chance
             acceptance[is.na(acceptance)] <- 0.5
+            acceptance[acceptance > 1] <- 1
             accepted <- runif(dims$K) < acceptance
             sampled <- Theta$P[,n]
             sampled[accepted] <- proposal[accepted]
