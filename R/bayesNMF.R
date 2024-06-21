@@ -513,6 +513,7 @@ inner_bayesNMF <- function(
             }
         }
 
+        # log on original scale
         # only if storing logs or if we will use it for MAP
         if (store_logs | iter >= convergence_control$MAP_every + 1) {
             logs$P[[logiter]] <- Theta$P
@@ -534,7 +535,7 @@ inner_bayesNMF <- function(
         # periodically check convergence and log progress
         if (
             (iter %% convergence_control$MAP_every == 0 &
-             iter >= convergence_control$MAP_over)
+             iter >= convergence_control$MAP_over + convergence_control$MAP_every)
             | iter == convergence_control$maxiters
         ) {
             # get MAP over past convergence_control$MAP_over iterations
