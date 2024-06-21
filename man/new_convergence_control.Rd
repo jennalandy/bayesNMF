@@ -5,13 +5,13 @@
 \title{Create new convergence control object}
 \usage{
 new_convergence_control(
-  MAP_over = 500,
+  MAP_over = 1000,
   MAP_every = 100,
-  tol = 0.001,
+  tol = 0.005,
   Ninarow_nochange = 5,
-  Ninarow_nobest = 10,
+  Ninarow_nobest = 5,
   miniters = 500,
-  maxiters = 2000,
+  maxiters = 5000,
   minA = 0,
   metric = "logposterior"
 )

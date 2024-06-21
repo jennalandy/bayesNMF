@@ -53,7 +53,7 @@
 bayesNMF <- function(
     M, rank,
     learn_rank_method = "BFI",
-    sparse_rank = TRUE,
+    sparse_rank = FALSE,
     likelihood = "poisson",
     prior = "truncnormal",
     fast = (likelihood == "poisson" &
@@ -66,9 +66,7 @@ bayesNMF <- function(
     recovery_priors = "cosmic",
     file = paste0('nmf_', likelihood, '_', prior),
     true_P = NULL,
-    convergence_control = new_convergence_control(
-        maxiters = ifelse(recovery, 5000, 2000)
-    ),
+    convergence_control = new_convergence_control(),
     store_logs = TRUE,
     overwrite = FALSE
 ) {
@@ -260,7 +258,7 @@ inner_bayesNMF <- function(
         M,
         N = NULL,
         max_N = NULL,
-        sparse_rank = TRUE,
+        sparse_rank = FALSE,
         likelihood = "poisson",
         prior = "truncnormal",
         fast = (likelihood == "poisson" &
@@ -515,7 +513,6 @@ inner_bayesNMF <- function(
             }
         }
 
-        # log on original scale
         # only if storing logs or if we will use it for MAP
         if (store_logs | iter >= convergence_control$MAP_every + 1) {
             logs$P[[logiter]] <- Theta$P
@@ -537,7 +534,7 @@ inner_bayesNMF <- function(
         # periodically check convergence and log progress
         if (
             (iter %% convergence_control$MAP_every == 0 &
-             iter >= convergence_control$MAP_over + convergence_control$MAP_every)
+             iter >= convergence_control$MAP_over)
             | iter == convergence_control$maxiters
         ) {
             # get MAP over past convergence_control$MAP_over iterations

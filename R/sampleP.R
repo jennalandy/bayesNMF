@@ -22,34 +22,34 @@ log_target_Pn_poisson_truncnorm <- function(M, Pn, n, Theta) {
     return(log_target)
 }
 
-#' #' Compute log proposal pdf for updating Pn with Normal-Truncated Normal model
-#' #'
-#' #' @param M mutational catalog matrix, K x G
-#' #' @param Pn vector length K, value of Pn to evaluate
-#' #' @param n integer, signature index
-#' #' @param Theta list of parameters
-#' #'
-#' #' @return scalar
-#' #' @noRd
-#' log_proposal_Pn_normal_truncnorm <- function(M, Pn, n, Theta) {
-#'     Theta$P[,n] <- Pn
-#'     Mhat <- get_Mhat(Theta)
-#'     log_prior <- log(truncnorm::dtruncnorm(
-#'         Pn,
-#'         mean = Theta$Mu_p[,n],
-#'         sd = sqrt(Theta$Sigmasq_p[,n]),
-#'         a = 0,
-#'         b = Inf
-#'     ))
-#'     sigmasq_mat <- matrix(
-#'         rep(Theta$sigmasq, nrow(M)),
-#'         nrow = nrow(M),
-#'         byrow = TRUE
-#'     )
-#'     log_likelihood <- rowSums(dnorm(M, mean = Mhat, sd = sqrt(sigmasq_mat), log = TRUE))
-#'     log_proposal <- log_prior + log_likelihood
-#'     return(log_proposal)
-#' }
+#' Compute log proposal pdf for updating Pn with Normal-Truncated Normal model
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param Pn vector length K, value of Pn to evaluate
+#' @param n integer, signature index
+#' @param Theta list of parameters
+#'
+#' @return scalar
+#' @noRd
+log_proposal_Pn_normal_truncnorm <- function(M, Pn, n, Theta) {
+    Theta$P[,n] <- Pn
+    Mhat <- get_Mhat(Theta)
+    log_prior <- log(truncnorm::dtruncnorm(
+        Pn,
+        mean = Theta$Mu_p[,n],
+        sd = sqrt(Theta$Sigmasq_p[,n]),
+        a = 0,
+        b = Inf
+    ))
+    sigmasq_mat <- matrix(
+        rep(Theta$sigmasq, nrow(M)),
+        nrow = nrow(M),
+        byrow = TRUE
+    )
+    log_likelihood <- rowSums(dnorm(M, mean = Mhat, sd = sqrt(sigmasq_mat), log = TRUE))
+    log_proposal <- log_prior + log_likelihood
+    return(log_proposal)
+}
 
 #' Compute log target pdf for updating Pn with Poisson-Exponential model
 #'
@@ -71,30 +71,30 @@ log_target_Pn_poisson_exp <- function(M, Pn, n, Theta) {
     return(log_target)
 }
 
-#' #' Compute log proposal pdf for updating Pn with Normal-Exponential model
-#' #'
-#' #' @param M mutational catalog matrix, K x G
-#' #' @param Pn vector length K, value of Pn to evaluate
-#' #' @param n integer, signature index
-#' #' @param Theta list of parameters
-#' #'
-#' #' @return scalar
-#' #' @noRd
-#' log_proposal_Pn_normal_exp <- function(M, Pn, n, Theta) {
-#'     Theta$P[,n] <- Pn
-#'     Mhat <- get_Mhat(Theta)
-#'     log_prior <- log(dexp(
-#'         Pn, Theta$Lambda_p[,n]
-#'     ))
-#'     sigmasq_mat <- matrix(
-#'         rep(Theta$sigmasq, nrow(M)),
-#'         nrow = nrow(M),
-#'         byrow = TRUE
-#'     )
-#'     log_likelihood <- rowSums(dnorm(M, mean = Mhat, sd = sqrt(sigmasq_mat), log = TRUE))
-#'     log_proposal <- log_prior + log_likelihood
-#'     return(log_proposal)
-#' }
+#' Compute log proposal pdf for updating Pn with Normal-Exponential model
+#'
+#' @param M mutational catalog matrix, K x G
+#' @param Pn vector length K, value of Pn to evaluate
+#' @param n integer, signature index
+#' @param Theta list of parameters
+#'
+#' @return scalar
+#' @noRd
+log_proposal_Pn_normal_exp <- function(M, Pn, n, Theta) {
+    Theta$P[,n] <- Pn
+    Mhat <- get_Mhat(Theta)
+    log_prior <- log(dexp(
+        Pn, Theta$Lambda_p[,n]
+    ))
+    sigmasq_mat <- matrix(
+        rep(Theta$sigmasq, nrow(M)),
+        nrow = nrow(M),
+        byrow = TRUE
+    )
+    log_likelihood <- rowSums(dnorm(M, mean = Mhat, sd = sqrt(sigmasq_mat), log = TRUE))
+    log_proposal <- log_prior + log_likelihood
+    return(log_proposal)
+}
 
 #' get mu and sigmasq for P[,n] in Normal-Exponential model
 #'
@@ -245,37 +245,37 @@ sample_Pn_poisson <- function(n, M, Theta, dims, prior, gamma = 1) {
 #' @noRd
 sample_Pn <- function(n, M, Theta, dims, likelihood, prior, fast, gamma = 1) {
     if (likelihood == 'normal' | (likelihood == 'poisson' & fast)) {
-        sampled <- sample_Pn_normal(n, M, Theta, dims, prior, gamma)
-        # if (fast) {
-        #     if (prior == "truncnormal") {
-        #         acceptance <- exp(
-        #             log_target_Pn_poisson_truncnorm(M, proposal, n, Theta) +
-        #             log_proposal_Pn_normal_truncnorm(M, Theta$P[,n], n, Theta) -
-        #             log_target_Pn_poisson_truncnorm(M, Theta$P[,n], n, Theta) -
-        #             log_proposal_Pn_normal_truncnorm(M, proposal, n, Theta)
-        #         )
-        #     } else {
-        #         acceptance <- exp(
-        #             log_target_Pn_poisson_exp(M, proposal, n, Theta) +
-        #             log_proposal_Pn_normal_exp(M, Theta$P[,n], n, Theta) -
-        #             log_target_Pn_poisson_exp(M, Theta$P[,n], n, Theta) -
-        #             log_proposal_Pn_normal_exp(M, proposal, n, Theta)
-        #         )
-        #     }
-        #     # acceptance prob is NaN if 0/0, so give it a 50-50 chance
-        #     acceptance[is.na(acceptance)] <- 0.5
-        #     accepted <- runif(dims$K) < acceptance
-        #     sampled <- Theta$P[,n]
-        #     sampled[accepted] <- proposal[accepted]
-        # } else {
-        #     sampled <- proposal
-        #     acceptance <- 1
-        # }
+        proposal <- sample_Pn_normal(n, M, Theta, dims, prior, gamma)
+        if (likelihood == 'poisson' & fast) {
+            if (prior == "truncnormal") {
+                acceptance <- exp(
+                    log_target_Pn_poisson_truncnorm(M, proposal, n, Theta) +
+                    log_proposal_Pn_normal_truncnorm(M, Theta$P[,n], n, Theta) -
+                    log_target_Pn_poisson_truncnorm(M, Theta$P[,n], n, Theta) -
+                    log_proposal_Pn_normal_truncnorm(M, proposal, n, Theta)
+                )
+            } else {
+                acceptance <- exp(
+                    log_target_Pn_poisson_exp(M, proposal, n, Theta) +
+                    log_proposal_Pn_normal_exp(M, Theta$P[,n], n, Theta) -
+                    log_target_Pn_poisson_exp(M, Theta$P[,n], n, Theta) -
+                    log_proposal_Pn_normal_exp(M, proposal, n, Theta)
+                )
+            }
+            # acceptance prob is NaN if 0/0, so give it a 50-50 chance
+            acceptance[is.na(acceptance)] <- 0.5
+            accepted <- runif(dims$K) < acceptance
+            sampled <- Theta$P[,n]
+            sampled[accepted] <- proposal[accepted]
+        } else {
+            sampled <- proposal
+            acceptance <- 1
+        }
     } else {
         # likelihood == 'poisson' & !fast
         sampled <- sample_Pn_poisson(n, M, Theta, dims, prior, gamma)
+        acceptance <- 1
     }
-    acceptance <- 1
     return(list(
         sampled = sampled,
         acceptance = acceptance

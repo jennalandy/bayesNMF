@@ -63,36 +63,38 @@ get_logprior <- function(
         logprior <- logprior +
             sum(log(
                 truncnorm::dtruncnorm(
-                    Theta$P, a = 0, b = Inf,
-                    mean = Theta$Mu_p, sd = sqrt(Theta$Sigmasq_p)
+                    Theta$P[,Theta$A[1,]==1], a = 0, b = Inf,
+                    mean = Theta$Mu_p[,Theta$A[1,]==1],
+                    sd = sqrt(Theta$Sigmasq_p[,Theta$A[1,]==1])
                 )
             )) +
             sum(log(
                 truncnorm::dtruncnorm(
-                    Theta$E, a = 0, b = Inf,
-                    mean = Theta$Mu_e, sd = sqrt(Theta$Sigmasq_e)
+                    Theta$E[Theta$A[1,]==1,], a = 0, b = Inf,
+                    mean = Theta$Mu_e[Theta$A[1,]==1,],
+                    sd = sqrt(Theta$Sigmasq_e[Theta$A[1,]==1,])
                 )
             ))
     } else if (prior == 'exponential') {
         logprior <- logprior +
             sum(log(
-                dexp(Theta$P, Theta$Lambda_p)
+                dexp(Theta$P[,Theta$A[1,]==1], Theta$Lambda_p[,Theta$A[1,]==1])
             )) +
             sum(log(
-                dexp(Theta$E, Theta$Lambda_e)
+                dexp(Theta$E[Theta$A[1,]==1,], Theta$Lambda_e[Theta$A[1,]==1,])
             ))
     } else if (prior == 'gamma') {
         logprior <- logprior +
             sum(log(
-                dgamma(Theta$P, Theta$Alpha_p, Theta$Beta_p)
+                dgamma(Theta$P[,Theta$A[1,]==1], Theta$Alpha_p[,Theta$A[1,]==1], Theta$Beta_p[,Theta$A[1,]==1])
             )) +
             sum(log(
-                dgamma(Theta$E, Theta$Alpha_e, Theta$Beta_p)
+                dgamma(Theta$E[Theta$A[1,]==1,], Theta$Alpha_e[Theta$A[1,]==1,], Theta$Beta_p[Theta$A[1,]==1,])
             ))
     }
 
     if (likelihood == 'normal') {
-        logprior <- logprior + sum(log(invgamma::dinvgamma(Theta$sigmasq, Theta$Alpha,)))
+        logprior <- logprior + sum(log(invgamma::dinvgamma(Theta$sigmasq, Theta$Alpha, Theta$Beta)))
     }
     return(logprior)
 }
@@ -182,15 +184,15 @@ get_BIC <- function(loglik, Theta, dims, likelihood, prior) {
 #'
 #' @return vector of gamma values
 #' @noRd
-get_gamma_sched <- function(len = 1000) {
-    nX = len * 15 / 1000000
+get_gamma_sched <- function(len = 5000, n_temp = 1000) {
+    nX = round(n_temp / 374)
     gamma_sched <- c(
-        rep(0, round(100 * nX)),
-        c(sapply(9:5, function(x) {rep(10^(-x), round(100 * nX))})),
-        rep(10**(-4), round(800 * nX)),
+        rep(0, nX),
+        c(sapply(9:5, function(x) {rep(10^(-x), nX)})),
+        rep(10**(-4), round(8 * nX)),
         c(sapply(4:1, function(y) {
             c(sapply(seq(0, 8.9, by = 0.1), function(x) {
-                rep((1+x)*10**(-y), round(100 * nX))
+                rep((1+x)*10**(-y), nX)
             }))
         }))
     )

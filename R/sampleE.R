@@ -247,37 +247,37 @@ sample_En_poisson <- function(n, M, Theta, dims, prior, gamma = 1) {
 #' @noRd
 sample_En <- function(n, M, Theta, dims, likelihood, prior, fast, gamma = 1) {
     if (likelihood == 'normal' | (likelihood == 'poisson' & fast)) {
-        sampled <- sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
-        # if (fast) {
-        #     if (prior == 'truncnormal') {
-        #         acceptance <- exp(
-        #             log_target_En_poisson_truncnorm(M, proposal, n, Theta) +
-        #             log_proposal_En_normal_truncnorm(M, Theta$E[n,], n, Theta) -
-        #             log_target_En_poisson_truncnorm(M, Theta$E[n,], n, Theta) -
-        #             log_proposal_En_normal_truncnorm(M, proposal, n, Theta)
-        #         )
-        #     } else {
-        #         acceptance <- exp(
-        #             log_target_En_poisson_exp(M, proposal, n, Theta) +
-        #             log_proposal_En_normal_exp(M, Theta$E[n,], n, Theta) -
-        #             log_target_En_poisson_exp(M, Theta$E[n,], n, Theta) -
-        #             log_proposal_En_normal_exp(M, proposal, n, Theta)
-        #         )
-        #     }
-        #     # acceptance prob is NaN if 0/0, so give it a 50-50 chance
-        #     acceptance[is.na(acceptance)] <- 0.5
-        #     accepted <- runif(dims$G) < acceptance
-        #     sampled <- Theta$E[n,]
-        #     sampled[accepted] <- proposal[accepted]
-        # } else {
-        #     sampled <- proposal
-        #     acceptance <- 1
-        # }
+        proposal <- sample_En_normal(n, M, Theta, dims, prior = prior, gamma = gamma)
+        if (likelihood == 'poisson' & fast) {
+            if (prior == 'truncnormal') {
+                acceptance <- exp(
+                    log_target_En_poisson_truncnorm(M, proposal, n, Theta) +
+                    log_proposal_En_normal_truncnorm(M, Theta$E[n,], n, Theta) -
+                    log_target_En_poisson_truncnorm(M, Theta$E[n,], n, Theta) -
+                    log_proposal_En_normal_truncnorm(M, proposal, n, Theta)
+                )
+            } else {
+                acceptance <- exp(
+                    log_target_En_poisson_exp(M, proposal, n, Theta) +
+                    log_proposal_En_normal_exp(M, Theta$E[n,], n, Theta) -
+                    log_target_En_poisson_exp(M, Theta$E[n,], n, Theta) -
+                    log_proposal_En_normal_exp(M, proposal, n, Theta)
+                )
+            }
+            # acceptance prob is NaN if 0/0, so give it a 50-50 chance
+            acceptance[is.na(acceptance)] <- 0.5
+            accepted <- runif(dims$G) < acceptance
+            sampled <- Theta$E[n,]
+            sampled[accepted] <- proposal[accepted]
+        } else {
+            sampled <- proposal
+            acceptance <- 1
+        }
     } else {
         # likelihood == 'poisson' & !fast
         sampled <- sample_En_poisson(n, M, Theta, dims, prior, gamma = gamma)
+        acceptance <- 1
     }
-    acceptance <- 1
     return(list(
         sampled = sampled,
         acceptance = acceptance

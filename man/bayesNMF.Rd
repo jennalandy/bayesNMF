@@ -8,7 +8,7 @@ bayesNMF(
   M,
   rank,
   learn_rank_method = "BFI",
-  sparse_rank = TRUE,
+  sparse_rank = FALSE,
   likelihood = "poisson",
   prior = "truncnormal",
   fast = (likelihood == "poisson" & prior \%in\% c("truncnormal", "exponential")),
@@ -20,8 +20,7 @@ bayesNMF(
   recovery_priors = "cosmic",
   file = paste0("nmf_", likelihood, "_", prior),
   true_P = NULL,
-  convergence_control = new_convergence_control(maxiters = ifelse(recovery, 5000,
-    2000)),
+  convergence_control = new_convergence_control(),
   store_logs = TRUE,
   overwrite = FALSE
 )
