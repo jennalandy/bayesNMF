@@ -75,7 +75,7 @@ get_metric <- function(
         } else if (metric == 'BIC') {
             return(get_BIC(loglik, Theta, dims, likelihood, prior))
         }
-        logpost = loglik + get_logprior(Theta, likelihood, prior)
+        logpost = loglik + get_logprior(Theta, likelihood, prior, dims)
         return(-1 * logpost)
     } else if (metric == 'RMSE') {
         get_RMSE(M, Mhat)

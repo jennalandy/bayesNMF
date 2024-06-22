@@ -56,41 +56,80 @@ get_Mhat_no_n <- function(Theta, dims, n) {
 #' @return scalar
 #' @noRd
 get_logprior <- function(
-    Theta, likelihood, prior
+    Theta, likelihood, prior, dims
 ) {
     logprior = 0
-    if (prior == 'truncnormal') {
-        logprior <- logprior +
-            sum(log(
-                truncnorm::dtruncnorm(
-                    Theta$P[,Theta$A[1,]==1], a = 0, b = Inf,
-                    mean = Theta$Mu_p[,Theta$A[1,]==1],
-                    sd = sqrt(Theta$Sigmasq_p[,Theta$A[1,]==1])
-                )
-            )) +
-            sum(log(
-                truncnorm::dtruncnorm(
-                    Theta$E[Theta$A[1,]==1,], a = 0, b = Inf,
-                    mean = Theta$Mu_e[Theta$A[1,]==1,],
-                    sd = sqrt(Theta$Sigmasq_e[Theta$A[1,]==1,])
-                )
-            ))
-    } else if (prior == 'exponential') {
-        logprior <- logprior +
-            sum(log(
-                dexp(Theta$P[,Theta$A[1,]==1], Theta$Lambda_p[,Theta$A[1,]==1])
-            )) +
-            sum(log(
-                dexp(Theta$E[Theta$A[1,]==1,], Theta$Lambda_e[Theta$A[1,]==1,])
-            ))
-    } else if (prior == 'gamma') {
-        logprior <- logprior +
-            sum(log(
-                dgamma(Theta$P[,Theta$A[1,]==1], Theta$Alpha_p[,Theta$A[1,]==1], Theta$Beta_p[,Theta$A[1,]==1])
-            )) +
-            sum(log(
-                dgamma(Theta$E[Theta$A[1,]==1,], Theta$Alpha_e[Theta$A[1,]==1,], Theta$Beta_p[Theta$A[1,]==1,])
-            ))
+
+    # only include prior of included sigs
+    if(dims$N > 1) {
+        if (prior == 'truncnormal') {
+            logprior <- logprior +
+                sum(log(
+                    truncnorm::dtruncnorm(
+                        Theta$P[,Theta$A[1,]==1], a = 0, b = Inf,
+                        mean = Theta$Mu_p[,Theta$A[1,]==1],
+                        sd = sqrt(Theta$Sigmasq_p[,Theta$A[1,]==1])
+                    )
+                )) +
+                sum(log(
+                    truncnorm::dtruncnorm(
+                        Theta$E[Theta$A[1,]==1,], a = 0, b = Inf,
+                        mean = Theta$Mu_e[Theta$A[1,]==1,],
+                        sd = sqrt(Theta$Sigmasq_e[Theta$A[1,]==1,])
+                    )
+                ))
+        } else if (prior == 'exponential') {
+            logprior <- logprior +
+                sum(log(
+                    dexp(Theta$P[,Theta$A[1,]==1], Theta$Lambda_p[,Theta$A[1,]==1])
+                )) +
+                sum(log(
+                    dexp(Theta$E[Theta$A[1,]==1,], Theta$Lambda_e[Theta$A[1,]==1,])
+                ))
+        } else if (prior == 'gamma') {
+            logprior <- logprior +
+                sum(log(
+                    dgamma(Theta$P[,Theta$A[1,]==1], Theta$Alpha_p[,Theta$A[1,]==1], Theta$Beta_p[,Theta$A[1,]==1])
+                )) +
+                sum(log(
+                    dgamma(Theta$E[Theta$A[1,]==1,], Theta$Alpha_e[Theta$A[1,]==1,], Theta$Beta_p[Theta$A[1,]==1,])
+                ))
+        }
+    # different logic if single signature
+    } else if (Theta$A[1,1] == 1) {
+        if (prior == 'truncnormal') {
+            logprior <- logprior +
+                sum(log(
+                    truncnorm::dtruncnorm(
+                        Theta$P, a = 0, b = Inf,
+                        mean = Theta$Mu_p,
+                        sd = sqrt(Theta$Sigmasq_p)
+                    )
+                )) +
+                sum(log(
+                    truncnorm::dtruncnorm(
+                        Theta$E, a = 0, b = Inf,
+                        mean = Theta$Mu_e,
+                        sd = sqrt(Theta$Sigmasq_e)
+                    )
+                ))
+        } else if (prior == 'exponential') {
+            logprior <- logprior +
+                sum(log(
+                    dexp(Theta$P, Theta$Lambda_p)
+                )) +
+                sum(log(
+                    dexp(Theta$E, Theta$Lambda_e)
+                ))
+        } else if (prior == 'gamma') {
+            logprior <- logprior +
+                sum(log(
+                    dgamma(Theta$P, Theta$Alpha_p, Theta$Beta_p)
+                )) +
+                sum(log(
+                    dgamma(Theta$E, Theta$Alpha_e, Theta$Beta_p)
+                ))
+        }
     }
 
     if (likelihood == 'normal') {
@@ -598,7 +637,7 @@ update_metrics <- function(
     )
 
     metrics$logpost[[iter]] <- metrics$loglik[[iter]] + get_logprior(
-        Theta_MAP, likelihood, prior
+        Theta_MAP, likelihood, prior, dims
     )
 
     # top counts for MAP A

@@ -128,7 +128,7 @@ bayesNMF <- function(
                 sink()
             }, error = function(e) {
                 sink()
-                print(e)
+                stop(e)
             }, interrupt = function(e) {
                 sink()
             })
@@ -162,7 +162,7 @@ bayesNMF <- function(
                     sink()
                 }, error = function(e) {
                     sink()
-                    print(e)
+                    stop(e)
                 }, interrupt = function(e) {
                     sink()
                 })
@@ -215,7 +215,7 @@ bayesNMF <- function(
             sink()
         }, error = function(e) {
             sink()
-            print(e)
+            stop(e)
         })
     }
     return(res)
