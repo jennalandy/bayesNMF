@@ -4,7 +4,7 @@ vignettes/examples/*
 .Rproj.user/
 *.DS_Store
 *.log
-*.res
+*.rds
 *.pdf
 *.RData
 tests/testthat/log_files/

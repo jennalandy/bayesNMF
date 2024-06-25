@@ -131,6 +131,7 @@ bayesNMF <- function(
                 stop(e)
             }, interrupt = function(e) {
                 sink()
+                stop(e)
             })
         } else if (learn_rank_method == "heuristic") {
             BICs <- data.frame(
@@ -165,6 +166,7 @@ bayesNMF <- function(
                     stop(e)
                 }, interrupt = function(e) {
                     sink()
+                    stop(e)
                 })
                 BICs$BIC[BICs$rank == r] <- res_N$metrics$BIC[
                     res_N$metrics$sample_idx == res_N$converged_at
@@ -289,10 +291,10 @@ inner_bayesNMF <- function(
     if (recovery) {
         if (is.character(recovery_priors)) {
             if (recovery_priors == "cosmic") {
-                if (likelihood == 'normal' & prior == 'truncnormal') {
+                if (prior == 'truncnormal') {
                     recovery_priors <- normal_truncnormal_recovery_priors
                 } else {
-                    stop("Recovery priors not defined for this likelihood/prior combination")
+                    stop("Recovery priors not defined for prior combination")
                 }
             }
         }
