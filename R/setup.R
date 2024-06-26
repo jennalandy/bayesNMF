@@ -60,7 +60,11 @@ set_truncnorm_hyperprior_parameters <- function(
         beta = 3,
         Beta = rep(beta, dims$G),
         a = 0.8,
-        b = 0.8
+        b = 0.8,
+        a_r = 1,
+        b_r = 0.05,
+        a_d = 1,
+        b_d = 20
 ) {
     if ("m_p" %in% names(Theta) & !("M_p" %in% names(Theta))) {
         Theta$M_p = matrix(Theta$m_p, nrow = dims$K, ncol = dims$N)
@@ -125,7 +129,11 @@ set_truncnorm_hyperprior_parameters <- function(
         Alpha = Alpha,
         Beta = Beta,
         a = a,
-        b = b
+        b = b,
+        a_r = a_r,
+        b_r = b_r,
+        a_d = a_d,
+        b_d = b_d
     ))
 }
 
@@ -208,7 +216,11 @@ set_exponential_hyperprior_parameters <- function(
         beta = 3,
         Beta = rep(beta, dims$G),
         a = 0.8,
-        b = 0.8
+        b = 0.8,
+        a_r = 1,
+        b_r = 0.05,
+        a_d = 1,
+        b_d = 20
 ) {
     for (matrix in c("A_p", "B_p")) {
         element = tolower(matrix)
@@ -242,7 +254,11 @@ set_exponential_hyperprior_parameters <- function(
         Alpha = Alpha,
         Beta = Beta,
         a = a,
-        b = b
+        b = b,
+        a_r = a_r,
+        b_r = b_r,
+        a_d = a_d,
+        b_d = b_d
     ))
 }
 
@@ -315,7 +331,11 @@ set_gamma_hyperprior_parameters <- function(
         d_e = 10,
         D_e = matrix(d_e, nrow = dims$N, ncol = dims$G),
         a = 0.8,
-        b = 0.8
+        b = 0.8,
+        a_r = 1,
+        b_r = 0.05,
+        a_d = 1,
+        b_d = 20
 ) {
 
     for (matrix in c("A_p", "B_p", "C_p", "D_p")) {
@@ -346,7 +366,11 @@ set_gamma_hyperprior_parameters <- function(
         D_p = D_p,
         D_e = D_e,
         a = a,
-        b = b
+        b = b,
+        a_r = a_r,
+        b_r = b_r,
+        a_d = a_d,
+        b_d = b_d
     ))
 }
 
@@ -471,6 +495,8 @@ initialize_Theta <- function(
         recovery_priors,
         clip
 ) {
+    Theta = prior_parameters
+
     is_fixed = list(
         A = !learn_A,
         prior_P = rep(FALSE, dims$N)
@@ -478,10 +504,15 @@ initialize_Theta <- function(
 
     if (recovery) {
         is_fixed$prior_P[1:recovery_priors$N_r] <- TRUE
+        Theta$recovery <- c(
+            rep(TRUE, recovery_priors$N_r),
+            rep(FALSE, dims$N - recovery_priors$N_r)
+        )
+    } else {
+        Theta$recovery <- rep(FALSE, dims$N)
     }
 
     # hyperprior and prior parameters
-    Theta = prior_parameters
     if (prior == 'truncnormal') {
         Theta <- set_truncnorm_hyperprior_parameters(Theta, dims, M)
         Theta <- sample_truncnormal_prior_parameters(Theta, dims, recovery, recovery_priors)
@@ -526,30 +557,48 @@ initialize_Theta <- function(
         is_fixed$q <- FALSE
     }
 
+    if (!is.null(fixed$q)) {
+        Theta$q <- fixed$q
+        is_fixed$q <- TRUE
+    } else if (!is.null(inits$q)) {
+        Theta$q <- inits$q
+        is_fixed$q <- FALSE
+    } else {
+        if (recovery) {
+            Theta$q <- matrix(
+                c(
+                    rbeta(sum(Theta$recovery), Theta$a_r, Theta$b_r),
+                    rbeta(sum(Theta$recovery == 0), Theta$a_d, Theta$b_d)
+                ),
+                nrow = 1, ncol = dims$N
+            )
+        } else {
+            Theta$q <- matrix(
+                rbeta(dims$N, Theta$a, Theta$b),
+                nrow = 1, ncol = dims$N
+            )
+        }
+        is_fixed$q <- FALSE
+    }
+
     if (!is.null(fixed$A)) {
         Theta$A <- fixed$A
-        Theta$n <- sum(Theta$A)
         is_fixed$A <- TRUE
     } else if (!is.null(inits$A)) {
         Theta$A <- inits$A
-        Theta$n <- sum(Theta$A)
+        is_fixed$A <- FALSE
     } else if (!learn_A) {
         Theta$A <- matrix(
-            as.numeric(rep(1, dims$N)),
-            nrow = 1, ncol = dims$N
+            as.numeric(rep(1, dims$S * dims$N)),
+            nrow = dims$S, ncol = dims$N
         )
+        is_fixed$A <- TRUE
     } else {
-        Theta$n <- sample(0:dims$N, 1)
-        if (is.null(Theta$q)) {
-            Theta$q <- Theta$n/dims$N
-            if (Theta$q == 0) {Theta$q = Theta$q + clip/dims$N}
-            if (Theta$q == 1) {Theta$q = Theta$q - clip/dims$N}
-            Theta$q
-        }
         Theta$A <- matrix(
-            as.numeric(runif(dims$N) < Theta$q),
-            nrow = 1, ncol = dims$N
+            as.numeric(runif(dims$S * dims$N) < c(Theta$q)),
+            nrow = dims$S, ncol = dims$N
         )
+        is_fixed$A <- FALSE
     }
 
     if (likelihood == 'normal' | (likelihood == 'poisson' & fast)) {

@@ -106,11 +106,11 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank,
         neg_BIC_0 <- 2 * loglik_0 - n_params_0 * log(dims$G)
         neg_BIC_1 <- 2 * loglik_1 - n_params_1 * log(dims$G)
 
-        log_p0 = log(1 - Theta$q) + gamma * neg_BIC_0
-        log_p1 = log(Theta$q) + gamma * neg_BIC_1
+        log_p0 = log(1 - Theta$q[1,n]) + gamma * neg_BIC_0
+        log_p1 = log(Theta$q[1,n]) + gamma * neg_BIC_1
     } else {
-        log_p0 = log(1 - Theta$q) + gamma * loglik_0
-        log_p1 = log(Theta$q) + gamma * loglik_1
+        log_p0 = log(1 - Theta$q[1,n]) + gamma * loglik_0
+        log_p1 = log(Theta$q[1,n]) + gamma * loglik_1
     }
 
 
@@ -133,18 +133,24 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank,
     ))
 }
 
-#' Update prior probability of inclusion, q
+#' Sample qn
 #'
+#' @param n integer, signature index
 #' @param Theta list of parameters
-#' @param dims list of dimension values
-#' @param clip numeric, prior probabilities of inclusion will be clipped by
-#' `clip`/N away from 0 and 1
+#' @param gamma double, tempering parameter
 #'
-#' @return scalar
+#' @return double
 #' @noRd
-update_q <- function(Theta, dims, clip) {
-    Theta$q <- Theta$n/dims$N
-    if (Theta$q == 0) {Theta$q = Theta$q + clip/dims$N}
-    if (Theta$q == 1) {Theta$q = Theta$q - clip/dims$N}
-    return(Theta$q)
+sample_qn <- function(n, Theta, gamma = 1) {
+    if (sum(Theta$recovery) > 0) {
+        # recovery - discovery
+        if (Theta$recovery[n]) {
+            rbeta(1, Theta$a_r + gamma*Theta$A[1, n], Theta$b_r + gamma*(1-Theta$A[1, n]))
+        } else {
+            rbeta(1, Theta$a_d + gamma*Theta$A[1, n], Theta$b_d + gamma*(1-Theta$A[1, n]))
+        }
+    } else {
+        # discovery only
+        rbeta(1, Theta$a + gamma*Theta$A[1, n], Theta$b + gamma*(1-Theta$A[1, n]))
+    }
 }

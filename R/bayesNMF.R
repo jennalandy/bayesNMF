@@ -441,9 +441,8 @@ inner_bayesNMF <- function(
 
         # update A and n
         if (!Theta$is_fixed$A) {
-            Theta$n <- sample_n(Theta, dims, clip)
-            Theta$q <- update_q(Theta, dims, clip)
             for (n in sample(1:dims$N)) {
+                Theta$q[1,n] <- sample_qn(n, Theta)
                 sample_An_out <- sample_An(
                     n, M, Theta, dims,
                     likelihood, prior, logfac,
