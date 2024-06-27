@@ -58,10 +58,10 @@ sample_n <- function(Theta, dims, clip, gamma = 1) {
     probs = sapply(0:dims$N, function(n) {
         tmp <- list(n = n)
         prob_A <- update_q(tmp, dims, clip)
-        prob <- 1/(dims$N + 1) * (
+        prob <- (1/(dims$N + 1)) * ((
             (prob_A ** sum(Theta$A)) *
             ((1 - prob_A) ** (dims$N - sum(Theta$A)))
-        ) ** gamma
+        ) ** gamma)
         return(prob)
     })
     probs = probs/sum(probs)
