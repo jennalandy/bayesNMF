@@ -58,9 +58,8 @@ sample_n <- function(Theta, dims, clip, gamma = 1) {
     probs = sapply(0:dims$N, function(n) {
         tmp <- list(n = n)
         prob_A <- update_q(tmp, dims, clip)
-        prob <- 1/(dims$N + 1) * (
-            (prob_A ** sum(Theta$A)) *
-            ((1 - prob_A) ** (dims$N - sum(Theta$A)))
+        prob <- 1/(dims$N + 1) * prod(
+            prob_A ** Theta$A * (1-prob_A)**(1-Theta$A)
         ) ** gamma
         return(prob)
     })
@@ -106,11 +105,11 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank,
         neg_BIC_0 <- 2 * loglik_0 - n_params_0 * log(dims$G)
         neg_BIC_1 <- 2 * loglik_1 - n_params_1 * log(dims$G)
 
-        log_p0 = log(1 - Theta$q) + gamma * neg_BIC_0
-        log_p1 = log(Theta$q) + gamma * neg_BIC_1
+        log_p0 = log(1 - Theta$q[n]) + gamma * neg_BIC_0
+        log_p1 = log(Theta$q[n]) + gamma * neg_BIC_1
     } else {
-        log_p0 = log(1 - Theta$q) + gamma * loglik_0
-        log_p1 = log(Theta$q) + gamma * loglik_1
+        log_p0 = log(1 - Theta$q[n]) + gamma * loglik_0
+        log_p1 = log(Theta$q[n]) + gamma * loglik_1
     }
 
 
@@ -143,8 +142,15 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank,
 #' @return scalar
 #' @noRd
 update_q <- function(Theta, dims, clip) {
-    Theta$q <- Theta$n/dims$N
-    if (Theta$q == 0) {Theta$q = Theta$q + clip/dims$N}
-    if (Theta$q == 1) {Theta$q = Theta$q - clip/dims$N}
+    if (sum(Theta$recovery) > 0) {
+        Theta$q <- c(
+            rep(Theta$weight_r * Theta$n / sum(Theta$recovery), sum(Theta$recovery)),
+            rep((1-Theta$weight_r) * Theta$n / sum(Theta$recovery == 0), sum(Theta$recovery == 0))
+        )
+    } else {
+        Theta$q <- rep(Theta$n/dims$N, dims$N)
+    }
+    Theta$q[Theta$q <= 0] <- clip/dims$N
+    Theta$q[Theta$q >= 1] <- 1 - clip/dims$N
     return(Theta$q)
 }
