@@ -7,8 +7,7 @@
 bayesNMF(
   M,
   rank,
-  learn_rank_method = "BFI",
-  sparse_rank = FALSE,
+  learn_rank_method = "SBFI",
   likelihood = "poisson",
   prior = "truncnormal",
   fast = (likelihood == "poisson" & prior \%in\% c("truncnormal", "exponential")),
@@ -35,9 +34,11 @@ If a vector is provided, values must be sequential and start at 0 or 1
 nonsequential (e.g., \code{c(2,4,5)}) for \code{learn_rank_method = "heuristic"}.}
 
 \item{learn_rank_method}{string, method used to learn latent rank, used if
-a vector is provided for \code{rank}, one of c("BFI","heuristic") is used.
+a vector is provided for \code{rank}, one of c("SBFI","BFI","heuristic") is used.
 Bayesian Factor Inclusion (BFI) learns rank automatically as a part of the
-Bayesian model with a binary Factor inclusion matrix. The heuristic approach
+Bayesian model with a binary Factor inclusion matrix. Sparse Bayesian
+Factor inclusion (SBFI) is a variant of BFI with a sparse prior based on
+the regularization of BIC. The heuristic approach
 runs a fixed-rank Bayesian NMF for each value in \code{rank}, and selects
 the model that minimizes BIC.}
 
@@ -83,8 +84,8 @@ compare estimated factors to with a heatmap.}
 See documentation for \code{new_convergence_control}.}
 
 \item{store_logs}{boolean, if \code{store_logs = TRUE}, each iteration of the
-Gibb's sampler is stored in resulting \code{.rds} file. Otherwise, only MAP is
-saved.}
+Gibb's sampler is stored in resulting \code{.rds} file. Otherwise, only the
+samples used to compute MAP is saved.}
 
 \item{overwrite}{boolean, if \code{overwrite = TRUE}, the log, safe, and plot files of
 previous runs with the same \code{file} will be overwritten}

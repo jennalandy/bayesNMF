@@ -7,10 +7,10 @@
 new_convergence_control(
   MAP_over = 1000,
   MAP_every = 100,
-  tol = 0.005,
-  Ninarow_nochange = 5,
-  Ninarow_nobest = 5,
-  miniters = 500,
+  tol = 0.001,
+  Ninarow_nochange = 10,
+  Ninarow_nobest = 10,
+  miniters = 1000,
   maxiters = 5000,
   minA = 0,
   metric = "logposterior"
