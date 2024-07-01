@@ -105,8 +105,11 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank,
         neg_BIC_0 <- 2 * loglik_0 - n_params_0 * log(dims$G)
         neg_BIC_1 <- 2 * loglik_1 - n_params_1 * log(dims$G)
 
-        log_p0 = log(1 - Theta$q[n]) + gamma * neg_BIC_0
-        log_p1 = log(Theta$q[n]) + gamma * neg_BIC_1
+        log_p0 = log(1 - Theta$q[n]) + gamma * (neg_BIC_0)/2
+        log_p1 = log(Theta$q[n]) + gamma * (neg_BIC_1)/2
+
+        log_p0 = log(1 - Theta$q[n]) + (neg_BIC_0)/2
+        log_p1 = log(Theta$q[n]) + (neg_BIC_1)/2
     } else {
         log_p0 = log(1 - Theta$q[n]) + gamma * loglik_0
         log_p1 = log(Theta$q[n]) + gamma * loglik_1
