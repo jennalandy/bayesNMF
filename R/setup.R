@@ -475,9 +475,11 @@ initialize_Theta <- function(
         prior_parameters,
         recovery,
         recovery_priors,
-        clip
+        clip,
+        range_N
 ) {
     Theta = prior_parameters
+    Theta$range_N = range_N
     is_fixed = list(
         A = !learn_A,
         prior_P = rep(FALSE, dims$N)
@@ -530,7 +532,7 @@ initialize_Theta <- function(
     }
 
     # signature assignment A
-    Theta$n <- sample(0:dims$N, 1)
+    Theta$n <- sample(Theta$range_N, 1)
     if (!is.null(fixed$q)) {
         Theta$q <- fixed$q
         is_fixed$q <- TRUE

@@ -54,6 +54,7 @@
 #' @export
 bayesNMF <- function(
     M, rank,
+    range_N = NULL,
     learn_rank_method = "SBFI",
     likelihood = "poisson",
     prior = "truncnormal",
@@ -110,6 +111,7 @@ bayesNMF <- function(
                     M = M,
                     N = NULL,
                     max_N = max_N,
+                    range_N = range_N,
                     sparse_rank = TRUE,
                     likelihood = likelihood,
                     prior = prior,
@@ -158,6 +160,7 @@ bayesNMF <- function(
                     M = M,
                     N = NULL,
                     max_N = max_N,
+                    range_N = range_N,
                     sparse_rank = FALSE,
                     likelihood = likelihood,
                     prior = prior,
@@ -309,6 +312,7 @@ inner_bayesNMF <- function(
         M,
         N = NULL,
         max_N = NULL,
+        range_N = NULL,
         sparse_rank = FALSE,
         likelihood = "poisson",
         prior = "truncnormal",
@@ -353,6 +357,9 @@ inner_bayesNMF <- function(
 
     # check N/max_N combination is valid
     N <- validate_N(N, max_N, recovery_priors)
+    if (is.null(range_N)) {
+        range_N = 0:N
+    }
     if (recovery) {
         scale_by <- sqrt(mean(M)/N) / mean(recovery_priors$Mu_p)
         recovery_priors$Mu_p <- recovery_priors$Mu_p * scale_by
@@ -398,7 +405,8 @@ inner_bayesNMF <- function(
         prior_parameters = prior_parameters,
         recovery = recovery,
         recovery_priors = recovery_priors,
-        clip = clip
+        clip = clip,
+        range_N = range_N
     )
     Theta$prob_inclusion <- Theta$A
     Theta$P_acceptance <- Theta$P

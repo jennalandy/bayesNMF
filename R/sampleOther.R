@@ -55,7 +55,7 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
 #' @return scalar
 #' @noRd
 sample_n <- function(Theta, dims, clip, gamma = 1) {
-    probs = sapply(0:dims$N, function(n) {
+    probs = sapply(Theta$range_N, function(n) {
         tmp <- list(n = n)
         prob_A <- update_q(tmp, dims, clip)
         prob <- 1/(dims$N + 1) * prod(
@@ -64,7 +64,7 @@ sample_n <- function(Theta, dims, clip, gamma = 1) {
         return(prob)
     })
     probs = probs/sum(probs)
-    n <- sample(0:dims$N, size = 1, prob = probs)
+    n <- sample(Theta$range_N, size = 1, prob = probs)
     return(n)
 }
 
