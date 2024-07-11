@@ -372,7 +372,10 @@ inner_bayesNMF <- function(
     # set up tempering schedule
     learn_A <- !is.null(max_N) & is.null(fixed$A)
     if (learn_A) {
-        gamma_sched <- get_gamma_sched(len = convergence_control$maxiters)
+        gamma_sched <- get_gamma_sched(
+            len = convergence_control$maxiters,
+            n_temp = round(0.5 * convergence_control$maxiters)
+        )
     } else {
         gamma_sched <- rep(1, convergence_control$maxiters)
     }
