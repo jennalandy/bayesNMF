@@ -16,13 +16,13 @@
 #' @return list
 #' @export
 new_convergence_control <- function(
-    MAP_over = 500,
+    MAP_over = 1000,
     MAP_every = 100,
     tol = 0.001,
-    Ninarow_nochange = 5,
+    Ninarow_nochange = 10,
     Ninarow_nobest = 10,
-    miniters = 500,
-    maxiters = 2000,
+    miniters = 1000,
+    maxiters = 5000,
     minA = 0,
     metric = "logposterior"
 ) {
@@ -75,7 +75,7 @@ get_metric <- function(
         } else if (metric == 'BIC') {
             return(get_BIC(loglik, Theta, dims, likelihood, prior))
         }
-        logpost = loglik + get_logprior(Theta, likelihood, prior)
+        logpost = loglik + get_logprior(Theta, likelihood, prior, dims)
         return(-1 * logpost)
     } else if (metric == 'RMSE') {
         get_RMSE(M, Mhat)
@@ -166,7 +166,7 @@ check_converged <- function(
     #   OR (no best for Ninarow)
     #   OR (change is less than mintol)
     #   OR (iter hit maxiters)
-    if (gamma == 1 & iter > convergence_control$miniters) {
+    if (gamma == 1 & iter >= convergence_control$miniters) {
         if (convergence_status$inarow_no_change >=
             convergence_control$Ninarow_nochange
         ) {

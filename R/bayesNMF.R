@@ -8,9 +8,11 @@
 #' (e.g., \code{1:5} or \code{0:5}) for \code{learn_rank_method = "BFI"}, but can be
 #' nonsequential (e.g., \code{c(2,4,5)}) for \code{learn_rank_method = "heuristic"}.
 #' @param learn_rank_method string, method used to learn latent rank, used if
-#' a vector is provided for \code{rank}, one of c("BFI","heuristic") is used.
+#' a vector is provided for \code{rank}, one of c("SBFI","BFI","heuristic") is used.
 #' Bayesian Factor Inclusion (BFI) learns rank automatically as a part of the
-#' Bayesian model with a binary Factor inclusion matrix. The heuristic approach
+#' Bayesian model with a binary Factor inclusion matrix. Sparse Bayesian
+#' Factor inclusion (SBFI) is a variant of BFI with a sparse prior based on
+#' the regularization of BIC. The heuristic approach
 #' runs a fixed-rank Bayesian NMF for each value in \code{rank}, and selects
 #' the model that minimizes BIC.
 #' @param likelihood string, one of \code{c('normal','poisson')}, represents the
@@ -43,8 +45,8 @@
 #' @param convergence_control list, specification of convergence parameters.
 #' See documentation for \code{new_convergence_control}.
 #' @param store_logs boolean, if \code{store_logs = TRUE}, each iteration of the
-#' Gibb's sampler is stored in resulting \code{.rds} file. Otherwise, only MAP is
-#' saved.
+#' Gibb's sampler is stored in resulting \code{.rds} file. Otherwise, only the
+#' samples used to compute MAP is saved.
 #' @param overwrite boolean, if \code{overwrite = TRUE}, the log, safe, and plot files of
 #' previous runs with the same \code{file} will be overwritten
 #'
@@ -52,7 +54,8 @@
 #' @export
 bayesNMF <- function(
     M, rank,
-    learn_rank_method = "BFI",
+    range_N = NULL,
+    learn_rank_method = "SBFI",
     likelihood = "poisson",
     prior = "truncnormal",
     fast = (likelihood == "poisson" &
@@ -65,9 +68,7 @@ bayesNMF <- function(
     recovery_priors = "cosmic",
     file = paste0('nmf_', likelihood, '_', prior),
     true_P = NULL,
-    convergence_control = new_convergence_control(
-        maxiters = ifelse(recovery, 5000, 2000)
-    ),
+    convergence_control = new_convergence_control(),
     store_logs = TRUE,
     overwrite = FALSE
 ) {
@@ -86,7 +87,7 @@ bayesNMF <- function(
     # if learning rank, consider "learn_rank_method"
     learn_A <- length(rank) > 1 & is.null(fixed$A)
     if (learn_A) {
-        if (learn_rank_method == "BFI") {
+        if (learn_rank_method == "SBFI") {
             max_N = max(rank)
             min_N = min(rank)
             if (!setequal(min_N:max_N, rank)) {
@@ -110,6 +111,8 @@ bayesNMF <- function(
                     M = M,
                     N = NULL,
                     max_N = max_N,
+                    range_N = range_N,
+                    sparse_rank = TRUE,
                     likelihood = likelihood,
                     prior = prior,
                     fast = fast,
@@ -128,10 +131,59 @@ bayesNMF <- function(
                 sink()
             }, error = function(e) {
                 sink()
-                print(e)
+                stop(e)
             }, interrupt = function(e) {
                 sink()
-                print(e)
+                stop(e)
+            })
+        } else if (learn_rank_method == "BFI") {
+            max_N = max(rank)
+            min_N = min(rank)
+            if (!setequal(min_N:max_N, rank)) {
+                stop(paste(
+                    "rank =", paste0("c(", paste(rank, collapse = ','), ")"),
+                    "is not sequential. rank must be sequential",
+                    "to use learn_rank_method = 'BFI'. Try a sequential rank",
+                    "or learn_rank_method = 'heuristic'."
+                ))
+            }
+            if (min_N > 1) {
+                stop(paste(
+                    "Minimum rank > 1 is not permitted with learn_rank_method =",
+                    "'BFI'. Try rank =", paste0(1, ":", max_N),
+                    "or use learn_rank_method = 'heuristic'."
+                ))
+            }
+            tryCatch({
+                sink(file = logfile)
+                res <- inner_bayesNMF(
+                    M = M,
+                    N = NULL,
+                    max_N = max_N,
+                    range_N = range_N,
+                    sparse_rank = FALSE,
+                    likelihood = likelihood,
+                    prior = prior,
+                    fast = fast,
+                    inits = inits,
+                    fixed = fixed,
+                    clip = clip,
+                    prior_parameters = prior_parameters,
+                    recovery = recovery,
+                    recovery_priors = recovery_priors,
+                    file = final_file,
+                    true_P = true_P,
+                    convergence_control = convergence_control,
+                    store_logs = store_logs,
+                    overwrite = overwrite
+                )
+                sink()
+            }, error = function(e) {
+                sink()
+                stop(e)
+            }, interrupt = function(e) {
+                sink()
+                stop(e)
             })
         } else if (learn_rank_method == "heuristic") {
             BICs <- data.frame(
@@ -163,10 +215,10 @@ bayesNMF <- function(
                     sink()
                 }, error = function(e) {
                     sink()
-                    print(e)
+                    stop(e)
                 }, interrupt = function(e) {
                     sink()
-                    print(e)
+                    stop(e)
                 })
                 BICs$BIC[BICs$rank == r] <- res_N$metrics$BIC[
                     res_N$metrics$sample_idx == res_N$converged_at
@@ -174,12 +226,12 @@ bayesNMF <- function(
                 all_models[[r]] <- res_N
             }
             best_rank <- BICs %>%
-                filter(BIC == min(BIC)) %>%
-                pull(rank)
+                dplyr::filter(BIC == min(BIC)) %>%
+                dplyr::pull(rank)
             plot <- BICs %>%
-                ggplot(aes(x = rank, y = BIC)) +
-                geom_point() +
-                geom_line()
+                ggplot2::ggplot(ggplot2::aes(x = rank, y = BIC)) +
+                ggplot2::geom_point() +
+                ggplot2::geom_line()
             res <- list(
                 best_rank = best_rank,
                 best_model = all_models[[best_rank]],
@@ -217,7 +269,7 @@ bayesNMF <- function(
             sink()
         }, error = function(e) {
             sink()
-            print(e)
+            stop(e)
         })
     }
     return(res)
@@ -260,6 +312,8 @@ inner_bayesNMF <- function(
         M,
         N = NULL,
         max_N = NULL,
+        range_N = NULL,
+        sparse_rank = FALSE,
         likelihood = "poisson",
         prior = "truncnormal",
         fast = (likelihood == "poisson" &
@@ -290,10 +344,10 @@ inner_bayesNMF <- function(
     if (recovery) {
         if (is.character(recovery_priors)) {
             if (recovery_priors == "cosmic") {
-                if (likelihood == 'normal' & prior == 'truncnormal') {
+                if (prior == 'truncnormal') {
                     recovery_priors <- normal_truncnormal_recovery_priors
                 } else {
-                    stop("Recovery priors not defined for this likelihood/prior combination")
+                    stop("Recovery priors not defined for prior combination")
                 }
             }
         }
@@ -303,6 +357,9 @@ inner_bayesNMF <- function(
 
     # check N/max_N combination is valid
     N <- validate_N(N, max_N, recovery_priors)
+    if (is.null(range_N)) {
+        range_N = 0:N
+    }
     if (recovery) {
         scale_by <- sqrt(mean(M)/N) / mean(recovery_priors$Mu_p)
         recovery_priors$Mu_p <- recovery_priors$Mu_p * scale_by
@@ -315,7 +372,10 @@ inner_bayesNMF <- function(
     # set up tempering schedule
     learn_A <- !is.null(max_N) & is.null(fixed$A)
     if (learn_A) {
-        gamma_sched <- get_gamma_sched(len = convergence_control$maxiters)
+        gamma_sched <- get_gamma_sched(
+            len = convergence_control$maxiters,
+            n_temp = round(0.5 * convergence_control$maxiters)
+        )
     } else {
         gamma_sched <- rep(1, convergence_control$maxiters)
     }
@@ -348,7 +408,8 @@ inner_bayesNMF <- function(
         prior_parameters = prior_parameters,
         recovery = recovery,
         recovery_priors = recovery_priors,
-        clip = clip
+        clip = clip,
+        range_N = range_N
     )
     Theta$prob_inclusion <- Theta$A
     Theta$P_acceptance <- Theta$P
@@ -446,6 +507,7 @@ inner_bayesNMF <- function(
                 sample_An_out <- sample_An(
                     n, M, Theta, dims,
                     likelihood, prior, logfac,
+                    sparse_rank = sparse_rank,
                     gamma = gamma_sched[iter]
                 )
                 Theta$A[1, n] <- sample_An_out$sampled
@@ -571,19 +633,6 @@ inner_bayesNMF <- function(
                 first_MAP = FALSE
                 # forces convergence after gamma == 1
                 convergence_status$best_MAP_metric = Inf
-                # if (store_logs) {
-                #     keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
-                #     running_posterior_counts <- get_posterior_counts_N(logs$A[keep])
-                # } else {
-                #     running_posterior_counts <- get_posterior_counts_N(logs$A)
-                # }
-            } else if (gamma_sched[iter] == 1) {
-                # if (store_logs) {
-                #     keep = (1:length(logs$A))[gamma_sched[1:length(logs$A)] == 1]
-                #     running_posterior_counts <- running_posterior_counts + get_posterior_counts_N(logs$A[keep])
-                # } else {
-                #     running_posterior_counts <- running_posterior_counts + get_posterior_counts_N(logs$A)
-                # }
             }
 
             # if not storing logs, store current best MAP to return if needed
@@ -642,7 +691,6 @@ inner_bayesNMF <- function(
                     }
                     credible_intervals <- store_credible_intervals
                 }
-                # posterior_pmf_N <- running_posterior_counts/sum(running_posterior_counts)
             }
 
             # plot metrics
@@ -679,7 +727,11 @@ inner_bayesNMF <- function(
             )
             if (done) {
                 res$credible_intervals <- credible_intervals
-                # res$posterior_N <- posterior_pmf_N
+                posterior_samples <- list()
+                for (name in names(logs)) {
+                    posterior_samples[[name]] <- logs[[name]][MAP$idx]
+                }
+                res$posterior_samples <- posterior_samples
             }
             if (store_logs) {
                 res$logs = logs

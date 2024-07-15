@@ -55,17 +55,16 @@ sample_Zkg_poisson <- function(k, g, M, Theta, dims, gamma = 1){
 #' @return scalar
 #' @noRd
 sample_n <- function(Theta, dims, clip, gamma = 1) {
-    probs = sapply(0:dims$N, function(n) {
+    probs = sapply(Theta$range_N, function(n) {
         tmp <- list(n = n)
         prob_A <- update_q(tmp, dims, clip)
-        prob <- 1/(dims$N + 1) * (
-            (prob_A ** sum(Theta$A)) *
-            ((1 - prob_A) ** (dims$N - sum(Theta$A)))
+        prob <- 1/(dims$N + 1) * prod(
+            prob_A ** Theta$A * (1-prob_A)**(1-Theta$A)
         ) ** gamma
         return(prob)
     })
     probs = probs/sum(probs)
-    n <- sample(0:dims$N, size = 1, prob = probs)
+    n <- sample(Theta$range_N, size = 1, prob = probs)
     return(n)
 }
 
@@ -83,7 +82,7 @@ sample_n <- function(Theta, dims, clip, gamma = 1) {
 #'
 #' @return integer
 #' @noRd
-sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, gamma) {
+sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank, gamma) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
 
@@ -99,14 +98,19 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, gamma) {
         loglik_1 <- get_loglik_normal(M, Theta_A1, dims)
     }
 
-    n_params_0 <- sum(Theta_A0$A) * (dims$G + dims$K)
-    n_params_1 <- sum(Theta_A1$A) * (dims$G + dims$K)
+    if (sparse_rank) {
+        n_params_0 <- sum(Theta_A0$A) * (dims$G + dims$K)
+        n_params_1 <- sum(Theta_A1$A) * (dims$G + dims$K)
 
-    neg_BIC_0 <- 2 * loglik_0 - n_params_0 * log(dims$G)
-    neg_BIC_1 <- 2 * loglik_1 - n_params_1 * log(dims$G)
+        neg_half_BIC_0 <- loglik_0 - n_params_0 * log(dims$G) / 2
+        neg_half_BIC_1 <- loglik_1 - n_params_1 * log(dims$G) / 2
 
-    log_p0 = log(1 - Theta$q) + gamma * neg_BIC_0
-    log_p1 = log(Theta$q) + gamma * neg_BIC_1
+        log_p0 = log(1 - Theta$q[n]) + gamma * neg_half_BIC_0
+        log_p1 = log(Theta$q[n]) + gamma * neg_half_BIC_1
+    } else {
+        log_p0 = log(1 - Theta$q[n]) + gamma * loglik_0
+        log_p1 = log(Theta$q[n]) + gamma * loglik_1
+    }
 
     log_p = log_p1 - sumLog(c(log_p0, log_p1))
     p = exp(log_p)
@@ -137,8 +141,15 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, gamma) {
 #' @return scalar
 #' @noRd
 update_q <- function(Theta, dims, clip) {
-    Theta$q <- Theta$n/dims$N
-    if (Theta$q == 0) {Theta$q = Theta$q + clip/dims$N}
-    if (Theta$q == 1) {Theta$q = Theta$q - clip/dims$N}
+    if (sum(Theta$recovery) > 0) {
+        Theta$q <- c(
+            rep(Theta$weight_r * Theta$n / sum(Theta$recovery), sum(Theta$recovery)),
+            rep((1-Theta$weight_r) * Theta$n / sum(Theta$recovery == 0), sum(Theta$recovery == 0))
+        )
+    } else {
+        Theta$q <- rep(Theta$n/dims$N, dims$N)
+    }
+    Theta$q[Theta$q <= 0] <- clip/dims$N
+    Theta$q[Theta$q >= 1] <- 1 - clip/dims$N
     return(Theta$q)
 }
