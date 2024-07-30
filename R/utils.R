@@ -61,7 +61,7 @@ get_logprior <- function(
     logprior = 0
 
     # only include prior of included sigs
-    if(dims$N > 1) {
+    if(dims$N > 1 & sum(Theta$A) > 1) {
         if (prior == 'truncnormal') {
             logprior <- logprior +
                 sum(log(
@@ -96,7 +96,7 @@ get_logprior <- function(
                 ))
         }
     # different logic if single signature
-    } else if (Theta$A[1,1] == 1) {
+    } else if (dims$N == 1 & Theta$A[1,1] == 1) {
         if (prior == 'truncnormal') {
             logprior <- logprior +
                 sum(log(
@@ -309,7 +309,8 @@ get_heatmap <- function(
     est_P, true_P,
     est_names = NULL,
     true_names = NULL,
-    which = 'cols'
+    which = 'cols',
+    keep_all = FALSE
 ) {
     sim_mat <- pairwise_sim(
         est_P, true_P,
@@ -317,7 +318,7 @@ get_heatmap <- function(
         name2 = true_names,
         which = which
     )
-    sim_mat <- assign_signatures(sim_mat)
+    sim_mat <- assign_signatures(sim_mat, keep_all = keep_all)
 
     sim_mat_melted <- reshape2::melt(sim_mat)
 
@@ -346,14 +347,26 @@ get_heatmap <- function(
 #'
 #' @return matrix
 #' @export
-assign_signatures <- function(sim_mat) {
+assign_signatures <- function(sim_mat, keep_all = FALSE) {
     reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
-    reassigned_sim_mat <- sim_mat[, reassignment$pairs[,2]]
+    rows = reassignment$pairs[,1]
+    cols = reassignment$pairs[,2]
+    if (keep_all) {
+        for (row in setdiff(1:nrow(sim_mat), rows)) {
+            rows <- c(rows, row)
+        }
+        for (col in setdiff(1:ncol(sim_mat), cols)) {
+            cols <- c(cols, col)
+        }
+    }
+    reassigned_sim_mat <- sim_mat[rows, cols]
+
     if (nrow(sim_mat) == 1 | ncol(sim_mat) == 1) {
         reassigned_sim_mat = matrix(reassigned_sim_mat)
-        colnames(reassigned_sim_mat) = colnames(sim_mat)[reassignment$pairs[,2]]
-        rownames(reassigned_sim_mat) = rownames(sim_mat)
+        colnames(reassigned_sim_mat) = colnames(sim_mat)[cols]
+        rownames(reassigned_sim_mat) = rownames(sim_mat)[rows]
     }
+
     reassigned_sim_mat
 }
 
