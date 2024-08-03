@@ -165,15 +165,9 @@ get_loglik_normal <- function(M, Theta, dims) {
 #' @noRd
 get_loglik_poisson <- function(M, Theta, dims, logfac) {
     Mhat = get_Mhat(Theta)
-    Mhat[Mhat <= 0] <- 1
-    M[M <= 0] <- 1
-    sum(sapply(1:dims$K, function(k) {
-        sum(sapply(1:dims$G, function(g) {
-            -Mhat[k,g] +
-            M[k,g] * log(Mhat[k,g]) -
-            logfac[M[k,g]]
-        }))
-    }))
+    Mhat[Mhat <= 0] <- 0.1
+    # M[M <= 0] <- 1
+    sum(dpois(M, Mhat, log = TRUE))
 }
 
 #' Compute RMSE

@@ -1,3 +1,4 @@
+R/archive.R
 vignettes/examples/*
 .Rhistory
 .Rbuildignore

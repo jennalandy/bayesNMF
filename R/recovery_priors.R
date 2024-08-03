@@ -30,7 +30,7 @@ get_one_recovery_prior <- function(Pn, likelihood, prior) {
 
     # run bayesNMF for 1 signature
     res <- bayesNMF(
-        M, N = 1,
+        M, rank = 1,
         likelihood = likelihood,
         prior = prior,
         file = tempfile(),
