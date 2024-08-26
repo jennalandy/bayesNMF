@@ -1,5 +1,6 @@
 R/archive.R
 vignettes/examples/*
+vignettes/*
 .Rhistory
 .Rbuildignore
 .Rproj.user/

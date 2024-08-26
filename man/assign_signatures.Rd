@@ -4,7 +4,7 @@
 \alias{assign_signatures}
 \title{Assign signatures based on cosine similarities}
 \usage{
-assign_signatures(sim_mat)
+assign_signatures(sim_mat, keep_all = FALSE)
 }
 \arguments{
 \item{sim_mat}{similarity matrix}

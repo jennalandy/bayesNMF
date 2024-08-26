@@ -7,10 +7,11 @@
 bayesNMF(
   M,
   rank,
+  range_N = NULL,
   learn_rank_method = "SBFI",
   likelihood = "poisson",
   prior = "truncnormal",
-  fast = (likelihood == "poisson" & prior \%in\% c("truncnormal", "exponential")),
+  fast = likelihood == "poisson" & prior \%in\% c("truncnormal", "exponential"),
   inits = NULL,
   fixed = NULL,
   clip = 0.4,
@@ -29,69 +30,92 @@ bayesNMF(
 
 \item{rank}{integer or vector, number of latent factors, integers
 (e.g., \code{rank = 5}) or vector (e.g., \code{rank = 1:5}) are accepted.
+If an integer is provided, rank is constant and will not be learned.
 If a vector is provided, values must be sequential and start at 0 or 1
-(e.g., \code{1:5} or \code{0:5}) for \code{learn_rank_method = "BFI"}, but can be
-nonsequential (e.g., \code{c(2,4,5)}) for \code{learn_rank_method = "heuristic"}.}
+(e.g., \code{1:5} or \code{0:5}) for \code{learn_rank_method = "BFI"} or
+\code{"SBFI"}, but can be non-sequential (e.g., \code{c(2,4,5)}) for
+\code{learn_rank_method = "heuristic"}.}
 
-\item{learn_rank_method}{string, method used to learn latent rank, used if
-a vector is provided for \code{rank}, one of c("SBFI","BFI","heuristic") is used.
+\item{learn_rank_method}{string, method used to learn latent rank, one of
+c("SBFI","BFI","heuristic"), used if a vector is provided for \code{rank}.
 Bayesian Factor Inclusion (BFI) learns rank automatically as a part of the
 Bayesian model with a binary Factor inclusion matrix. Sparse Bayesian
 Factor inclusion (SBFI) is a variant of BFI with a sparse prior based on
 the regularization of BIC. The heuristic approach
-runs a fixed-rank Bayesian NMF for each value in \code{rank}, and selects
+fits a fixed-rank Bayesian NMF for each value in \code{rank}, and selects
 the model that minimizes BIC.}
 
 \item{likelihood}{string, one of \code{c('normal','poisson')}, represents the
 distribution used for likelihood f(M|P, E).}
 
-\item{prior}{string, one of \code{c('truncnormal','exponential','gamma')}, represents
-the distribution used for priors on P and E.}
+\item{prior}{string, one of \code{c('truncnormal','exponential','gamma')},
+represents the distribution used for priors on P and E, f(P) and f(E).}
 
-\item{fast}{boolean, if \code{bast = TRUE}, \code{likelihood = 'poisson'},
-and \code{fast = TRUE}, then updates from the corresponding
-\code{likelihood = 'normal'} model are used as proposals
-in an efficient Gibb's sampler. Only available for \code{likelihood = 'poisson'}
-and \code{prior = c('truncnormal', 'exponential')}. Defaults \code{TRUE} when possible.}
+\item{fast}{boolean, if \code{likelihood = 'poisson'} and \code{fast = TRUE},
+then updates from the corresponding \code{likelihood = 'normal'} model
+are used as proposals in an efficient Gibb's sampler. Only available for
+\code{likelihood = 'poisson'} and \code{prior = c('truncnormal', 'exponential')}.
+Defaults \code{TRUE} when possible.}
 
-\item{inits}{(optional) list, initial values for P and E (may also provide
-sigmasq if \code{likelihood = "normal"} and/or A if \code{rank} is a vector).}
+\item{inits}{(optional) named list, initial values for parameters, often P and E.
+May also provide sigmasq if \code{likelihood = "normal"},
+if \code{likelihood = "poisson"} and  \code{fast = TRUE}.
+May provide initial values for A if \code{rank} is a vector.}
 
-\item{fixed}{(optional) list, parameters values to fix at constant
+\item{fixed}{(optional) named list, parameters values to fix at constant
 values, rather than learning them through Gibbs updates.}
 
-\item{clip}{numeric, if \code{rank} is a vector and \code{learn_rank_method = "BFI"},
- prior probabilities of factor inclusion will be clipped by
-\code{clip}/N away from 0 and 1.}
+\item{clip}{numeric, if \code{rank} is a vector and
+\code{learn_rank_method = "BFI"} or \code{"SBFI"}, prior probabilities of
+factor inclusion will be clipped by \code{clip}/N away from 0 and 1.}
 
 \item{prior_parameters}{(optional) list, specification of prior parameters.}
 
-\item{recovery}{boolean, if TRUE, additional factors are included with priors
-at previously discovered factors. In this case, \code{rank} denotes the number of
-additional latent factors on top of those with priors in \code{recovery_priors}.}
+\item{recovery}{boolean, if TRUE, allows for the addition of priors
+based on previously discovered factors. In this case, \code{rank} denotes
+the number of additional latent factors on top of those with priors in
+\code{recovery_priors}.}
 
 \item{recovery_priors}{"cosmic" or list, prior parameters for recovered
 latent factors. If \code{recovery_priors = "cosmic"}, pre-computed priors
-based on the 79 COSMIC signatures are used.}
+based on the 79 COSMIC cancer mutational signatures are used.
+The function \code{get_recovery_priors} can be used to create recovery priors
+given a reference factor matrix P and a likelihood-prior specification.}
 
-\item{file}{string, file name (without extension) used for log, rds,
+\item{file}{string, file name (without extension) used for the log, rds,
 and pdf files created by this function.}
 
 \item{true_P}{(optional) matrix, reference latent factors matrix P to
-compare estimated factors to with a heatmap.}
+compare estimated factors to with a heatmap. Not used in model, only
+in evaluation.}
 
 \item{convergence_control}{list, specification of convergence parameters.
 See documentation for \code{new_convergence_control}.}
 
 \item{store_logs}{boolean, if \code{store_logs = TRUE}, each iteration of the
 Gibb's sampler is stored in resulting \code{.rds} file. Otherwise, only the
-samples used to compute MAP is saved.}
+samples used to compute MAP are saved.}
 
-\item{overwrite}{boolean, if \code{overwrite = TRUE}, the log, safe, and plot files of
-previous runs with the same \code{file} will be overwritten}
+\item{overwrite}{boolean, if \code{overwrite = TRUE}, the .log, .rds, and
+.pdf files of previous runs with the same \code{file} will be overwritten.
+This will permanently delete previous results, so be careful.}
 }
 \value{
-list
+list, also stored in the \code{.rds} file named by \code{file}
+\itemize{
+ \item \code{MAP}: list, maximum a-posteriori estimates of all parameters
+ \item \code{credible_intervals}: list, lower and upper bounds for 95% credible intervals of all parameters
+ \item \code{posterior_samples}: list, Gibb's samples used to compute MAP and credible intervals
+ \item \code{metrics}: data.frame, contains MAP metrics at each convergence checkpoint, also plotted in the \code{.pdf} file named by \code{file}
+ \item \code{model}: list, parameters of initial \code{bayesNMF} call
+ \item \code{totaliters}: integer
+ \item \code{converged_at}: integer, iteration determined as the convergence point
+ \item \code{final_Theta}: list, parameter values of final iteration
+ \item \code{time}: list, holds averge seconds per iteration and total seconds
+ \item \code{logs}: list, only included if \code{store_logs = TRUE}, all Gibb's samples
+ \item \code{sim_mat}: matrix, only included if \code{true_P} is provided, pairwise similarities between estimated and true factors
+ \item \code{heatmap}: ggplot2 object, only included if \code{true_P} is provided, heatmap of pairwise similarities between estimated and true factors
+}
 }
 \description{
 Bayesian Non-Negative Matrix Factorization.

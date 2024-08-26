@@ -31,19 +31,15 @@ get_Mhat <- function(Theta) {
 #' Estimate M from current values of Theta excluding signature N
 #'
 #' @param Theta list
-#' @param dims list of dimensions
 #' @param n integer, signature to exclude
 #'
 #' @return matrix
 #' @noRd
-get_Mhat_no_n <- function(Theta, dims, n) {
-    if (dims$N > 2) {
-        Mhat_no_n = Theta$P[, -n] %*% diag(Theta$A[1, -n]) %*% Theta$E[-n, ]
-    } else if (dims$N == 2) {
-        Mhat_no_n = Theta$A[1, -n] * matrix(Theta$P[, -n], ncol = 1) %*% matrix(Theta$E[-n, ], nrow = 1)
-    } else if (dims$N == 1) {
-        Mhat_no_n = matrix(0, nrow = dims$K, ncol = dims$G)
-    }
+get_Mhat_no_n <- function(Theta, n) {
+    Theta_copy = Theta
+    Theta_copy$A[1, n] = 0
+    Mhat_no_n = get_Mhat(Theta_copy)
+
     return(Mhat_no_n)
 }
 
@@ -60,80 +56,73 @@ get_logprior <- function(
 ) {
     logprior = 0
 
-    # only include prior of included sigs
-    if(dims$N > 1 & sum(Theta$A) > 1) {
+    # if multiple signatures with at least one included
+    if(dims$N > 1 & sum(Theta$A) > 0) {
+        # only include prior of included sigs
+        include = Theta$A[1,]==1
+
         if (prior == 'truncnormal') {
-            logprior <- logprior +
-                sum(log(
-                    truncnorm::dtruncnorm(
-                        Theta$P[,Theta$A[1,]==1], a = 0, b = Inf,
-                        mean = Theta$Mu_p[,Theta$A[1,]==1],
-                        sd = sqrt(Theta$Sigmasq_p[,Theta$A[1,]==1])
-                    )
-                )) +
-                sum(log(
-                    truncnorm::dtruncnorm(
-                        Theta$E[Theta$A[1,]==1,], a = 0, b = Inf,
-                        mean = Theta$Mu_e[Theta$A[1,]==1,],
-                        sd = sqrt(Theta$Sigmasq_e[Theta$A[1,]==1,])
-                    )
-                ))
+            log_prior_P <- log(truncnorm::dtruncnorm(
+                Theta$P[,include], a = 0, b = Inf,
+                mean = Theta$Mu_p[,include],
+                sd = sqrt(Theta$Sigmasq_p[,include])
+            ))
+            log_prior_E <- log(truncnorm::dtruncnorm(
+                Theta$E[include,], a = 0, b = Inf,
+                mean = Theta$Mu_e[include,],
+                sd = sqrt(Theta$Sigmasq_e[include,])
+            ))
         } else if (prior == 'exponential') {
-            logprior <- logprior +
-                sum(log(
-                    dexp(Theta$P[,Theta$A[1,]==1], Theta$Lambda_p[,Theta$A[1,]==1])
-                )) +
-                sum(log(
-                    dexp(Theta$E[Theta$A[1,]==1,], Theta$Lambda_e[Theta$A[1,]==1,])
-                ))
+            log_prior_P <- dexp(
+                Theta$P[,include], Theta$Lambda_p[,include], log = TRUE
+            )
+            log_prior_E <- dexp(
+                Theta$E[include,], Theta$Lambda_e[include,], log = TRUE
+            )
         } else if (prior == 'gamma') {
-            logprior <- logprior +
-                sum(log(
-                    dgamma(Theta$P[,Theta$A[1,]==1], Theta$Alpha_p[,Theta$A[1,]==1], Theta$Beta_p[,Theta$A[1,]==1])
-                )) +
-                sum(log(
-                    dgamma(Theta$E[Theta$A[1,]==1,], Theta$Alpha_e[Theta$A[1,]==1,], Theta$Beta_p[Theta$A[1,]==1,])
-                ))
+            log_prior_P <- dgamma(
+                Theta$P[,include], Theta$Alpha_p[,include],
+                Theta$Beta_p[,include], log = TRUE
+            )
+            log_prior_E <- dgamma(
+                Theta$E[include,], Theta$Alpha_e[include,],
+                Theta$Beta_p[include,], log = TRUE
+            )
         }
+
     # different logic if single signature
     } else if (dims$N == 1 & Theta$A[1,1] == 1) {
         if (prior == 'truncnormal') {
-            logprior <- logprior +
-                sum(log(
-                    truncnorm::dtruncnorm(
-                        Theta$P, a = 0, b = Inf,
-                        mean = Theta$Mu_p,
-                        sd = sqrt(Theta$Sigmasq_p)
-                    )
-                )) +
-                sum(log(
-                    truncnorm::dtruncnorm(
-                        Theta$E, a = 0, b = Inf,
-                        mean = Theta$Mu_e,
-                        sd = sqrt(Theta$Sigmasq_e)
-                    )
-                ))
+            log_prior_P <- log(truncnorm::dtruncnorm(
+                Theta$P, a = 0, b = Inf,
+                mean = Theta$Mu_p,
+                sd = sqrt(Theta$Sigmasq_p)
+            ))
+            log_prior_E <- log(truncnorm::dtruncnorm(
+                Theta$E, a = 0, b = Inf,
+                mean = Theta$Mu_e,
+                sd = sqrt(Theta$Sigmasq_e)
+            ))
         } else if (prior == 'exponential') {
-            logprior <- logprior +
-                sum(log(
-                    dexp(Theta$P, Theta$Lambda_p)
-                )) +
-                sum(log(
-                    dexp(Theta$E, Theta$Lambda_e)
-                ))
+            log_prior_P <- dexp(Theta$P, Theta$Lambda_p, log = TRUE)
+            log_prior_E <- dexp(Theta$E, Theta$Lambda_e, log = TRUE)
         } else if (prior == 'gamma') {
-            logprior <- logprior +
-                sum(log(
-                    dgamma(Theta$P, Theta$Alpha_p, Theta$Beta_p)
-                )) +
-                sum(log(
-                    dgamma(Theta$E, Theta$Alpha_e, Theta$Beta_p)
-                ))
+            log_prior_P <- dgamma(
+                Theta$P, Theta$Alpha_p,
+                Theta$Beta_p, log = TRUE
+            )
+            log_prior_E <- dgamma(
+                Theta$E, Theta$Alpha_e,
+                Theta$Beta_p, log = TRUE
+            )
         }
     }
+    logprior <- logprior + sum(log_prior_P) + sum(log_prior_E)
 
     if (likelihood == 'normal') {
-        logprior <- logprior + sum(log(invgamma::dinvgamma(Theta$sigmasq, Theta$Alpha, Theta$Beta)))
+        logprior <- logprior + sum(invgamma::dinvgamma(
+            Theta$sigmasq, Theta$Alpha, Theta$Beta, log = TRUE
+        ))
     }
     return(logprior)
 }
@@ -147,9 +136,8 @@ get_logprior <- function(
 #' @return scalar
 #' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
-    Mhat = get_Mhat(Theta)
-    loglik = (- dims$K * sum(log(2 * pi * Theta$sigmasq)) / 2 -
-        sum(colSums((M - Mhat)**2) / (2*Theta$sigmasq)))
+    Mhat <- get_Mhat(Theta)
+    loglik <- sum(dnorm(M, mean = Mhat, sd = sqrt(Theta$sigmasq), log = TRUE))
     return(loglik)
 }
 
@@ -159,15 +147,14 @@ get_loglik_normal <- function(M, Theta, dims) {
 #' @param M mutational catalog matrix, K x G
 #' @param Theta list of parameters
 #' @param dims list of dimensions
-#' @param logfac vector, logfac[i] = log(i!)
 #'
 #' @return scalar
 #' @noRd
-get_loglik_poisson <- function(M, Theta, dims, logfac) {
-    Mhat = get_Mhat(Theta)
-    Mhat[Mhat <= 0] <- 0.1
-    # M[M <= 0] <- 1
-    sum(dpois(M, Mhat, log = TRUE))
+get_loglik_poisson <- function(M, Theta, dims) {
+    Mhat <- get_Mhat(Theta)
+    Mhat[Mhat <= 0] <- 0.1 # avoids likelihood of 0 when Mhat = 0
+    loglik <- sum(dpois(M, Mhat, log = TRUE))
+    return(loglik)
 }
 
 #' Compute RMSE
@@ -603,13 +590,12 @@ get_MAP <- function(logs, keep, final = FALSE) {
 #' @param likelihood string, one of c("normal", "poisson")
 #' @param prior string, one of c("truncnormal","exponential","gamma")
 #' @param dims list, named list of dimensions
-#' @param logfac vector, logfac[i] = log(i!), only needed for `likelihood = 'poisson'`
 #'
 #' @return list, updated metrics
 #' @noRd
 update_metrics <- function(
         metrics, MAP, iter, Theta, M,
-        likelihood, prior, dims, logfac
+        likelihood, prior, dims
 ) {
     metrics$sample_idx[[iter]] <- iter
 
@@ -631,7 +617,7 @@ update_metrics <- function(
     if (likelihood == 'normal') {
         metrics$loglik[[iter]] <- get_loglik_normal(M, Theta_MAP, dims)
     } else if (likelihood == 'poisson') {
-        metrics$loglik[[iter]] <- get_loglik_poisson(M, Theta_MAP, dims, logfac)
+        metrics$loglik[[iter]] <- get_loglik_poisson(M, Theta_MAP, dims)
     }
     metrics$N[[iter]] <- sum(Theta_MAP$A[1,])
     metrics$n_params[[iter]] <- metrics$N[[iter]] * (dims$G + dims$K + 2)

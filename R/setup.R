@@ -36,32 +36,20 @@
 #' @return named list of prior parameters
 #' @noRd
 set_truncnorm_hyperprior_parameters <- function(
-        Theta,
-        dims,
-        M,
+        Theta, dims, M,
         m_p = sqrt(mean(M))/sqrt(dims$N),
         M_p = matrix(m_p, nrow = dims$K, ncol = dims$N),
-        s_p = m_p, #mu_p/10,
-        S_p = matrix(s_p, nrow = dims$K, ncol = dims$N),
-        a_p = dims$N + 1,
-        A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = sqrt(dims$N),
-        B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
+        s_p = m_p, S_p = matrix(s_p, nrow = dims$K, ncol = dims$N),
+        a_p = dims$N + 1, A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
+        b_p = sqrt(dims$N), B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
         m_e = sqrt(mean(M))/sqrt(dims$N),
         M_e = matrix(m_e, nrow = dims$N, ncol = dims$G),
-        s_e = m_e, #mu_e/10,
-        S_e = matrix(s_e, nrow = dims$N, ncol = dims$G),
-        a_e = dims$N + 1,
-        A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = sqrt(dims$N),
-        B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        alpha = 3,
-        Alpha = rep(alpha, dims$G),
-        beta = 3,
-        Beta = rep(beta, dims$G),
-        a = 0.8,
-        b = 0.8,
-        weight_r = 0.99
+        s_e = m_e, S_e = matrix(s_e, nrow = dims$N, ncol = dims$G),
+        a_e = dims$N + 1, A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
+        b_e = sqrt(dims$N), B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
+        alpha = 3, Alpha = rep(alpha, dims$G),
+        beta = 3, Beta = rep(beta, dims$G),
+        a = 0.8, b = 0.8, weight_r = 0.99
 ) {
     if ("m_p" %in% names(Theta) & !("M_p" %in% names(Theta))) {
         Theta$M_p = matrix(Theta$m_p, nrow = dims$K, ncol = dims$N)
@@ -115,18 +103,9 @@ set_truncnorm_hyperprior_parameters <- function(
     }
 
     fill_list(Theta, list(
-        M_p = M_p,
-        M_e = M_e,
-        S_p = S_p,
-        S_e = S_e,
-        A_p = A_p,
-        A_e = A_e,
-        B_p = B_p,
-        B_e = B_e,
-        Alpha = Alpha,
-        Beta = Beta,
-        a = a,
-        b = b,
+        M_p = M_p, M_e = M_e, S_p = S_p, S_e = S_e,
+        A_p = A_p, A_e = A_e, B_p = B_p, B_e = B_e,
+        Alpha = Alpha, Beta = Beta, a = a, b = b,
         weight_r = weight_r
     ))
 }
@@ -194,24 +173,14 @@ sample_truncnormal_prior_parameters <- function(Theta, dims, recovery, recovery_
 #' @return named list of prior parameters
 #' @noRd
 set_exponential_hyperprior_parameters <- function(
-        Theta,
-        dims,
-        M,
-        a_p = 10 * sqrt(dims$N),
-        A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = 10 * sqrt(mean(M)),
-        B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
-        a_e = 10 * sqrt(dims$N),
-        A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = 10 * sqrt(mean(M)),
-        B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        alpha = 3,
-        Alpha = rep(alpha, dims$G),
-        beta = 3,
-        Beta = rep(beta, dims$G),
-        a = 0.8,
-        b = 0.8,
-        weight_r = 0.99
+        Theta, dims, M,
+        a_p = 10 * sqrt(dims$N), A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
+        b_p = 10 * sqrt(mean(M)),  B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
+        a_e = 10 * sqrt(dims$N), A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
+        b_e = 10 * sqrt(mean(M)), B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
+        alpha = 3, Alpha = rep(alpha, dims$G),
+        beta = 3, Beta = rep(beta, dims$G),
+        a = 0.8, b = 0.8, weight_r = 0.99
 ) {
     for (matrix in c("A_p", "B_p")) {
         element = tolower(matrix)
@@ -238,14 +207,8 @@ set_exponential_hyperprior_parameters <- function(
     }
 
     fill_list(Theta, list(
-        A_p = A_p,
-        B_p = B_p,
-        A_e = A_e,
-        B_e = B_e,
-        Alpha = Alpha,
-        Beta = Beta,
-        a = a,
-        b = b,
+        A_p = A_p, B_p = B_p, A_e = A_e, B_e = B_e,
+        Alpha = Alpha, Beta = Beta, a = a, b = b,
         weight_r = weight_r
     ))
 }
@@ -299,28 +262,16 @@ sample_exponential_prior_parameters <- function(Theta, dims, recovery, recovery_
 #' @return named list of prior parameters
 #' @noRd
 set_gamma_hyperprior_parameters <- function(
-        Theta,
-        dims,
-        M,
-        a_p = 10*sqrt(dims$N),
-        A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
-        b_p = 10,
-        B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
-        c_p = 10*sqrt(mean(M)),
-        C_p = matrix(c_p, nrow = dims$K, ncol = dims$N),
-        d_p = 10,
-        D_p = matrix(d_p, nrow = dims$K, ncol = dims$N),
-        a_e = 10*sqrt(dims$N),
-        A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
-        b_e = 10,
-        B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
-        c_e = 10*sqrt(mean(M)),
-        C_e = matrix(c_e, nrow = dims$N, ncol = dims$G),
-        d_e = 10,
-        D_e = matrix(d_e, nrow = dims$N, ncol = dims$G),
-        a = 0.8,
-        b = 0.8,
-        weight_r = 0.99
+        Theta, dims, M,
+        a_p = 10*sqrt(dims$N), A_p = matrix(a_p, nrow = dims$K, ncol = dims$N),
+        b_p = 10, B_p = matrix(b_p, nrow = dims$K, ncol = dims$N),
+        c_p = 10*sqrt(mean(M)), C_p = matrix(c_p, nrow = dims$K, ncol = dims$N),
+        d_p = 10, D_p = matrix(d_p, nrow = dims$K, ncol = dims$N),
+        a_e = 10*sqrt(dims$N), A_e = matrix(a_e, nrow = dims$N, ncol = dims$G),
+        b_e = 10, B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
+        c_e = 10*sqrt(mean(M)), C_e = matrix(c_e, nrow = dims$N, ncol = dims$G),
+        d_e = 10, D_e = matrix(d_e, nrow = dims$N, ncol = dims$G),
+        a = 0.8, b = 0.8, weight_r = 0.99
 ) {
 
     for (matrix in c("A_p", "B_p", "C_p", "D_p")) {
@@ -342,17 +293,9 @@ set_gamma_hyperprior_parameters <- function(
     }
 
     fill_list(Theta, list(
-        A_p = A_p,
-        A_e = A_e,
-        B_p = B_p,
-        B_e = B_e,
-        C_p = C_p,
-        C_e = C_e,
-        D_p = D_p,
-        D_e = D_e,
-        a = a,
-        b = b,
-        weight_r = weight_r
+        A_p = A_p, A_e = A_e, B_p = B_p, B_e = B_e,
+        C_p = C_p, C_e = C_e, D_p = D_p, D_e = D_e,
+        a = a, b = b, weight_r = weight_r
     ))
 }
 
@@ -467,16 +410,10 @@ sample_prior_sigmasq <- function(Theta, dims) {
 #' @return named list of initialized unknowns
 #' @noRd
 initialize_Theta <- function(
-        M, likelihood, prior, fast,
-        learn_A,
-        dims,
-        inits,
-        fixed,
-        prior_parameters,
-        recovery,
-        recovery_priors,
-        clip,
-        range_N
+        M, likelihood, prior, fast, learn_A, dims,
+        inits, fixed, prior_parameters,
+        recovery, recovery_priors,
+        clip, range_N
 ) {
     Theta = prior_parameters
     Theta$range_N = range_N

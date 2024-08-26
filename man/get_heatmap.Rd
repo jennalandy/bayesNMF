@@ -4,7 +4,14 @@
 \alias{get_heatmap}
 \title{Plot heatmap of cosine similarities}
 \usage{
-get_heatmap(est_P, true_P, est_names = NULL, true_names = NULL, which = "cols")
+get_heatmap(
+  est_P,
+  true_P,
+  est_names = NULL,
+  true_names = NULL,
+  which = "cols",
+  keep_all = FALSE
+)
 }
 \arguments{
 \item{est_P}{estimated P (signatures matrix)}

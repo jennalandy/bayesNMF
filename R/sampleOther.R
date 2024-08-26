@@ -76,13 +76,11 @@ sample_n <- function(Theta, dims, clip, gamma = 1) {
 #' @param dims list of dimension values
 #' @param likelihood string, one of c('normal','poisson')
 #' @param prior string, one of c('gamma','exponential','truncnormal')
-#' @param logfac vector, logfac[i] = log(i!), use NULL if
-#' `likelihood == 'normal'`.
 #' @param gamma double, tempering parameter
 #'
 #' @return integer
 #' @noRd
-sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank, gamma) {
+sample_An <- function(n, M, Theta, dims, likelihood, prior, sparse_rank, gamma) {
     Theta_A0 <- Theta
     Theta_A0$A[1,n] <- 0
 
@@ -90,8 +88,8 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, logfac, sparse_rank,
     Theta_A1$A[1,n] <- 1
 
     if (likelihood == 'poisson') {
-        loglik_0 <- get_loglik_poisson(M, Theta_A0, dims, logfac)
-        loglik_1 <- get_loglik_poisson(M, Theta_A1, dims, logfac)
+        loglik_0 <- get_loglik_poisson(M, Theta_A0, dims)
+        loglik_1 <- get_loglik_poisson(M, Theta_A1, dims)
     } else {
         # likelihood == 'normal'
         loglik_0 <- get_loglik_normal(M, Theta_A0, dims)

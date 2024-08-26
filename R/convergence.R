@@ -52,7 +52,6 @@ new_convergence_control <- function(
 #' @param likelihood string, one of c("normal", "poisson")
 #' @param prior string, one of c("truncnormal","exponential","gamma")
 #' @param dims list, named list of dimensions
-#' @param logfac vector
 #'
 #' @return scalar
 #' @noRd
@@ -61,14 +60,13 @@ get_metric <- function(
     Theta = NULL,
     likelihood = NULL,
     prior = NULL,
-    dims = NULL,
-    logfac = NULL
+    dims = NULL
 ) {
     if (metric %in% c('loglikelihood', 'logposterior', 'BIC')) {
         if (likelihood == 'normal') {
             loglik = get_loglik_normal(M, Theta, dims)
         } else if (likelihood == 'poisson') {
-            loglik = get_loglik_poisson(M, Theta, dims, logfac)
+            loglik = get_loglik_poisson(M, Theta, dims)
         }
         if (metric == 'loglikelihood') {
             return(-1 * loglik)
@@ -98,7 +96,6 @@ get_metric <- function(
 #' @param likelihood string, one of c("normal", "poisson")
 #' @param prior string, one of c("truncnormal","exponential","gamma")
 #' @param dims list, named list of dimensions
-#' @param logfac vector
 #'
 #' @return list, updated status of convergence
 #' @noRd
@@ -110,12 +107,11 @@ check_converged <- function(
     Theta = NULL,
     likelihood = NULL,
     prior = NULL,
-    dims = NULL,
-    logfac = NULL
+    dims = NULL
 ) {
     MAP_metric = get_metric(
         convergence_control$metric, Mhat, M,
-        Theta, likelihood, prior, dims, logfac
+        Theta, likelihood, prior, dims
     )
 
     # for first one, force % change < 0
