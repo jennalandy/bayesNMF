@@ -776,6 +776,7 @@ inner_bayesNMF <- function(
             if (store_logs) {
                 res$logs = logs
             }
+            class(res) = 'bayesNMF'
             saveRDS(res, file = savefile)
         }
 
@@ -793,6 +794,7 @@ inner_bayesNMF <- function(
 
         res$sim_mat <- sim_mat
         res$heatmap <- heatmap
+        class(res) = 'bayesNMF'
         saveRDS(res, file = savefile)
     }
 

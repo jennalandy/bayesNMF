@@ -15,6 +15,9 @@ Imports:
     coda,
     dplyr,
     ggplot2,
+    ggtext,
+    ggthemes,
+    glue,
     graphics,
     grDevices,
     invgamma,
@@ -23,6 +26,7 @@ Imports:
     RcppHungarian,
     reshape2,
     stats,
+    tibble,
     truncnorm
 Suggests: 
     testthat (>= 3.0.0)
