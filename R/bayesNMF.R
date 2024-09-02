@@ -766,6 +766,11 @@ inner_bayesNMF <- function(
                 )
             )
             if (done) {
+                credible_intervals$P[[1]] <- credible_intervals$P[[1]][,res$MAP$A[1,]==1]
+                credible_intervals$P[[2]] <- credible_intervals$P[[2]][,res$MAP$A[1,]==1]
+                credible_intervals$E[[1]] <- credible_intervals$E[[1]][res$MAP$A[1,]==1,]
+                credible_intervals$E[[2]] <- credible_intervals$E[[2]][res$MAP$A[1,]==1,]
+
                 res$credible_intervals <- credible_intervals
                 posterior_samples <- list()
                 for (name in names(logs)) {

@@ -392,7 +392,7 @@ get_mean <- function(matrix_list) {
 #'
 #' @return matrix
 #' @noRd
-get_quantile <- function(matrix_list, quantiles = c(0.025, 0.975)) {
+get_quantile <- function(matrix_list, A, quantiles = c(0.025, 0.975)) {
     if (length(matrix_list) == 0) {
         return()
     }

@@ -1,10 +1,15 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
 
 
 ```{r}
 library(bayesNMF)
 
 data <- readRDS("examples/3_64_1_cosmic.rds")
-refit = FALSE
+refit = TRUE
 ```
 
 ```{r}
@@ -17,8 +22,6 @@ if (refit) {
 } else {
     res <- readRDS("examples/plot_example.rds")
 }
-res$credible_intervals$P[[1]] <- res$credible_intervals$P[[1]][,res$MAP$A[1,]==1]
-res$credible_intervals$P[[2]] <- res$credible_intervals$P[[2]][,res$MAP$A[1,]==1]
 ```
 
 All functions return `ggplot2` objects, meaning it is simple to add additional layers to change the theme, axes labels, etc. It also means plots can be combined with packages like `patchwork`, `cowplot`, `gridExtra`, and `ggpubr`. 
@@ -35,12 +38,18 @@ assign$credible_intervals$cos_sim
 
 Plotting an estimated signature with the best matched COSMIC signature
 ```{r}
-plot_sig(res = res, sig = 1, title = "Plotting an estimated signature with the best matched COSMIC signature")
+plot_sig(
+    res = res, sig = 1, 
+    title = "Estimated signature with the best matched COSMIC signature"
+)
 ```
 
 Plotting an estimated signature with the best matched signature from a custom reference
 ```{r}
-plot_sig(res = res, sig = 1, ref_matrix = data$P, title = "Plotting an estimated signature with the best matched signature from a custom reference")
+plot_sig(
+    res = res, sig = 1, ref_matrix = data$P, 
+    title = "Estimated signature with the best matched from a custom reference"
+)
 ```
 
 Plotting a reference signature alone
@@ -55,32 +64,46 @@ plot_sig(ref = runif(96), title = "Plotting a custom reference signature alone")
 
 Plot an estimated signature with a specific COSMIC signature
 ```{r}
-plot_sig(res = res, sig = 1, ref = "SBS3", title = "Plot an estimated signature with a specific COSMIC signature")
+plot_sig(
+    res = res, sig = 1, ref = "SBS3", 
+    title = "Estimated signature with a specific COSMIC signature"
+)
 ```
 
 Plot an estimated signature with a specific signature from a custom reference
 ```{r}
-plot_sig(res = res, sig = 1, ref = "SBS88", ref_matrix = data$P, title = "Plot an estimated signature with a specific signature from a custom reference")
+plot_sig(
+    res = res, sig = 1, ref = "SBS88", ref_matrix = data$P, 
+    title = "Estimated signature with a specific signature from a custom reference"
+)
 ```
 
 ## Plotting all signatures
 
 Results of a single run with respect to COSMIC reference
 ```{r, fig.width = 10, fig.height = 20}
-class(res) = 'bayesNMF'
-plot_results(list("Example" = res), title = "Results of a single run")
+plot_results(
+    list("Example" = res), 
+    title = "Results of a single run"
+)
 ```
 
 
 Results of a single run with respect to a custom reference
 ```{r}
-plot_results(list("Example" = res), reference = data$P, title = "Results of a single run")
+plot_results(
+    list("Example" = res), reference = data$P, 
+    title = "Results of a single run"
+)
 ```
 
 
 Results of a single run with no reference
 ```{r}
-plot_results(list("Example" = res), reference = NULL, title = "Results of a single run")
+plot_results(
+    list("Example" = res), reference = NULL, 
+    title = "Results of a single run"
+)
 ```
 
 
@@ -89,16 +112,21 @@ Results of multiple runs against COSMIC reference
 For the sake of example, we are just using the same run three times, but in practice you could have results of bayesNMF on different cancer types as we show in the paper, across technical batches, etc.
 
 ```{r, fig.width = 10, fig.height = 20}
-class(res) = 'bayesNMF'
-plot_results(list("Run 1" = res, "Run 2" = res, "Run 3" = res), title = "Results of multiple runs")
+plot_results(
+    list("Run 1" = res, "Run 2" = res, "Run 3" = res), 
+    title = "Results of multiple runs"
+)
 ```
 
 
 Results of multiple runs, returning summary data frame
 
 ```{r, fig.width = 10, fig.height = 20}
-class(res) = 'bayesNMF'
-out <- plot_results(list("Run 1" = res, "Run 2" = res, "Run 3" = res), title = "Results of multiple runs", return_df = TRUE)
+out <- plot_results(
+    list("Run 1" = res, "Run 2" = res, "Run 3" = res), 
+    title = "Results of multiple runs", 
+    return_df = TRUE
+)
 out$df
 out$plot
 ```
@@ -107,29 +135,47 @@ Results of multiple runs against no reference
 
 ```{r, fig.width = 10, fig.height = 20}
 class(res) = 'bayesNMF'
-plot_results(list("Run 1" = res, "Run 2" = res, "Run 3" = res), reference = NULL, title = "Results of multiple runs")
+plot_results(
+    list("Run 1" = res, "Run 2" = res, "Run 3" = res), 
+    reference = NULL, 
+    title = "Results of multiple runs"
+)
 ```
 
 ## Plotting signature distribution on the mutation-type level
 
 Plot signature distribution across all subjects.
 ```{r}
-plot_signature_dist(res, title = "Plot signature distribution across all subjects")
+plot_signature_dist(
+    res, 
+    title = "Plot signature distribution across all subjects"
+)
 ```
 
 Plot signature distribution across all subjects without a reference.
 ```{r}
-plot_signature_dist(res, title = "Plot signature distribution across all subjects", reference = NULL)
+plot_signature_dist(
+    res, 
+    title = "Plot signature distribution across all subjects", 
+    reference = NULL
+)
 ```
 
 Plot signature distribution of a particular subject
 ```{r}
-plot_signature_dist(res, subject = 1, title = "Plot signature distribution of subject 1")
+plot_signature_dist(
+    res, 
+    subject = 1, 
+    title = "Plot signature distribution of subject 1"
+)
 ```
 
 Plot signature distribution of a subset of subjects
 ```{r}
-plot_signature_dist(res, subject = c(1,4,10), title = "Plot signature distribution of subjects 1, 4, and 10")
+plot_signature_dist(
+    res, subject = c(1,4,10), 
+    title = "Plot signature distribution of subjects 1, 4, and 10"
+)
 ```
 
 
