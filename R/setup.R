@@ -418,7 +418,7 @@ initialize_Theta <- function(
     Theta = prior_parameters
     Theta$range_N = range_N
     is_fixed = list(
-        A = !learn_A,
+        A = rep(!learn_A, dims$N),
         prior_P = rep(FALSE, dims$N),
         P = rep(FALSE, dims$N)
     )
@@ -508,8 +508,25 @@ initialize_Theta <- function(
     Theta$q[Theta$q == 1] <- Theta$q[Theta$q == 1] - clip/dims$N
 
     if (!is.null(fixed$A)) {
-        Theta$A <- fixed$A
-        is_fixed$A <- TRUE
+        if (ncol(fixed$A) < dims$N) {
+            is_fixed$A[1:ncol(fixed$A)] <- TRUE
+            print(is_fixed$A)
+
+            dims_notfixed <- dims; dims_notfixed$N <- dims$N - ncol(fixed$A)
+            cols_notfixed <- (ncol(fixed$A) + 1):dims$N
+
+            not_fixed_A = matrix(
+                as.numeric(runif(dims_notfixed$N) < Theta$q[cols_notfixed]),
+                nrow = 1, ncol = dims_notfixed$N
+            )
+
+            Theta$A <- cbind(
+                fixed$A, not_fixed_A
+            )
+        } else {
+            Theta$A <- fixed$A
+            is_fixed$A <- rep(TRUE, dims$N)
+        }
     } else if (!is.null(inits$A)) {
         Theta$A <- inits$A
     } else if (!learn_A) {

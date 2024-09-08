@@ -107,7 +107,7 @@ bayesNMF <- function(
     }
 
     # if learning rank, consider "learn_rank_method"
-    learn_A <- length(rank) > 1 & is.null(fixed$A)
+    learn_A <- length(rank) > 1
     if (learn_A) {
         ################################################################
         # --------- Sparse Bayesian Factor Inclusion (SBFI) -----------#
@@ -174,7 +174,7 @@ bayesNMF <- function(
             max_N = max(rank)
             min_N = min(rank)
 
-            # rank must be 0/1:max for SBFI
+            # rank must be 0/1:max for BFI
             if (!setequal(min_N:max_N, rank)) {
                 stop(paste(
                     "rank =", paste0("c(", paste(rank, collapse = ','), ")"),
@@ -418,7 +418,7 @@ inner_bayesNMF <- function(
     validate_model(likelihood, prior, fast)
 
     # set up tempering schedule
-    learn_A <- !is.null(max_N) & is.null(fixed$A)
+    learn_A <- !is.null(max_N)
     if (learn_A) {
         gamma_sched <- get_gamma_sched(
             len = convergence_control$maxiters,
@@ -499,6 +499,16 @@ inner_bayesNMF <- function(
     print(paste("starting iterations,", PREV))
     avg_time = 0
 
+    # avoid undesirable effect of sample(x) when x is a single value
+    update_P_columns = which(!Theta$is_fixed$P)
+    if (length(update_P_columns) > 1) {
+        update_P_columns = sample(update_P_columns)
+    }
+    update_A_cols = which(!Theta$is_fixed$A)
+    if (length(update_A_cols) > 1) {
+        update_A_cols = sample(update_A_cols)
+    }
+
     # Gibbs sampler
     iter = 1
     logiter = 1
@@ -508,7 +518,7 @@ inner_bayesNMF <- function(
     START_ITER <- Sys.time()
     while (iter <= convergence_control$maxiters & !done) {
         # update non-fixed columns of P
-        for (n in sample(which(!Theta$is_fixed$P))) {
+        for (n in update_P_columns) {
             sample_Pn_out <- sample_Pn(
                 n, M, Theta, dims,
                 likelihood, prior, fast
@@ -539,19 +549,17 @@ inner_bayesNMF <- function(
         }
 
         # update A and n
-        if (!Theta$is_fixed$A) {
-            Theta$n <- sample_n(Theta, dims, clip, gamma = gamma_sched[iter])
-            Theta$q <- update_q(Theta, dims, clip)
-            for (n in sample(1:dims$N)) {
-                sample_An_out <- sample_An(
-                    n, M, Theta, dims,
-                    likelihood, prior,
-                    sparse_rank = sparse_rank,
-                    gamma = gamma_sched[iter]
-                )
-                Theta$A[1, n] <- sample_An_out$sampled
-                Theta$prob_inclusion[1,n] <- sample_An_out$prob_inclusion
-            }
+        Theta$n <- sample_n(Theta, dims, clip, gamma = gamma_sched[iter])
+        Theta$q <- update_q(Theta, dims, clip)
+        for (n in update_A_cols) {
+            sample_An_out <- sample_An(
+                n, M, Theta, dims,
+                likelihood, prior,
+                sparse_rank = sparse_rank,
+                gamma = gamma_sched[iter]
+            )
+            Theta$A[1, n] <- sample_An_out$sampled
+            Theta$prob_inclusion[1,n] <- sample_An_out$prob_inclusion
         }
 
         # if Poisson likelihood, update latent counts Z
