@@ -507,16 +507,14 @@ inner_bayesNMF <- function(
     stop = NULL
     START_ITER <- Sys.time()
     while (iter <= convergence_control$maxiters & !done) {
-        # update P
-        if (!Theta$is_fixed$P) {
-            for (n in sample(1:dims$N)) {
-                sample_Pn_out <- sample_Pn(
-                    n, M, Theta, dims,
-                    likelihood, prior, fast
-                )
-                Theta$P[, n] <- sample_Pn_out$sampled
-                Theta$P_acceptance[, n] <- sample_Pn_out$acceptance
-            }
+        # update non-fixed columns of P
+        for (n in sample(which(!Theta$is_fixed$P))) {
+            sample_Pn_out <- sample_Pn(
+                n, M, Theta, dims,
+                likelihood, prior, fast
+            )
+            Theta$P[, n] <- sample_Pn_out$sampled
+            Theta$P_acceptance[, n] <- sample_Pn_out$acceptance
         }
 
         # update E

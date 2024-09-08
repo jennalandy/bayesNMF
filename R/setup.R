@@ -419,7 +419,8 @@ initialize_Theta <- function(
     Theta$range_N = range_N
     is_fixed = list(
         A = !learn_A,
-        prior_P = rep(FALSE, dims$N)
+        prior_P = rep(FALSE, dims$N),
+        P = rep(FALSE, dims$N)
     )
 
     if (recovery) {
@@ -446,8 +447,22 @@ initialize_Theta <- function(
 
     # signatures P
     if (!is.null(fixed$P)) {
-        Theta$P <- fixed$P
-        is_fixed$P <- TRUE
+        colnames(fixed$P) <- NULL
+        if (ncol(fixed$P) < dims$N) {
+            is_fixed$P[1:ncol(fixed$P)] <- TRUE
+            dims_notfixed <- dims; dims_notfixed$N <- dims$N - ncol(fixed$P)
+
+            not_fixed_P = sample_prior_P(Theta, dims_notfixed, prior)
+            scaled_fixed_P = fixed$P * mean(Theta$Mu_p) / mean(fixed$P)
+
+            Theta$P <- cbind(
+                scaled_fixed_P, not_fixed_P
+            )
+        } else {
+            is_fixed$P <- rep(TRUE, dims$N)
+            scaled_fixed_P = fixed$P * mean(Theta$Mu_p) / mean(fixed$P)
+            Theta$P <- scaled_fixed_P
+        }
     } else if (!is.null(inits$P)) {
         Theta$P <- inits$P
         is_fixed$P <- FALSE
