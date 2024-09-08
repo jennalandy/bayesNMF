@@ -604,6 +604,9 @@ update_metrics <- function(
     Theta_MAP$E = MAP$E
     Theta_MAP$A = MAP$A
     Theta_MAP$q = MAP$q
+    if (dims$G == 1) {
+        Theta_MAP$E = matrix(Theta_MAP$E, ncol = 1)
+    }
     if (likelihood == 'normal') {
         Theta_MAP$sigmasq = MAP$sigmasq
     }

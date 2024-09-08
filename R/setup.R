@@ -482,6 +482,9 @@ initialize_Theta <- function(
         Theta$E <- sample_prior_E(Theta, dims, prior)
         is_fixed$E <- FALSE
     }
+    if (dims$G == 1) {
+        Theta$E = matrix(Theta$E, ncol = 1)
+    }
 
     # signature assignment A
     Theta$n <- sample(Theta$range_N, 1)
