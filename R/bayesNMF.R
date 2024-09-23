@@ -518,6 +518,9 @@ inner_bayesNMF <- function(
     START_ITER <- Sys.time()
     while (iter <= convergence_control$maxiters & !done) {
         # update non-fixed columns of P
+        if (length(update_P_columns) > 1) {
+            update_P_columns = sample(update_P_columns)
+        }
         for (n in update_P_columns) {
             sample_Pn_out <- sample_Pn(
                 n, M, Theta, dims,
@@ -551,6 +554,9 @@ inner_bayesNMF <- function(
         # update A and n
         Theta$n <- sample_n(Theta, dims, clip, gamma = gamma_sched[iter])
         Theta$q <- update_q(Theta, dims, clip)
+        if (length(update_A_cols) > 1) {
+            update_A_cols = sample(update_A_cols)
+        }
         for (n in update_A_cols) {
             sample_An_out <- sample_An(
                 n, M, Theta, dims,
