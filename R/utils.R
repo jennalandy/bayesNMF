@@ -152,7 +152,8 @@ get_loglik_normal <- function(M, Theta, dims) {
 #' @noRd
 get_loglik_poisson <- function(M, Theta, dims) {
     Mhat <- get_Mhat(Theta)
-    Mhat[Mhat <= 0] <- 0.1 # avoids likelihood of 0 when Mhat = 0
+    Mhat[Mhat <= 0] <- 1 # avoids likelihood of 0
+    M[M <= 0] <- 1
     loglik <- sum(dpois(M, Mhat, log = TRUE))
     return(loglik)
 }
@@ -542,7 +543,7 @@ plot_metrics <- function(metrics, plotfile, stop, learn_A, gamma_sched, iter, tr
 #'
 #' @return list, MAP estimate of A, P, E, q
 #' @noRd
-get_MAP <- function(logs, keep, final = FALSE) {
+get_MAP <- function(logs, keep, dims, final = FALSE) {
 
     # get MAP of A matrix (fine to do even if learn_A = FALSE)
     A_MAP = get_mode(logs$A[keep])
@@ -566,9 +567,12 @@ get_MAP <- function(logs, keep, final = FALSE) {
         top_counts = A_MAP$top_counts
     )
 
-    if (ncol(MAP$P) == 1) {
+    if (dims$N == 1) {
         MAP$P <- matrix(MAP$P, ncol = 1)
         MAP$E <- matrix(MAP$E, nrow = 1)
+    }
+    if (dims$G == 1) {
+        MAP$E <- matrix(MAP$E, ncol = 1)
     }
 
     MAP$P <- MAP$P[,keep_sigs]

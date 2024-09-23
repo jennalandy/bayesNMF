@@ -214,7 +214,7 @@ get_results_df <- function(res_list, reference) {
             this_cos <- assignment_res$MAP$cos_sim
             cosine_sim <- rep(0, ncol(reference))
             names(cosine_sim) <- colnames(reference)
-            cosine_sim[names(assignment_res$MAP$cos_sim)] <- this_cos
+            cosine_sim[assignment_res$assignment$sig] <- this_cos
         } else {
             cosine_sim = NULL
         }
