@@ -464,11 +464,9 @@ initialize_Theta <- function(
             Theta$P <- scaled_fixed_P
         }
     } else if (!is.null(inits$P)) {
-        Theta$P <- inits$P
-        is_fixed$P <- FALSE
+        Theta$P <- inits$P # is_fixed$P all False from initialization
     } else {
-        Theta$P <- sample_prior_P(Theta, dims, prior)
-        is_fixed$P <- FALSE
+        Theta$P <- sample_prior_P(Theta, dims, prior) # is_fixed$P all False from initialization
     }
 
     # exposures E
