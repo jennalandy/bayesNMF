@@ -600,29 +600,29 @@ inner_bayesNMF <- function(
             } else if (prior == "exponential") {
                 if (!Theta$is_fixed$prior_P[n]) {
                     Theta$Lambda_p[,n] <- sample_Lambda_Pn(
-                        n, Theta, dims, gamma = gamma_sched[iter]
+                        n, Theta, dims, gamma = 1
                     )
                 }
                 Theta$Lambda_e[n,] <- sample_Lambda_En(
-                    n, Theta, dims, gamma = gamma_sched[iter]
+                    n, Theta, dims, gamma = 1
                 )
             } else if (prior == "gamma") {
                 if (!Theta$is_fixed$prior_P[n]) {
                     Theta$Beta_p[,n] <- sample_Beta_Pn(
-                        n, Theta, dims, gamma = gamma_sched[iter]
+                        n, Theta, dims, gamma = 1
                     )
                     for (k in 1:dims$K) {
                         Theta$Alpha_p[k,n] <- sample_Alpha_Pkn(
-                            k, n, Theta, dims, gamma = gamma_sched[iter]
+                            k, n, Theta, dims, gamma = 1
                         )
                     }
                 }
                 Theta$Beta_e[n,] <- sample_Beta_En(
-                    n, Theta, dims, gamma = gamma_sched[iter]
+                    n, Theta, dims, gamma = 1
                 )
                 for (g in 1:dims$G) {
                     Theta$Alpha_e[n,g] <- sample_Alpha_Eng(
-                        n, g, Theta, dims, gamma = gamma_sched[iter]
+                        n, g, Theta, dims, gamma = 1
                     )
                 }
             }

@@ -152,8 +152,7 @@ get_loglik_normal <- function(M, Theta, dims) {
 #' @noRd
 get_loglik_poisson <- function(M, Theta, dims) {
     Mhat <- get_Mhat(Theta)
-    Mhat[Mhat <= 0] <- 1 # avoids likelihood of 0
-    M[M <= 0] <- 1
+    Mhat[Mhat <= 0] <- 0.1 # avoids likelihood of 0
     loglik <- sum(dpois(M, Mhat, log = TRUE))
     return(loglik)
 }
