@@ -125,7 +125,7 @@ sample_Pn_poisson <- function(n, M, Theta, dims, prior, gamma = 1) {
             Theta$Lambda_p[k,n] + gamma * Theta$A[1,n] * sum(Theta$E[n,])
         })
     }
-    sampled <- sapply(1:dims$K, function(k) { rgamma(1, shape[g], rate[g]) })
+    sampled <- sapply(1:dims$K, function(k) { rgamma(1, shape[k], rate[k]) })
     return(sampled)
 }
 
