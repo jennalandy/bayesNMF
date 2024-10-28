@@ -269,7 +269,7 @@ bayesNMF <- function(
 
                 # update and save all results
                 best_rank <- BICs %>%
-                    dplyr::filter(BIC == min(BIC)) %>%
+                    dplyr::filter(BIC == min(BIC, na.rm = TRUE)) %>%
                     dplyr::pull(rank)
                 plot <- BICs %>%
                     ggplot2::ggplot(ggplot2::aes(x = rank, y = BIC)) +
