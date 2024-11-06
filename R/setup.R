@@ -446,6 +446,13 @@ initialize_Theta <- function(
     }
 
     # signatures P
+    if (prior == 'truncnormal') {
+        scale_to = mean(Theta$Mu)
+    } else if (prior == 'exponential') {
+        scale_to = 1 / mean(Theta$Lambda_p)
+    } else { #gamma
+        scale_to = mean(Theta$Alpha_p) / mean(Theta$Beta_p)
+    }
     if (!is.null(fixed$P)) {
         colnames(fixed$P) <- NULL
         if (ncol(fixed$P) < dims$N) {
@@ -453,14 +460,13 @@ initialize_Theta <- function(
             dims_notfixed <- dims; dims_notfixed$N <- dims$N - ncol(fixed$P)
 
             not_fixed_P = sample_prior_P(Theta, dims_notfixed, prior)
-            scaled_fixed_P = fixed$P * mean(Theta$Mu_p) / mean(fixed$P)
-
+            scaled_fixed_P = fixed$P * scale_to / mean(fixed$P)
             Theta$P <- cbind(
                 scaled_fixed_P, not_fixed_P
             )
         } else {
             is_fixed$P <- rep(TRUE, dims$N)
-            scaled_fixed_P = fixed$P * mean(Theta$Mu_p) / mean(fixed$P)
+            scaled_fixed_P = fixed$P * scale_to / mean(fixed$P)
             Theta$P <- scaled_fixed_P
         }
     } else if (!is.null(inits$P)) {
