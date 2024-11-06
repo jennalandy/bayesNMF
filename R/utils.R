@@ -137,7 +137,9 @@ get_logprior <- function(
 #' @noRd
 get_loglik_normal <- function(M, Theta, dims) {
     Mhat <- get_Mhat(Theta)
-    loglik <- sum(dnorm(M, mean = Mhat, sd = sqrt(Theta$sigmasq), log = TRUE))
+    loglik <- sum(sapply(1:dims$G, function(g) {
+        dnorm(M[,g], Mhat[,g], sqrt(Theta$sigmasq[g]), log = TRUE)
+    }))
     return(loglik)
 }
 

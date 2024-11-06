@@ -447,7 +447,7 @@ initialize_Theta <- function(
 
     # signatures P
     if (prior == 'truncnormal') {
-        scale_to = mean(Theta$Mu)
+        scale_to = mean(Theta$Mu_p)
     } else if (prior == 'exponential') {
         scale_to = 1 / mean(Theta$Lambda_p)
     } else { #gamma
