@@ -196,8 +196,11 @@ get_results_df <- function(res_list, reference) {
         res$MAP$P <- sweep(res$MAP$P, 2, colSums(res$MAP$P), '/')
 
         # record number of mutations attributed to each signature
+        # median among subjects with the signature
         # vector is length of # reference, we only fill in the ones seen in this sample
-        this_counts <- apply(res$MAP$E, 1, median)
+        this_counts <- apply(res$MAP$E, 1, function(col) {
+            median(col[col > 0])
+        })
         if (!is.null(reference)) {
             sig_counts <- rep(0, ncol(reference))
             names(sig_counts) <- colnames(reference)
