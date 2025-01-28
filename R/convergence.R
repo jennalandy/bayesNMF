@@ -129,18 +129,17 @@ check_converged <- function(
     convergence_status$prev_percent_change = percent_change
     convergence_status$prev_MAP_metric = MAP_metric
 
-    # if NA percent change, no way it's converged
     if (is.na(percent_change)) {
+        # if NA percent change, hold off convergence
         convergence_status$inarow_no_change = 0
         convergence_status$inarow_no_best = 0
         convergence_status$inarow_na = convergence_status$inarow_na + 1
-    }
-
-    # if |change| < tol, then there was "no change"
-    if (abs(percent_change) < convergence_control$tol) {
+    } else if (abs(percent_change) < convergence_control$tol) {
+        # if |change| < tol, then there was "no change"
         convergence_status$inarow_no_change =
             convergence_status$inarow_no_change + 1
     } else {
+        # otherwise |change| > tol, so there was a change
         convergence_status$inarow_no_change = 0
     }
 
