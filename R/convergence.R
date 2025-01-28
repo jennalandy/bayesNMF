@@ -134,7 +134,6 @@ check_converged <- function(
         convergence_status$inarow_no_change = 0
         convergence_status$inarow_no_best = 0
         convergence_status$inarow_na = convergence_status$inarow_na + 1
-        return(convergence_status)
     }
 
     # if |change| < tol, then there was "no change"
