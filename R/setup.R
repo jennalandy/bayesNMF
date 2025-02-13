@@ -447,11 +447,11 @@ initialize_Theta <- function(
 
     # signatures P
     if (prior == 'truncnormal') {
-        scale_to = mean(Theta$Mu_p)
+        scale_P_to = mean(Theta$Mu_p)
     } else if (prior == 'exponential') {
-        scale_to = 1 / mean(Theta$Lambda_p)
+        scale_P_to = 1 / mean(Theta$Lambda_p)
     } else { #gamma
-        scale_to = mean(Theta$Alpha_p) / mean(Theta$Beta_p)
+        scale_P_to = mean(Theta$Alpha_p) / mean(Theta$Beta_p)
     }
     if (!is.null(fixed$P)) {
         colnames(fixed$P) <- NULL
@@ -460,28 +460,38 @@ initialize_Theta <- function(
             dims_notfixed <- dims; dims_notfixed$N <- dims$N - ncol(fixed$P)
 
             not_fixed_P = sample_prior_P(Theta, dims_notfixed, prior)
-            scaled_fixed_P = fixed$P * scale_to / mean(fixed$P)
+            scaled_fixed_P = fixed$P * scale_P_to / mean(fixed$P)
             Theta$P <- cbind(
                 scaled_fixed_P, not_fixed_P
             )
         } else {
             is_fixed$P <- rep(TRUE, dims$N)
-            scaled_fixed_P = fixed$P * scale_to / mean(fixed$P)
+            scaled_fixed_P = fixed$P * scale_P_to / mean(fixed$P)
             Theta$P <- scaled_fixed_P
         }
     } else if (!is.null(inits$P)) {
-        Theta$P <- inits$P # is_fixed$P all False from initialization
+        scaled_init_P = inits$P * scale_P_to / mean(inits$P)
+        Theta$P <- scaled_init_P # is_fixed$P all False from initialization
     } else {
         Theta$P <- sample_prior_P(Theta, dims, prior) # is_fixed$P all False from initialization
     }
 
     # exposures E
+    if (prior == 'truncnormal') {
+        scale_E_to = mean(Theta$Mu_e)
+    } else if (prior == 'exponential') {
+        scale_E_to = 1 / mean(Theta$Lambda_e)
+    } else { #gamma
+        scale_E_to = mean(Theta$Alpha_e) / mean(Theta$Beta_e)
+    }
     if (!is.null(fixed$E)) {
-        Theta$E <- fixed$E
         is_fixed$E <- TRUE
+        scaled_fixed_E <- fixed$E * scale_E_to / mean(fixed$E)
+        Theta$E <- scaled_fixed_E
     } else if (!is.null(inits$E)) {
-        Theta$E <- inits$E
         is_fixed$E <- FALSE
+        scaled_init_E <- inits$E * scale_E_to / mean(inits$E)
+        Theta$E <- scaled_init_E
     } else {
         Theta$E <- sample_prior_E(Theta, dims, prior)
         is_fixed$E <- FALSE
