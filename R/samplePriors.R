@@ -141,8 +141,9 @@ sample_Beta_En <- function(n, Theta, dims, gamma) {
 #' @noRd
 sample_Alpha_Pkn <- function(k, n, Theta, dims, gamma) {
     logpdf_prop <- function(x) {
-        (gamma * Theta$Beta_p[k,n] + Theta$C_p[k,n] - 1) * log(x) -
+        (Theta$C_p[k,n] - 1) * log(x) -
         Theta$D_p[k,n] * x +
+        gamma * x * log(Theta$Beta_p[k,n]) +
         gamma * (x - 1) * log(Theta$P[k,n]) -
         gamma * lgamma(x)
     }
@@ -167,8 +168,9 @@ sample_Alpha_Pkn <- function(k, n, Theta, dims, gamma) {
 #' @noRd
 sample_Alpha_Eng <- function(n, g, Theta, dims, gamma) {
     logpdf_prop <- function(x) {
-        (gamma * Theta$Beta_e[n,g] + Theta$C_e[n,g] - 1) * log(x) -
+        (Theta$C_e[n,g] - 1) * log(x) -
         Theta$D_e[n,g] * x +
+        gamma * x * log(Theta$Beta_e[n,g]) +
         gamma * (x - 1) * log(Theta$E[n,g]) -
         gamma * lgamma(x)
     }
