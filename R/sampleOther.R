@@ -112,6 +112,8 @@ sample_An <- function(n, M, Theta, dims, likelihood, prior, sparse_rank, gamma) 
 
     log_p = log_p1 - sumLog(c(log_p0, log_p1))
     p = exp(log_p)
+
+    # handle overflow
     if (is.na(p)) {
         if (log_p1 > log_p0) {
             p = 1
@@ -147,7 +149,7 @@ update_q <- function(Theta, dims, clip) {
     } else {
         Theta$q <- rep(Theta$n/dims$N, dims$N)
     }
-    Theta$q[Theta$q <= 0] <- clip/dims$N
-    Theta$q[Theta$q >= 1] <- 1 - clip/dims$N
+    Theta$q[Theta$q <= 0] <- clip/dims$N # same as q <= clip/N, b/c q is 0/N, 1/N, ...
+    Theta$q[Theta$q >= 1] <- 1 - clip/dims$N # same as q >= 1-clip/N
     return(Theta$q)
 }
