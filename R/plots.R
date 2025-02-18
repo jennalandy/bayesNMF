@@ -215,7 +215,7 @@ plot_sig <- function(
 #' Plot signature contributions
 #'
 #' @param res_list Named list, containing one or more bayesNMF objects. Names will become identifiers along the top of the plot.
-#' @param reference matrix, "cosmic", or NULL, reference signatures to align to
+#' @param ref_matrix matrix, "cosmic", or NULL, reference signatures to align to
 #' @param title string, title of the produced plot
 #' @param return_df boolean, whether to return summary data frame
 #'
@@ -227,16 +227,16 @@ plot_sig <- function(
 #' data <- readRDS("examples/3_64_1_cosmic.rds")
 #' plot_results(list("Example" = res), title = "Results of a single run")
 #' plot_results(list("Example" = res), reference = data$P, title = "Results of a single run with custom reference")
-plot_results <- function(res_list, reference = 'cosmic', title = "", return_df = FALSE) {
-    if ('character' %in% class(reference)) {
-        if (reference == 'cosmic') {
-            reference = get_cosmic()
+plot_results <- function(res_list, ref_matrix = 'cosmic', title = "", return_df = TRUE) {
+    if ('character' %in% class(ref_matrix)) {
+        if (ref_matrix == 'cosmic') {
+            ref_matrix = get_cosmic()
         } else {
-            stop("Parameter `reference` must be a matrix or 'cosmic'")
+            stop("Parameter `ref_matrix` must be a matrix or 'cosmic'")
         }
     }
 
-    results_df <- get_results_df(res_list, reference) %>%
+    results_df <- get_results_df(res_list, ref_matrix) %>%
         dplyr::filter(Med_Contribution > 0)
 
     color_range = 2**seq(
@@ -255,10 +255,10 @@ plot_results <- function(res_list, reference = 'cosmic', title = "", return_df =
             x = Name, y = Signature, color = Med_Contribution
         ))
 
-    if (!is.null(reference)) {
+    if (!is.null(ref_matrix)) {
         plot <- plot +
             ggplot2::geom_point(ggplot2::aes(size = Cosine_Similarity)) +
-            ggplot2::scale_y_discrete(limits = rev(colnames(reference))) +
+            ggplot2::scale_y_discrete(limits = rev(colnames(ref_matrix))) +
             ggplot2::labs(size = "Posterior Average\nCosine Similarity to\nReference Signature")
     } else {
         plot <- plot +

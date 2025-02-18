@@ -280,25 +280,33 @@ pairwise_sim <- function(
 #' with `ggplot2`. Can be similarity between rows or columns with the `which`
 #' parameter.
 #'
-#' @param est_P estimated P (signatures matrix)
-#' @param true_P true P (signatures matrix)
+#' @param est_matrix estimated P (signatures matrix)
+#' @param ref_matrix true P (signatures matrix)
 #' @param est_names names of estimated signatures
-#' @param true_names names of true signatures
+#' @param ref_names names of true signatures
 #' @param which string, one of c("rows","cols")
 #'
 #' @return ggplot object
 #' @export
 get_heatmap <- function(
-    est_P, true_P,
+    est_matrix, ref_matrix = "cosm",
     est_names = NULL,
-    true_names = NULL,
+    ref_names = NULL,
     which = 'cols',
     keep_all = FALSE
 ) {
+    if ('character' %in% class(ref_matrix)) {
+        if (ref_matrix == 'cosmic') {
+            ref_matrix = get_cosmic()
+        } else {
+            stop("Parameter `ref_matrix` must be a matrix or 'cosmic'")
+        }
+    }
+
     sim_mat <- pairwise_sim(
-        est_P, true_P,
+        est_matrix, ref_matrix,
         name1 = est_names,
-        name2 = true_names,
+        name2 = ref_names,
         which = which
     )
     sim_mat <- assign_signatures(sim_mat, keep_all = keep_all)
