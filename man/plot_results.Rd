@@ -4,12 +4,12 @@
 \alias{plot_results}
 \title{Plot signature contributions}
 \usage{
-plot_results(res_list, reference = "cosmic", title = "", return_df = FALSE)
+plot_results(res_list, ref_matrix = "cosmic", title = "", return_df = TRUE)
 }
 \arguments{
 \item{res_list}{Named list, containing one or more bayesNMF objects. Names will become identifiers along the top of the plot.}
 
-\item{reference}{matrix, "cosmic", or NULL, reference signatures to align to}
+\item{ref_matrix}{matrix, "cosmic", or NULL, reference signatures to align to}
 
 \item{title}{string, title of the produced plot}
 

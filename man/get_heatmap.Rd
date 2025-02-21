@@ -5,22 +5,22 @@
 \title{Plot heatmap of cosine similarities}
 \usage{
 get_heatmap(
-  est_P,
-  true_P,
+  est_matrix,
+  ref_matrix = "cosmic",
   est_names = NULL,
-  true_names = NULL,
+  ref_names = NULL,
   which = "cols",
   keep_all = FALSE
 )
 }
 \arguments{
-\item{est_P}{estimated P (signatures matrix)}
+\item{est_matrix}{estimated P (signatures matrix)}
 
-\item{true_P}{true P (signatures matrix)}
+\item{ref_matrix}{true P (signatures matrix)}
 
 \item{est_names}{names of estimated signatures}
 
-\item{true_names}{names of true signatures}
+\item{ref_names}{names of true signatures}
 
 \item{which}{string, one of c("rows","cols")}
 }

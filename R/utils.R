@@ -289,7 +289,7 @@ pairwise_sim <- function(
 #' @return ggplot object
 #' @export
 get_heatmap <- function(
-    est_matrix, ref_matrix = "cosm",
+    est_matrix, ref_matrix = "cosmic",
     est_names = NULL,
     ref_names = NULL,
     which = 'cols',
@@ -327,7 +327,7 @@ get_heatmap <- function(
         ggplot2::ggplot(ggplot2::aes(x = Var1, y = Var2, fill = value, label = round(value, 2))) +
         ggplot2::geom_tile() +
         ggplot2::geom_text() +
-        ggplot2::labs(x = 'Estimated Signatures', y = 'True Signatures', fill = 'Cosine\nSimilarity')
+        ggplot2::labs(x = 'Estimated Signatures', y = 'Reference Signatures', fill = 'Cosine\nSimilarity')
 
     return(heatmap)
 }

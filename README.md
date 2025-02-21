@@ -1,15 +1,18 @@
 # bayesNMF: an R package for Bayesian NMF
 
-## Notes
+Introduced in the paper "bayesNMF: Fast Bayesian Poisson NMF with Automatically Learned Rank Applied to Mutational Signatures", this package implements Gibbs samplers for multiple models of Bayesian non-negative matrix factorization (NMF).
 
-Hello! This package is a **work in progress** and new features will be added periodically.
-
-The following likelihood - prior combinations have been implemented:
+The following likelihood - prior combinations have been implemented and benchmarked in our paper:
 
 - Poisson - Gamma: $M \sim Poisson(PE)$, $P$ and $E$ follow Gamma priors
-- Poisson - Exponential: $M \sim Poisson(PE)$, $P$ and $E$ follow Exponential priors
 - Normal - Truncated Normal: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Truncated-Normal priors, $\sigma^2_k$ follows an Inverse-Gamma prior
+- *fast* Poisson - Truncated Normal: utilizes approximate metropolis steps to avoid Poisson augmentation
+
+The following models have also been implemented. We recommend using with caution as these have yet to be benchmarked:
+
+- Poisson - Exponential: $M \sim Poisson(PE)$, $P$ and $E$ follow Exponential priors
 - Normal - Exponential: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Exponential priors, $\sigma^2_k$ follows an Inverse-Gamma prior 
+- *fast* Poisson - Exponential: utilizes approximate metropolis steps to avoid Poisson augmentation
 
 While language and simulation examples are in the context of mutational signatures analysis, this package can be used for any application of NMF.
 
@@ -25,103 +28,94 @@ library(bayesNMF)
 
 ### Use
 
-The main function is `bayesNMF`, which runs a Gibbs sampler and reports the MAP estimates.
-
-As with standard NMF, `bayesNMF` requires the latent rank `N` be provided.
+For example purposes, we use a dataset of 32 samples simulated from 4 signatures.
 
 ```{r}
-rank5_results <- bayesNMF(
-    M, N = 5, 
-    likelihood = "normal", 
-    prior = "truncnormal", 
-    file = "my_run_rank5"
+data <- readRDS("examples/N4_G32_rep1.rds")
+dim(data$M)
+```
+```
+[1] 96 32
+```
+
+The `bayesNMF` R software package allows users to fit all models defined in the paper with the `bayesNMF` function. Model specifications can be adjusted by the `likelihood` (default ``poisson'') and `prior` (default ``truncnormal'') parameters. The `rank` parameter can be a fixed value or a range vector. For example:
+
+```{r}
+res_fixedN <- bayesNMF(
+    data$M, rank = 4,
+    file = "examples/res_fixedN"
 )
 ```
 
-Three files will be created and updated every 100 iterations by default (can be controlled with the `logevery` parameter) 
+## Package Details
 
-- `my_run_rank5.log` will log the start time and the progress of the Gibbs sampler, which is useful to estimate the total run time if using a large dataset or a lot of iterations. 
-- `my_run_rank5.rds` records the current results, which is be useful if your run is cut short (the dreaded OOM error). Once the function is complete, this records complete results for future access. 
-- `my_run_rank5.pdf` updates plots of metrics: RMSE, KL Divergence, BIC, log posterior, log likelihood, and latent rank of periodically computed MAP estimates (see the section on convergence below for details). Note that for log likelihood and log posterior, values from the Poisson models are not comparable to those from Normal models.
+### Model Fitting
 
-The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `rank5_results$MAP$P` and `rank5_results$MAP$E`. The full Gibbs sampler chains are stored in `rank5_results$logs` if  `store_logs = TRUE` (default). The periodic metrics of MAP estimates displayed in `my_run_rank5.pdf` are stored in `rank5_results$metrics`.
-
-### Iterations to Convergence
-
-Unlike standard MCMC problems, we cannot use multiple chains to determine convergence because different chains can have different numbers of latent factors which we would be unable to align. We instead determine convergence through an approach rooted in machine learning. The `convergence_control` parameter determines the specifics of this approach. These parameters can be adjusted by the user, but the default values are noted below.
+#### `bayesNMF` with Known Rank
 
 ```{r}
-new_convergence_control = convergence_control(
-    MAP_over = 1000,
-    MAP_every = 100,
-    tol = 0.001,
-    Ninarow_nochange = 10,
-    Ninarow_nobest = 20,
-    miniters = 1000,
-    maxiters = 10000,
-    metric = "loglikelihood"
+res_fixedN <- bayesNMF(
+    data$M, rank = 4,
+    file = "examples/res_fixedN"
 )
 ```
 
-We pre-determine that the MAP estimate will be the average over `MAP_over` samples. Starting at `miniters` and at every `MAP_every` samples after, we compute the MAP estimate *as if it is the last iteration* and record log likelihood, log posterior, RMSE, and KL Divergence. We say the MAP "hasn't changed" if it's log likelihood has changed by less than 100\*`tol`% since the previous computed MAP. We say the MCMC has converged when the MAP hasn't changed in `Ninarow_nochange` computations (i.e., `Ninarow_nochange`\*`MAP_every` samples) OR if it hasn't improved in `Ninarow_nobest` computations (i.e., `Ninarow_nobest`\*`MAP_every` samples).
+Three files will be created and updated every 100 iterations by default (can be controlled with the `logevery` parameter):
 
-### Learning Rank
+- `res_fixedN.log` will log the start time and the progress of the Gibbs sampler, which is useful to estimate the total run time if using a large dataset or a lot of iterations. 
+- `res_fixedN.rds` periodically records results, which is be useful if your run is cut short (the dreaded OOM error). Once the run is complete, this records complete results for future access. 
+- `res_fixedN.pdf` updates plots of metrics: RMSE, KL Divergence, BIC, log posterior, log likelihood, and latent rank of periodically computed MAP estimates (see the section on convergence below for details). Note that for log likelihood and log posterior, values from the Poisson models are not comparable to those from Normal models.
 
-We have also implemented an option to *learn the rank* as a part of the Bayesian model when `max_N` is provided instead of `N`. Note that this takes many more samples to converge than the model with a fixed `N`. We are still working to find the best number of samples for convergence. Right now, we (by default) run models with Normal likelihoods for 5000 samples (3500 for burn-in) and Poisson likelihoods for 10000 samples (7500 for burn-in).
+The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `res_fixedN$MAP$P` and `res_fixedN$MAP$E`. The full Gibbs sampler chains are stored in `res_fixedN$logs` if  `store_logs = TRUE` (default). The periodic metrics of MAP estimates displayed in `res_fixedN.pdf` are stored in `res_fixedN$metrics`.
 
 ```{r}
-learned_rank_results <- bayesNMF(
-    M, max_N = 7, 
-    likelihood = "normal", 
-    prior = "truncnormal", 
-    file = "my_run_learned_rank"
+dim(res_fixedN$MAP$P)
+```
+```
+[1] 96  4
+```
+
+```{r}
+dim(res_fixedN$MAP$E)
+```
+```
+[1]  4 32
+```
+
+#### `bayesNMF` with Learned Rank
+
+If a vector is provided, the `learn_rank_method` parameter can be set to one of the following: `"heuristic"` (optimizing BIC), `"SBFI"` (default), or `"BFI"`.
+
+```{r}
+res_learnN <- bayesNMF(
+    data$M, rank = 1:5,
+    learn_rank_method = "SBFI",
+    file = "examples/res_learnN"
 )
 ```
 
-Here, an additional matrix $A$ is estimated, which determines which latent factors are included in the final model. `learned_rank_results$MAP$A` is dimension 1 by `max_N`. For each position $n$, a 1 indicates factor $n$ is included, while a 0 indicates the factor was dropped. Dropped factors have already been removed from `learned_rank_results$MAP$P` and `learned_rank_results$MAP$E`.
-
-When learning rank, the model employs hyperprior distributions so that prior parameters are updated at each iteration.
-
-### Compare to True or Literature Signatures
-
-We also include commands to compare estimated signatures to the true signatures matrix to evaluate simulation studies. This could also be a set of signatures from literature that we wish to use as a baseline.
-
-The following functions provide a similarity matrix between the true and estimated $P$ matrices, as well as a heatmap to visualize this.
+When rank is learned, a factor inclusion matrix $A$ tells us which factors are included in the final model ($A_{n} = 1$) and which are excluded ($A_{n} = 0$). The `res_learnN.log` file will record the sampler progress as before, but will also list how many times each of five most frequent $A$ matrices were sampled in the previous 1000 samples. Looking at the final MAP estimate of the $A$ matrix can tell us the learned latent rank (in this case, 4):
 
 ```{r}
-sim_mat <- pairwise_sim(res$MAP$P, true_P)
-heatmap <- get_heatmap(est_P = res$MAP$P, true_P = true_P)
+res_learnN$MAP$A
+```
+```
+     [,1] [,2] [,3] [,4] [,5]
+[1,]    0    1    1    1    1
 ```
 
-You can also do this all in one call. If `true_P` is provided to `bayesNMF`, then the similarity matrix and heatmap are stored in `res$sim_mat` and `res$heatmap`, respectively.
+The MAP estimates of P and E have already been reduced to this subset of included signatures:
 
 ```{r}
-rank5_results <- bayesNMF(
-    M, N = 5, 
-    likelihood = "normal", 
-    prior = "truncnormal", 
-    file = "my_run_rank5",
-    true_P = true_P
-)
+dim(res_learnN$MAP$P)
+```
+```
+[1] 96  4
 ```
 
-### Recovery-Discovery Option
+#### `bayesNMF` with Recovery-Discovery
 
-If `recovery = TRUE` and `recovery_priors` are provided, then the model will use a combination of these priors an `N` or `max_N` standard priors. This is particularly useful in the context of mutational signatures, where we may want our recovery priors to match the reference signatures in the [COSMIC database](https://cancer.sanger.ac.uk/signatures/). For Normal likelihood models, `recovery_priors = "cosmic"` (default) can be used as a shortcut. Alternatively, a `P` matrix can be provided to the `get_recovery_priors` function to generate recovery priors that can then be provided to `bayesNMF`.
-
-
-This example uses recovery priors for the 79 COSMIC signatures. This means we are learning between 0 and 49 + 7 = 56 latent factors, where 49 have priors set at the COSMIC recovery priors, and the other 7 have priors with the standard hyperprior distributions that are updated at each iteration. 
-
-```{r}
-learned_rank_recovery_discover_results <- bayesNMF(
-    M, max_N = 7, 
-    likelihood = "normal", 
-    prior = "truncnormal", 
-    file = "my_run_learned_rank",
-    recovery = TRUE,
-    recovery_priors = "cosmic"
-)
-```
+If `recovery = TRUE`, bayesNMF will fix prior parameters to previously discovered signatures, while still allowing discovery of `rank` additional signatures. This is particularly useful in the context of mutational signatures, where we may want our recovery priors to match the reference signatures in the [COSMIC database](https://cancer.sanger.ac.uk/signatures/). Setting `recovery_priors = "cosmic"` (default) will load recovery priors pre-defined based on COSMIC v3.3.1 SBS GRCh37. Alternatively, a `P` matrix can be provided to the `get_recovery_priors` function to generate recovery priors that can then be provided to `bayesNMF`.
 
 This is an example with a user-provided `P` matrix, `literature_P`, perhaps containing latent factors discovered in a previous analysis.
 
@@ -137,117 +131,113 @@ learned_rank__recovery_discover_results <- bayesNMF(
 )
 ```
 
-```{r}
+### Downstream Analysis and Visualization
 
-## Simulated Example
+#### Compare to Reference Signatures
 
-### 1. Simulate Data
-
-Here we simulate a mutational catalog based on a subset of COSMIC signatures, available at the link below. We use 5 of the COSMIC signatures as the true P matrix.
+After running `bayesNMF`, many users may wish to compare the estimated factors to reference factors. For example, this could be the true factors used to generate a simulation study or a set of mutational signatures from literature. Commonly for mutational signatures, this is the COSMIC set of references. We include a helper function to easily load the COSMIC v3.3.1 SBS GRCh37 reference signatures:
 
 ```{r}
-set.seed(123)
+ref_matrix <- get_cosmic()
+dim(ref_matrix)
+```
+```
+[1] 96 79
+```
 
-sigs = c(2,3,4,5,6)
-N = length(sigs)
-P <- read.csv(
-  "https://cog.sanger.ac.uk/cosmic-signatures-production/documents/COSMIC_v3.3.1_SBS_GRCh37.txt",
-  sep = '\t'
+The following functions provide a similarity matrix between the true and estimated $P$ matrices, as well as a heatmap to visualize this.
+
+```{r}
+sim_mat <- pairwise_sim(res_fixedN$MAP$P, ref_matrix)
+get_heatmap(est_matrix = res_fixedN$MAP$P, ref_matrix = ref_matrix)
+```
+
+<img src="examples/heatmap.png" width="400"/>
+
+The `signature_asssignment_inference` performs the signature assignment approach described in our paper. To align estimated factors to the reference factors, we first create a similarity matrix $S$, where each element is the cosine similarity between a column of $P$ and a column of $\hat P$, $S_{ij} = cos(P_i, \hat{P}_j)$. The (Hungarian algorithm)[https://doi.org/10.1002/nav.3800020109] is used on $-1\cdot S$, which solves the combinatorial optimization problem to reorder rows and columns to minimize the sum of values on the diagonal. The resulting aligned similarity matrix, $S^*$, has an optimal alignment in terms of total aligned cosine similarity. This approach only allows a single estimated signature to be aligned to each reference signature.
+
+We incorporate posterior uncertainty into this process by performing factor alignment for each of the posterior samples used to compute $\hat P$. We determine final alignments through majority voting with cosine similarity as voting weights.
+
+```{r}
+assign <- signature_asssignment_inference(res_fixedN)
+assign$assignment
+```
+```
+    sig score n
+1 SBS12     1 1
+2 SBS45     1 2
+3 SBS11     1 3
+4  SBS9     1 4
+```
+
+The assignment object also includes average and 95% credible intervals of cosine similarities across posterior samples.
+
+```{r}
+assign$MAP$cos_sim
+```
+```{r}
+    SBS12     SBS45     SBS11      SBS9 
+0.9981176 0.9980450 0.9972662 0.9955704
+```
+
+```{r}
+assign$credible_intervals$cos_sim
+```
+```
+[[1]]
+    SBS12     SBS45     SBS11      SBS9 
+0.9974520 0.9976177 0.9964433 0.9937027 
+
+[[2]]
+    SBS12     SBS45     SBS11      SBS9 
+0.9986952 0.9984327 0.9981941 0.9971524 
+```
+
+These inference results can be visualized with a dot plot as seen in Figure 3 of our paper with the `plot_results` function. One or more `bayesNMF` results objects are passed to `res_list`--each of these results objects will become a column in the produced figure.
+
+```{r, fig.width = 10, fig.height = 20}
+inference_plot <- plot_results(
+    res_list = list(
+        "Known N" = res_fixedN,
+        "Learned N" = res_learnN
+    )
 )
-P <- as.matrix(P[,sigs])
-K = nrow(P)
+head(inference_plot$df)
 ```
-
-We then simulate exposure values, for example here from an exponential distribution. We generate exposures for G = 20 samples.
+```
+            Name Signature  G Med_Contribution Cosine_Similarity
+1   Known N (32)     SBS11 32         668.4555         0.9972662
+2   Known N (32)     SBS12 32        1045.5493         0.9981176
+3   Known N (32)     SBS45 32         800.1429         0.9980450
+4   Known N (32)      SBS9 32         653.6192         0.9955704
+5 Learned N (32)     SBS11 32         659.7419         0.9969646
+6 Learned N (32)     SBS12 32        1063.7996         0.9979717
+```
 
 ```{r}
-G = 20
-E <- matrix(rexp(N*G, 0.001), nrow = N, ncol = G)
+inference_plot$plot
 ```
+<img src="examples/inference_plot.png" width="200"/>
 
-Assuming a Poisson data generating function, we can finally simulate a mutational catalog $M$.
+#### Visualize Estimated Signatures
+
+The `plot_sig` function visualizes an estimated mutational signature, displaying reference signatures as bar plots in the style of the [COSMIC database](https://cancer.sanger.ac.uk/signatures/sbs/) and MAP estimates and 95% credible intervals as a point with whiskers. It takes in a `bayesNMF` results object, `res`, and the index of the signature to be plotted. By default, this function will align the estimated signature to its best match in the reference, or a specific signature index or name can be passed to the `ref` parameter. This function can also be used to plot a reference or estimated signature alone.
 
 ```{r}
-M <- matrix(nrow = K, ncol = G)
-for (k in 1:K) {
-    M[k,] <- rpois(G, P[k,]%*%E)
-}
-```
-
-Below shows the six number summary for the number of mutations per sample. We see that the central 50% of generated samples have between 2963 and 5231 mutations.
-
-```{r}
-summary(colSums(M))
-```
-
-```
-   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-   1699    2963    4891    5231    7410    9845
-```
-
-### 2. Running Methods
-
-Now we can run the Normal-Exponential model of Bayesain NMF.
-
-```{r}
-res <- bayesNMF(
-  M, N = 5,
-  likelihood = "normal",
-  prior = "truncnormal",
-  file = "my_run",
-  true_P = P
+plot_sig(
+    res = res_fixedN, sig = 1, 
+    title = "Estimated signature with the best matched COSMIC signature"
 )
 ```
+<img src="examples/sig.png" width="600"/>
 
-### 3. Evaluating Methods
-
-Metrics are always recorded on each iteration. Here we look at the metrics on the last iteration.
-
-```{r}
-data.frame(res$metrics)[res$niters,]
-```
-
-```        
-         loglik     RMSE       KL
-1500 -191938493 5.679985 792.8074
-```
-
-The similarity matrix and corresponding heatmap are only provided if
-`true_P` is used.
+We can visualize all mutations from all signatures in all or a subset of subjects with `plot_signature_dist`. This gives a clear picture of what mutations are present as well as what signatures they arise from.
 
 ```{r}
-res$sim_mat
+plot_signature_dist(
+    res = res_fixedN, 
+    subject = 1, # optional, all combined if not specified
+    title = "Signature distribution of subject 1"
+)
 ```
-
-```         
-                true1      true2     true3      true4     true5
-estimated1 0.02424170 0.99924989 0.1298875 0.06788912 0.2774230
-estimated2 0.95511900 0.30313309 0.1460383 0.06711596 0.3237289
-estimated3 0.14618485 0.63629489 0.6070845 0.30329985 0.8874797
-estimated4 0.06009177 0.01311398 0.6603101 0.99498287 0.4026305
-estimated5 0.12359146 0.21950484 0.9810274 0.64979449 0.8274775
-```
-
-```{r}
-res$heatmap
-```
-
-![](images/example_heatmap.png)
-
-Notice that signatures are reordered on the heatmap, assigned using the
-Hungarian algorithm. To see this assignment on the similarity matrix,
-you can use the `assign_signatures` function. Here, we can see that our estimated factor 1 was assigned matches best to the true factor 2.
-
-```{r}
-assigned_sim_mat = assign_signatures(res$sim_mat)
-assigned_sim_mat
-```
-
-```
-                true2      true1     true5      true4     true3
-estimated1 0.99924989 0.02424170 0.2774230 0.06788912 0.1298875
-estimated2 0.30313309 0.95511900 0.3237289 0.06711596 0.1460383
-estimated3 0.63629489 0.14618485 0.8874797 0.30329985 0.6070845
-estimated4 0.01311398 0.06009177 0.4026305 0.99498287 0.6603101
-estimated5 0.21950484 0.12359146 0.8274775 0.64979449 0.9810274
-```
+<img src="examples/sig_dist.png" width="500"/>
