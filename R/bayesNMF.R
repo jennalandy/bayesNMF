@@ -392,11 +392,11 @@ inner_bayesNMF <- function(
     if (recovery) {
         if (is.character(recovery_priors)) {
             if (recovery_priors == "cosmic") {
-                if (prior == 'truncnormal') {
-                    recovery_priors <- normal_truncnormal_recovery_priors
-                } else {
-                    stop("Recovery priors not defined for prior combination")
-                }
+                cosmic <- get_cosmic()
+                recovery_priors <- get_recovery_priors(
+                    cosmic, likelihood = likelihood, prior = prior,
+                    file = paste0(file, "_recovery_priors")
+                )
             }
         }
     } else {
@@ -698,6 +698,11 @@ inner_bayesNMF <- function(
                     store_MAP <- MAP
                     store_MAP_iter <- iter
                     store_credible_intervals <- get_credible_intervals(logs, store_MAP$idx)
+
+                    store_posterior_samples <- list()
+                    for (name in names(logs)) {
+                        store_posterior_samples[[name]] <- logs[[name]][store_MAP$idx]
+                    }
                 }
 
                 # remove logs to save memory
@@ -784,11 +789,15 @@ inner_bayesNMF <- function(
                 credible_intervals$E[[2]] <- credible_intervals$E[[2]][res$MAP$A[1,]==1,]
 
                 res$credible_intervals <- credible_intervals
-                posterior_samples <- list()
-                for (name in names(logs)) {
-                    posterior_samples[[name]] <- logs[[name]][MAP$idx]
+                if (store_logs) {
+                    posterior_samples <- list()
+                    for (name in names(logs)) {
+                        posterior_samples[[name]] <- logs[[name]][MAP$idx]
+                    }
+                    res$posterior_samples <- posterior_samples
+                } else {
+                    res$posterior_samples <- store_posterior_samples
                 }
-                res$posterior_samples <- posterior_samples
             }
             if (store_logs) {
                 res$logs = logs

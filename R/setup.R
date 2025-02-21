@@ -49,7 +49,7 @@ set_truncnorm_hyperprior_parameters <- function(
         b_e = sqrt(dims$N), B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 3, Alpha = rep(alpha, dims$G),
         beta = 3, Beta = rep(beta, dims$G),
-        a = 0.8, b = 0.8, weight_r = 0.99
+        a = 0.8, b = 0.8, weight_r = 2
 ) {
     if ("m_p" %in% names(Theta) & !("M_p" %in% names(Theta))) {
         Theta$M_p = matrix(Theta$m_p, nrow = dims$K, ncol = dims$N)
@@ -180,7 +180,7 @@ set_exponential_hyperprior_parameters <- function(
         b_e = 10 * sqrt(mean(M)), B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         alpha = 3, Alpha = rep(alpha, dims$G),
         beta = 3, Beta = rep(beta, dims$G),
-        a = 0.8, b = 0.8, weight_r = 0.99
+        a = 0.8, b = 0.8, weight_r = 2
 ) {
     for (matrix in c("A_p", "B_p")) {
         element = tolower(matrix)
@@ -271,7 +271,7 @@ set_gamma_hyperprior_parameters <- function(
         b_e = 10, B_e = matrix(b_e, nrow = dims$N, ncol = dims$G),
         c_e = 10*sqrt(mean(M)), C_e = matrix(c_e, nrow = dims$N, ncol = dims$G),
         d_e = 10, D_e = matrix(d_e, nrow = dims$N, ncol = dims$G),
-        a = 0.8, b = 0.8, weight_r = 0.99
+        a = 0.8, b = 0.8, weight_r = 2
 ) {
 
     for (matrix in c("A_p", "B_p", "C_p", "D_p")) {
@@ -510,9 +510,13 @@ initialize_Theta <- function(
         is_fixed$q <- FALSE
     } else {
         if (recovery) {
+            N_recov = sum(Theta$recovery)
+            N_discov = sum(Theta$recovery == 0)
+            q_discov = Theta$n/(Theta$weight_r * N_recov + N_discov)
+            q_recov = Theta$weight_r * q_discov
             Theta$q <- c(
-                rep(Theta$weight_r * Theta$n / sum(Theta$recovery), sum(Theta$recovery)),
-                rep((1-Theta$weight_r) * Theta$n / sum(Theta$recovery == 0), sum(Theta$recovery == 0))
+                rep(q_recov, N_recov),
+                rep(q_discov, N_discov)
             )
         } else {
             Theta$q <- rep(Theta$n/dims$N, dims$N)

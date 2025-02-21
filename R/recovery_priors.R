@@ -77,17 +77,18 @@ get_one_recovery_prior <- function(Pn, likelihood, prior) {
 #' @param likelihood string, one of c('normal','poisson')
 #' @param prior string, one of c('truncnormal','exponential','gamma')
 #' @param verbose boolean
-#' @param savefile string, path to save recovery priors to
+#' @param file string, path to save recovery priors to
 #'
 #' @return list, prior parameters corresponding to given signatures matrix
 #' @export
 get_recovery_priors <- function(
     P, likelihood, prior,
     verbose = FALSE,
-    savefile = file.path(
-        "recovery_priors", paste0(likelihood, "_", prior, ".rds")
+    file = file.path(
+        paste0("recovery_priors_", likelihood, "_", prior, ".rds")
     )
 ) {
+    if (!endsWith(file, ".rds")) {file = paste0(file, ".rds")}
     for (n in 1:ncol(P)) {
         prior_parameters = get_one_recovery_prior(P[,n], likelihood, prior)
         if (n == 1) {
@@ -108,6 +109,6 @@ get_recovery_priors <- function(
     all_prior_parameters$N_r <- ncol(P)
     all_prior_parameters$P <- P
 
-    saveRDS(all_prior_parameters, file = savefile)
+    saveRDS(all_prior_parameters, file = file)
     return(all_prior_parameters)
 }

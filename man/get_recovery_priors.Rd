@@ -9,7 +9,7 @@ get_recovery_priors(
   likelihood,
   prior,
   verbose = FALSE,
-  savefile = file.path("recovery_priors", paste0(likelihood, "_", prior, ".rds"))
+  file = file.path(paste0("recovery_priors_", likelihood, "_", prior, ".rds"))
 )
 }
 \arguments{
@@ -21,7 +21,7 @@ get_recovery_priors(
 
 \item{verbose}{boolean}
 
-\item{savefile}{string, path to save recovery priors to}
+\item{file}{string, path to save recovery priors to}
 }
 \value{
 list, prior parameters corresponding to given signatures matrix
