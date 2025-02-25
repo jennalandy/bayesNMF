@@ -279,7 +279,7 @@ plot_results <- function(res_list, ref_matrix = 'cosmic', title = "", return_df 
             limits = c(min(color_range), max(color_range))
         ) +
         ggplot2::labs(
-            color = "Median Contribution\n(# Mutations) per Mb",
+            color = "Median Contribution\n(# Mutations)",
             title = title
         ) +
         ggplot2::theme(
