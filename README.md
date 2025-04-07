@@ -2,6 +2,11 @@
 
 Introduced in the paper "bayesNMF: Fast Bayesian Poisson NMF with Automatically Learned Rank Applied to Mutational Signatures", this package implements Gibbs samplers for multiple models of Bayesian non-negative matrix factorization (NMF).
 
+More detailed documentation can be found in vignettes:
+
+- [Understanding bayesNMF Output](vignettes/output.pdf)
+- [Inference and Visualization](vignettes/inference_visualization.pdf)
+
 ## Quick Start
 
 ### Installation
