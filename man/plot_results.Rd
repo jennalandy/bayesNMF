@@ -2,7 +2,11 @@
 % Please edit documentation in R/plots.R
 \name{plot_results}
 \alias{plot_results}
-\title{Plot signature contributions}
+\title{This function displays which reference signatures are recovered in one or
+more bayesNMF results objects. It reports MAP (posterior average) cosine
+similarity to the assigned reference as size, and median (across samples with
+contribution > 0) MAP contributions as color. The function returns the plot
+as well as a data frame with all of the visualized information.}
 \usage{
 plot_results(res_list, ref_matrix = "cosmic", title = "", return_df = TRUE)
 }
@@ -19,11 +23,15 @@ plot_results(res_list, ref_matrix = "cosmic", title = "", return_df = TRUE)
 ggplot object, or list holding ggplot object and data frame if return_df = TRUE
 }
 \description{
-Plot signature contributions
+This function displays which reference signatures are recovered in one or
+more bayesNMF results objects. It reports MAP (posterior average) cosine
+similarity to the assigned reference as size, and median (across samples with
+contribution > 0) MAP contributions as color. The function returns the plot
+as well as a data frame with all of the visualized information.
 }
 \examples{
 res <- readRDS("examples/plot_example.rds")
 data <- readRDS("examples/3_64_1_cosmic.rds")
 plot_results(list("Example" = res), title = "Results of a single run")
-plot_results(list("Example" = res), reference = data$P, title = "Results of a single run with custom reference")
+plot_results(list("Example" = res), ref_matrix = data$P, title = "Results of a single run with custom reference")
 }

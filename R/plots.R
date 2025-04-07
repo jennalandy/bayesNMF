@@ -69,7 +69,7 @@ get_sig_theme <- function() {
 #'
 #' @param res bayesNMF object, results list
 #' @param sig integer, index of the estimated signature to plot
-#' @param ref integer, column name string, numeric vector, or "best"
+#' @param ref integer, column name string, or "best"
 #' @param ref_matrix matrix or "cosmic", reference signatures for comparison
 #' @param title string
 #' @param cosine boolean, whether to report cosine similarity between estimated
@@ -212,7 +212,11 @@ plot_sig <- function(
     return(plot)
 }
 
-#' Plot signature contributions
+#' This function displays which reference signatures are recovered in one or
+#' more bayesNMF results objects. It reports MAP (posterior average) cosine
+#' similarity to the assigned reference as size, and median (across samples with
+#' contribution > 0) MAP contributions as color. The function returns the plot
+#' as well as a data frame with all of the visualized information.
 #'
 #' @param res_list Named list, containing one or more bayesNMF objects. Names will become identifiers along the top of the plot.
 #' @param ref_matrix matrix, "cosmic", or NULL, reference signatures to align to
@@ -226,7 +230,7 @@ plot_sig <- function(
 #' res <- readRDS("examples/plot_example.rds")
 #' data <- readRDS("examples/3_64_1_cosmic.rds")
 #' plot_results(list("Example" = res), title = "Results of a single run")
-#' plot_results(list("Example" = res), reference = data$P, title = "Results of a single run with custom reference")
+#' plot_results(list("Example" = res), ref_matrix = data$P, title = "Results of a single run with custom reference")
 plot_results <- function(res_list, ref_matrix = 'cosmic', title = "", return_df = TRUE) {
     if ('character' %in% class(ref_matrix)) {
         if (ref_matrix == 'cosmic') {
@@ -306,7 +310,7 @@ plot_results <- function(res_list, ref_matrix = 'cosmic', title = "", return_df 
 #'
 #' @param res bayesNMF object, results list
 #' @param subjects integer or vector, indices of subjects to include
-#' @param reference matrix, "cosmic", or NULL, reference signatures to align to
+#' @param ref_matrix matrix, "cosmic", or NULL, reference signatures to align to
 #' @param title string, title of the produced plot
 #'
 #' @return ggplot2 object
@@ -319,14 +323,14 @@ plot_results <- function(res_list, ref_matrix = 'cosmic', title = "", return_df 
 #' plot_signature_dist(res, subject = c(1,4,10), title = "Plot signature distribution of subjects 1, 4, and 10")
 plot_signature_dist <- function(
     res, subjects = 1:ncol(res$model$M),
-    reference = "cosmic",
+    ref_matrix = "cosmic",
     title = "Distribution of Signature Allocation"
 ) {
-    if ('character' %in% class(reference)) {
-        if (reference == 'cosmic') {
-            reference = get_cosmic()
+    if ('character' %in% class(ref_matrix)) {
+        if (ref_matrix == 'cosmic') {
+            ref_matrix = get_cosmic()
         } else {
-            stop("Parameter `reference` must be a matrix, 'cosmic', or NULL")
+            stop("Parameter `ref_matrix` must be a matrix, 'cosmic', or NULL")
         }
     }
 
@@ -345,8 +349,8 @@ plot_signature_dist <- function(
     all_counts <- cbind(all_counts, rowSums(M - res$MAP$P %*% res$MAP$E[,subjects]))
     colnames(all_counts) <- c(paste0("Signature", 1:sum(res$MAP$A)), 'resid')
 
-    if (!is.null(reference)) {
-        sim <- pairwise_sim(res$MAP$P, reference)
+    if (!is.null(ref_matrix)) {
+        sim <- pairwise_sim(res$MAP$P, ref_matrix)
         assignment_res <- assign_signatures(sim)
         ref = colnames(assignment_res)
 
@@ -360,7 +364,7 @@ plot_signature_dist <- function(
             center = substr(mutation, 3, 5),
             left = substr(mutation, 1, 1),
             right = substr(mutation, 7, 7),
-            reference = substr(mutation, 3, 3)
+            ref_matrix = substr(mutation, 3, 3)
         ) %>%
         tidyr::pivot_longer(2:(sum(res$MAP$A) + 1), names_to = 'signature', values_to = 'count') %>%
         dplyr::mutate(

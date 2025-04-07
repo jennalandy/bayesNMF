@@ -797,3 +797,40 @@ validate_model <- function(likelihood, prior, fast) {
         }
     }
 }
+
+#' Rescale MAP and credible intervals of P, E for columns of P to sum to 1
+#'
+#' @param res bayesNMF res object
+#'
+#' @return rescaled bayesNMF res object
+#' @export
+rescale_bayesNMF <- function(res) {
+    res$MAP$E <- sweep(res$MAP$E, 1, colSums(res$MAP$P), '*')
+    res$MAP$P <- sweep(res$MAP$P, 2, colSums(res$MAP$P), '/')
+
+    new_post_P1 <- list()
+    new_post_P2 <- list()
+    new_post_E1 <- list()
+    new_post_E2 <- list()
+    for (i in 1:length(res$posterior_samples$P[[1]])) {
+        P1i = res$posterior_samples$P[[1]]
+        E1i = res$posterior_samples$E[[1]]
+        E1i <- sweep(E1i, 1, colSums(P1i), '*')
+        P1i <- sweep(P1i, 2, colSums(P1i), '/')
+        new_post_P1[[i]] <- P1i
+        new_post_E1[[i]] <- E1i
+
+        P2i = res$posterior_samples$P[[2]]
+        E2i = res$posterior_samples$E[[2]]
+        E2i <- sweep(E2i, 1, colSums(P2i), '*')
+        P2i <- sweep(P2i, 2, colSums(P2i), '/')
+        new_post_P2[[i]] <- P2i
+        new_post_E2[[i]] <- E2i
+    }
+    res$posterior_samples$P[[1]] <- new_post_P1
+    res$posterior_samples$P[[2]] <- new_post_P2
+    res$posterior_samples$E[[1]] <- new_post_E1
+    res$posterior_samples$E[[2]] <- new_post_E2
+
+    return(res)
+}

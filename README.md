@@ -2,20 +2,6 @@
 
 Introduced in the paper "bayesNMF: Fast Bayesian Poisson NMF with Automatically Learned Rank Applied to Mutational Signatures", this package implements Gibbs samplers for multiple models of Bayesian non-negative matrix factorization (NMF).
 
-The following likelihood - prior combinations have been implemented and benchmarked in our paper:
-
-- Poisson - Gamma: $M \sim Poisson(PE)$, $P$ and $E$ follow Gamma priors
-- Normal - Truncated Normal: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Truncated-Normal priors, $\sigma^2_k$ follows an Inverse-Gamma prior
-- *fast* Poisson - Truncated Normal: utilizes approximate metropolis steps to avoid Poisson augmentation
-
-The following models have also been implemented. We recommend using with caution as these have yet to be benchmarked:
-
-- Poisson - Exponential: $M \sim Poisson(PE)$, $P$ and $E$ follow Exponential priors
-- Normal - Exponential: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Exponential priors, $\sigma^2_k$ follows an Inverse-Gamma prior 
-- *fast* Poisson - Exponential: utilizes approximate metropolis steps to avoid Poisson augmentation
-
-While language and simulation examples are in the context of mutational signatures analysis, this package can be used for any application of NMF.
-
 ## Quick Start
 
 ### Installation
@@ -34,7 +20,8 @@ For example purposes, we use a dataset of 32 samples simulated from 4 signatures
 data <- readRDS("examples/N4_G32_rep1.rds")
 dim(data$M)
 ```
-```
+
+```         
 [1] 96 32
 ```
 
@@ -46,6 +33,24 @@ res_fixedN <- bayesNMF(
     file = "examples/res_fixedN"
 )
 ```
+
+## Models
+
+The following likelihood - prior combinations have been implemented and benchmarked in our paper:
+
+-   Poisson - Gamma: $M \sim Poisson(PE)$, $P$ and $E$ follow Gamma priors
+-   Normal - Truncated Normal: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Truncated-Normal priors, $\sigma^2_k$ follows an Inverse-Gamma prior
+-   *fast* Poisson - Truncated Normal: utilizes approximate metropolis steps to avoid Poisson augmentation
+
+The following models have also been implemented. We recommend using with caution as these have yet to be benchmarked:
+
+-   Poisson - Exponential: $M \sim Poisson(PE)$, $P$ and $E$ follow Exponential priors. Must specify `fast = FALSE`, as default is to use `fast` whenever applicable.
+-   Normal - Exponential: $M_k \sim N((PE)_k, \sigma^2_k I)$, $P$ and $E$ follow Exponential priors, $\sigma^2_k$ follows an Inverse-Gamma prior
+-   *fast* Poisson - Exponential: utilizes approximate metropolis steps to avoid Poisson augmentation
+
+This package also specifies a recovery-discovery version of this approach to fix prior parameters at previosuly discovered signatures while learning rank with BFI or SBFI. We again recommend using with caution as this approach has yet to be benchmarked.
+
+While language and simulation examples are in the context of mutational signatures analysis, this package can be used for any application of NMF.
 
 ## Package Details
 
@@ -64,23 +69,25 @@ res_fixedN <- bayesNMF(
 
 Three files will be created and updated every 100 iterations (can be controlled with `convergence_control`):
 
-- `res_fixedN.log` will log the start time and the progress of the Gibbs sampler, which is useful to estimate the total run time if using a large dataset or a lot of iterations. 
-- `res_fixedN.rds` periodically records results, which is be useful if your run is cut short (the dreaded OOM error). Once the run is complete, this records complete results for future access. 
-- `res_fixedN.pdf` updates plots of metrics: RMSE, KL Divergence, BIC, log posterior, log likelihood, and latent rank of periodically computed MAP estimates (see the section on convergence below for details). Note that for log likelihood and log posterior, values from the Poisson models are not comparable to those from Normal models.
+-   `res_fixedN.log` will log the start time and the progress of the Gibbs sampler, which is useful to estimate the total run time if using a large dataset or a lot of iterations.
+-   `res_fixedN.rds` periodically records results, which is be useful if your run is cut short (the dreaded OOM error). Once the run is complete, this records complete results for future access.
+-   `res_fixedN.pdf` updates plots of metrics: RMSE, KL Divergence, BIC, log posterior, log likelihood, and latent rank of periodically computed MAP estimates (see the section on convergence below for details). Note that for log likelihood and log posterior, values from the Poisson models are not comparable to those from Normal models.
 
-The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `res_fixedN$MAP$P` and `res_fixedN$MAP$E`. The full Gibbs sampler chains are stored in `res_fixedN$logs` if  `store_logs = TRUE` (default), and the 1000 posterior samples used to compute MAP estimates are stored in `res_fixedN$posterior_samples` either way. The periodic metrics of MAP estimates displayed in `res_fixedN.pdf` are stored in `res_fixedN$metrics`.
+The maximum a-posteriori (MAP) estimates for $P$ and $E$ are stored in `res_fixedN$MAP$P` and `res_fixedN$MAP$E`. The full Gibbs sampler chains are stored in `res_fixedN$logs` if `store_logs = TRUE` (default), and the 1000 posterior samples used to compute MAP estimates are stored in `res_fixedN$posterior_samples` either way. The periodic metrics of MAP estimates displayed in `res_fixedN.pdf` are stored in `res_fixedN$metrics`.
 
 ```{r}
 dim(res_fixedN$MAP$P)
 ```
-```
+
+```         
 [1] 96  4
 ```
 
 ```{r}
 dim(res_fixedN$MAP$E)
 ```
-```
+
+```         
 [1]  4 32
 ```
 
@@ -102,7 +109,8 @@ When rank is learned, a factor inclusion matrix $A$ tells us which factors are i
 ```{r}
 res_learnN$MAP$A
 ```
-```
+
+```         
      [,1] [,2] [,3] [,4] [,5]
 [1,]    0    1    1    1    1
 ```
@@ -112,13 +120,18 @@ The MAP estimates of P and E have already been reduced to this subset of include
 ```{r}
 dim(res_learnN$MAP$P)
 ```
-```
+
+```         
 [1] 96  4
 ```
 
 #### `bayesNMF` with Recovery-Discovery
 
-If `recovery = TRUE`, bayesNMF will fix prior parameters to previously discovered signatures, while still allowing discovery of `rank` additional signatures. This is particularly useful in the context of mutational signatures, where we may want our recovery priors to match the reference signatures in the [COSMIC database](https://cancer.sanger.ac.uk/signatures/). Setting `recovery_priors = "cosmic"` (default) will load recovery priors pre-defined based on COSMIC v3.3.1 SBS GRCh37. 
+::: {style="color: red;"}
+Warning: this method has yet to be benchmarked.
+:::
+
+If `recovery = TRUE`, bayesNMF will fix prior parameters to previously discovered signatures, while still allowing discovery of `rank` additional signatures. This is particularly useful in the context of mutational signatures, where we may want our recovery priors to match the reference signatures in the [COSMIC database](https://cancer.sanger.ac.uk/signatures/). Setting `recovery_priors = "cosmic"` (default) will load recovery priors pre-defined based on COSMIC v3.3.1 SBS GRCh37.
 
 This model learns to include up to 79 recovery signatures and up to 5 discovery signatures (up to 84 total). Note: this is very computationally intensive due to the large range of latent ranks considered.
 
@@ -154,7 +167,7 @@ learned_rank_recovery_discover_results <- bayesNMF(
 )
 ```
 
-In the recovery-discovery mode, the prior probability of signature inclusion is such that recovery signatures are twice as likely to be included as discovery signatures, a priori. 
+In the recovery-discovery mode, the prior probability of signature inclusion is such that recovery signatures are twice as likely to be included as discovery signatures, a priori.
 
 ### Downstream Analysis and Visualization
 
@@ -166,7 +179,8 @@ After running `bayesNMF`, many users may wish to compare the estimated factors t
 ref_matrix <- get_cosmic()
 dim(ref_matrix)
 ```
-```
+
+```         
 [1] 96 79
 ```
 
@@ -187,7 +201,8 @@ We incorporate posterior uncertainty into this process by performing factor alig
 assign <- signature_asssignment_inference(res_fixedN)
 assign$assignment
 ```
-```
+
+```         
     sig score n
 1 SBS12     1 1
 2 SBS45     1 2
@@ -200,6 +215,7 @@ The assignment object also includes average and 95% credible intervals of cosine
 ```{r}
 assign$MAP$cos_sim
 ```
+
 ```{r}
     SBS12     SBS45     SBS11      SBS9 
 0.9981176 0.9980450 0.9972662 0.9955704
@@ -208,7 +224,8 @@ assign$MAP$cos_sim
 ```{r}
 assign$credible_intervals$cos_sim
 ```
-```
+
+```         
 [[1]]
     SBS12     SBS45     SBS11      SBS9 
 0.9974520 0.9976177 0.9964433 0.9937027 
@@ -229,7 +246,8 @@ inference_plot <- plot_results(
 )
 head(inference_plot$df)
 ```
-```
+
+```         
             Name Signature  G Med_Contribution Cosine_Similarity
 1   Known N (32)     SBS11 32         668.4555         0.9972662
 2   Known N (32)     SBS12 32        1045.5493         0.9981176
@@ -242,6 +260,7 @@ head(inference_plot$df)
 ```{r}
 inference_plot$plot
 ```
+
 <img src="examples/inference_plot.png" width="300"/>
 
 #### Visualize Estimated Signatures
@@ -254,6 +273,7 @@ plot_sig(
     title = "Estimated signature with the best matched COSMIC signature"
 )
 ```
+
 <img src="examples/sig.png" width="600"/>
 
 This function can also be used to plot a reference or estimated signature alone:
@@ -264,6 +284,7 @@ plot_sig(
     title = "Reference signature only"
 )
 ```
+
 <img src="examples/ref_only.png" width="600"/>
 
 ```{r}
@@ -272,8 +293,8 @@ plot_sig(
     title = "Estimated signature only"
 )
 ```
-<img src="examples/sig_only.png" width="600"/>
 
+<img src="examples/sig_only.png" width="600"/>
 
 We can visualize all mutations from all signatures in all or a subset of subjects with `plot_signature_dist`. This gives a clear picture of what mutations are present as well as what signatures they arise from.
 
@@ -284,4 +305,5 @@ plot_signature_dist(
     title = "Signature distribution of subject 1"
 )
 ```
+
 <img src="examples/sig_dist.png" width="500"/>

@@ -8,7 +8,7 @@ type across all, a subset, or one subject.}
 plot_signature_dist(
   res,
   subjects = 1:ncol(res$model$M),
-  reference = "cosmic",
+  ref_matrix = "cosmic",
   title = "Distribution of Signature Allocation"
 )
 }
@@ -17,7 +17,7 @@ plot_signature_dist(
 
 \item{subjects}{integer or vector, indices of subjects to include}
 
-\item{reference}{matrix, "cosmic", or NULL, reference signatures to align to}
+\item{ref_matrix}{matrix, "cosmic", or NULL, reference signatures to align to}
 
 \item{title}{string, title of the produced plot}
 }

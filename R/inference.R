@@ -2,11 +2,11 @@
 #'
 #' @param P_post matrix, posterior sample of P
 #' @param res bayesNMF object
-#' @param reference matrix, "cosmic", or NULL, reference signatures to align to
+#' @param ref_matrix matrix, "cosmic", or NULL, reference signatures to align to
 #'
 #' @return data frame
 #' @noRd
-vote <- function(P_post, res, reference) {
+vote <- function(P_post, res, ref_matrix) {
     P_post_discovery = P_post[,(res$MAP$A[1,] == 1 & res$final_Theta$recovery == FALSE)]
 
     if (sum(res$MAP$A[1,] == 1 & res$final_Theta$recovery == FALSE) == 0) {
@@ -14,7 +14,7 @@ vote <- function(P_post, res, reference) {
     } else if (sum(res$MAP$A[1,] == 1 & res$final_Theta$recovery == FALSE) == 1) {
         P_post_discovery <- matrix(P_post_discovery, ncol = 1)
     }
-    sim <- pairwise_sim(P_post_discovery, reference)
+    sim <- pairwise_sim(P_post_discovery, ref_matrix)
     assigned <- hungarian_algorithm(sim)
 
     votes <- data.frame(
@@ -63,28 +63,28 @@ hungarian_algorithm <- function(matrix, which = "max") {
 #' similarity as voting weights.
 #'
 #' @param res bayesNMF object
-#' @param reference matrix, "cosmic", or NULL, reference signatures to align to
+#' @param ref_matrix matrix, "cosmic", or NULL, reference signatures to align to
 #'
 #' @return list, signature assignments, MAP and credible intervals for cosine similarity
 #' @export
 #'
 #' @examples
 #' res <- readRDS("examples/plot_example.rds")
-#' assign <- signature_asssignment_inference(res)
+#' assign <- signature_assignment_inference(res)
 #' assign$assignment
 #' assign$MAP$cos_sim
 #' assign$credible_intervals$cos_sim
-signature_asssignment_inference <- function(res, reference = 'cosmic') {
-    if ('character' %in% class(reference)) {
-        if (reference == 'cosmic') {
-            reference = get_cosmic()
+signature_assignment_inference <- function(res, ref_matrix = 'cosmic') {
+    if ('character' %in% class(ref_matrix)) {
+        if (ref_matrix == 'cosmic') {
+            ref_matrix = get_cosmic()
         } else {
-            stop("Parameter `reference` must be a matrix or 'cosmic'")
+            stop("Parameter `ref_matrix` must be a matrix or 'cosmic'")
         }
     }
 
     # get votes from all posterior samples (discovery signatures only)
-    assignment_votes <- lapply(res$posterior_samples$P, function(P_post) {vote(P_post, res, reference)})
+    assignment_votes <- lapply(res$posterior_samples$P, function(P_post) {vote(P_post, res, ref_matrix)})
     if (is.null(assignment_votes[[1]])) {
         # happens if there are no discovery signatures to assign
         assignments <- NULL
@@ -108,19 +108,19 @@ signature_asssignment_inference <- function(res, reference = 'cosmic') {
 
     # append recovery signatures
     if (sum(res$final_Theta$recovery) > 0) {                  # there are recovery
-        if (sum(res$MAP$A[1,1:ncol(reference)] == 1) > 0) { # at least one is included
+        if (sum(res$MAP$A[1,1:ncol(ref_matrix)] == 1) > 0) { # at least one is included
             if (is.null(assignments)) {                       # there are no discovery included
                 assignments <- data.frame(                    # assignments is just recovery signatures
-                    sig = colnames(reference)[res$MAP$A[1,1:ncol(reference)] == 1],
+                    sig = colnames(ref_matrix)[res$MAP$A[1,1:ncol(ref_matrix)] == 1],
                     score = 1,
-                    n = 1:sum(res$MAP$A[1,1:ncol(reference)] == 1)
+                    n = 1:sum(res$MAP$A[1,1:ncol(ref_matrix)] == 1)
                 )
             } else {                                          # there is at least one discovery
                 assignments <- rbind(                         # append recovery to discovery assignments
                     data.frame(
-                        sig = colnames(reference)[res$MAP$A[1,1:ncol(reference)] == 1],
+                        sig = colnames(ref_matrix)[res$MAP$A[1,1:ncol(ref_matrix)] == 1],
                         score = 1,
-                        n = 1:sum(res$MAP$A[1,1:ncol(reference)] == 1)
+                        n = 1:sum(res$MAP$A[1,1:ncol(ref_matrix)] == 1)
                     ),
                     assignments
                 )
@@ -132,7 +132,7 @@ signature_asssignment_inference <- function(res, reference = 'cosmic') {
     # and it's assigned signatures
     assigned_cos_sims <- lapply(res$posterior_samples$P, function(P_post) {
         P_post = P_post[,res$MAP$A[1,] == 1]
-        sim <- pairwise_sim(P_post, reference)
+        sim <- pairwise_sim(P_post, ref_matrix)
         sapply(1:nrow(assignments), function(i) {
             sim[assignments$n[i], assignments$sig[i]]
         })
@@ -159,11 +159,11 @@ signature_asssignment_inference <- function(res, reference = 'cosmic') {
 #' and distribution of mutations attributed to signatures in each.
 #'
 #' @param res_list Named list, containing one or more bayesNMF objects. Names will become identifiers along the top of the plot.
-#' @param reference matrix, "cosmic", or NULL, reference signatures to align to
+#' @param ref_matrix matrix, "cosmic", or NULL, reference signatures to align to
 #'
 #' @return data frame
 #' @noRd
-get_results_df <- function(res_list, reference) {
+get_results_df <- function(res_list, ref_matrix) {
     total_counts <- NULL
     total_props <- NULL
     first <- TRUE
@@ -179,8 +179,8 @@ get_results_df <- function(res_list, reference) {
         Gs <- c(Gs, res$model$dims$G)
 
         # assign estimated factors to reference, update names
-        if (!is.null(reference)) {
-            assignment_res <- signature_asssignment_inference(res, reference)
+        if (!is.null(ref_matrix)) {
+            assignment_res <- signature_assignment_inference(res, ref_matrix)
             if (sum(res$MAP$A) == 1) {
                 res$MAP$P = matrix(res$MAP$P, ncol = 1)
                 res$MAP$E = matrix(res$MAP$E, nrow = 1)
@@ -197,13 +197,13 @@ get_results_df <- function(res_list, reference) {
 
         # record number of mutations attributed to each signature
         # median among subjects with the signature
-        # vector is length of # reference, we only fill in the ones seen in this sample
+        # vector is length of # ref_matrix, we only fill in the ones seen in this sample
         this_counts <- apply(res$MAP$E, 1, function(col) {
             median(col[col > 0])
         })
-        if (!is.null(reference)) {
-            sig_counts <- rep(0, ncol(reference))
-            names(sig_counts) <- colnames(reference)
+        if (!is.null(ref_matrix)) {
+            sig_counts <- rep(0, ncol(ref_matrix))
+            names(sig_counts) <- colnames(ref_matrix)
             sig_counts[names(this_counts)] <- this_counts
         } else {
             names(this_counts) <- paste0(name, ' n', 1:length(this_counts))
@@ -212,11 +212,11 @@ get_results_df <- function(res_list, reference) {
 
 
         # record average cosine similarity between estimated and assigned reference
-        # vector is length of # reference, we only fill in the ones seen in this sample
-        if (!is.null(reference)) {
+        # vector is length of # ref_matrix, we only fill in the ones seen in this sample
+        if (!is.null(ref_matrix)) {
             this_cos <- assignment_res$MAP$cos_sim
-            cosine_sim <- rep(0, ncol(reference))
-            names(cosine_sim) <- colnames(reference)
+            cosine_sim <- rep(0, ncol(ref_matrix))
+            names(cosine_sim) <- colnames(ref_matrix)
             cosine_sim[assignment_res$assignment$sig] <- this_cos
         } else {
             cosine_sim = NULL
@@ -228,7 +228,7 @@ get_results_df <- function(res_list, reference) {
                 c(name, sig_counts), nrow = 1,
                 dimnames = list(c(1), c('Name', names(sig_counts)))
             )
-            if (!is.null(reference)) {
+            if (!is.null(ref_matrix)) {
                 total_cos <- matrix(
                     c(name, cosine_sim), nrow = 1,
                     dimnames = list(c(1), c('Name', names(cosine_sim)))
@@ -238,7 +238,7 @@ get_results_df <- function(res_list, reference) {
             }
             first = FALSE
         } else {
-            if (is.null(reference)) {
+            if (is.null(ref_matrix)) {
                 # no common signature naming scheme
                 # add new columns to existing matrix with all 0s
                 total_counts <- cbind(
@@ -287,7 +287,7 @@ get_results_df <- function(res_list, reference) {
 
     # reformat total_cos into a long data frame
     # will have Name, Signature, Cosine_Similarity
-    if (!is.null(reference)) {
+    if (!is.null(ref_matrix)) {
         total_cos <- data.frame(total_cos) %>%
             tidyr::pivot_longer(
                 2:ncol(total_cos),
@@ -297,13 +297,13 @@ get_results_df <- function(res_list, reference) {
     }
 
     # combine results, ensure correct column types
-    if (!is.null(reference)) {
+    if (!is.null(ref_matrix)) {
         results <- merge(total_counts, total_cos) %>%
             dplyr::mutate(
                 Cosine_Similarity = as.numeric(Cosine_Similarity),
                 Med_Contribution = as.numeric(Med_Contribution)
             )
-        results$Signature = factor(results$Signature, levels = rev(colnames(reference)))
+        results$Signature = factor(results$Signature, levels = rev(colnames(ref_matrix)))
     } else {
         results <- total_counts %>%
             dplyr::mutate(

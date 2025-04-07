@@ -18,7 +18,7 @@ plot_sig(
 
 \item{sig}{integer, index of the estimated signature to plot}
 
-\item{ref}{integer, column name string, numeric vector, or "best"}
+\item{ref}{integer, column name string, or "best"}
 
 \item{ref_matrix}{matrix or "cosmic", reference signatures for comparison}
 
