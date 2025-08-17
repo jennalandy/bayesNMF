@@ -1,6 +1,6 @@
 # bayesNMF: an R package for Bayesian NMF
 
-Introduced in the paper "bayesNMF: Fast Bayesian Poisson NMF with Automatically Learned Rank Applied to Mutational Signatures", this package implements Gibbs samplers for multiple models of Bayesian non-negative matrix factorization (NMF).
+Introduced in the paper ["bayesNMF: Fast Bayesian Poisson NMF with Automatically Learned Rank Applied to Mutational Signatures"](https://arxiv.org/abs/2502.18674), this package implements Gibbs samplers for multiple models of Bayesian non-negative matrix factorization (NMF), including Poisson NMF with our custom MH-with-Gibbs approach. Code to reproduce results from our paper can be found in the [bayesNMF_PAPER](https://github.com/jennalandy/bayesNMF_PAPER) repository.
 
 More detailed documentation can be found in vignettes:
 
