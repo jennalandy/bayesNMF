@@ -1,836 +1,464 @@
-#' Log of Sum from Logs
+# import pipe operator from magrittr
+
+#' Pipe operator
 #'
-#' @param vec logged values
+#' See \code{\link[magrittr:pipe]{%>%}} for details.
 #'
-#' @return log of summed values
+#' @name %>%
+#' @rdname pipe
+#' @keywords internal
+#' @export
+#' @importFrom magrittr %>%
+NULL
+
+# These functions are copied over to be methods of the bayesNMF_sampler class
+
+####################################
+###### PUBLIC METHODS ##############
+####################################
+
+
+#' Compute the expected data matrix
+#' @param self bayesNMF_sampler object
+#' @param P matrix, optional, dimensions K x N, uses self$params$P if not provided
+#' @param A matrix, optional, dimensions 1 x N, uses self$params$A if not provided
+#' @param E matrix, optional, dimensions N x G, uses self$params$E if not provided
+#' 
+#' @return matrix, dimensions K x G
 #' @noRd
-sumLog <- function(vec) {
-    ord <- sort(vec, decreasing=T)
-    s <- ord[1]
-    for (i in 2:length(vec)) {
-        s <- s + log(1+exp(ord[i]-s))
+get_Mhat_ <- function(self, P = NULL, A = NULL, E = NULL) {
+  # use current parameters if not provided
+  if (is.null(P)) { P <- self$params$P }
+  if (is.null(A)) { A <- self$params$A }
+  if (is.null(E)) { E <- self$params$E }
+
+  # handle single signature case
+  if (self$dims$N == 1) {
+    # convert P to a column vector
+    P <- matrix(P, nrow = self$dims$K, ncol = 1)
+    # Keep A as a 1x1 matrix, not a scalar
+    diag_A <- A
+  } else {
+    # convert A to a diagonal matrix
+    diag_A <- diag(A[1, ])
+  }
+
+  # compute matrix product P*A*E
+  Mhat <- P %*% diag_A %*% E
+  return(Mhat)
+}
+
+#' Compute the log likelihood
+#' @param self bayesNMF_sampler object
+#' @param P matrix, optional, dimensions K x N, uses self$params$P if not provided
+#' @param A matrix, optional, dimensions 1 x N, uses self$params$A if not provided
+#' @param E matrix, optional, dimensions N x G, uses self$params$E if not provided
+#' @param sigmasq vector, optional, dimensions G, uses self$params$sigmasq if not provided, only used if likelihood is "normal"
+#' @param likelihood string, likelihood distribution for M, one of "poisson", "normal", uses self$specs$likelihood if not provided, created as an option to compute acceptance ratios in MH updates
+#' @param return_matrix boolean, whether to return the log likelihood matrix, used to compute acceptance ratios in MH updates (default FALSE)
+#' 
+#' @return scalar log likelihood if return_matrix is FALSE, otherwise matrix of log likelihoods per observed value (K x G)
+#' @noRd
+get_loglik_ <- function(self, P = NULL, A = NULL, E = NULL, sigmasq = NULL, likelihood = self$specs$likelihood, return_matrix = FALSE) {
+  # use current parameters in self if not provided
+  if (is.null(P)) { P <- self$params$P }
+  if (is.null(A)) { A <- self$params$A }
+  if (is.null(E)) { E <- self$params$E }
+
+  # compute expected data matrix given parameters
+  Mhat <- self$get_Mhat(P = P, A = A, E = E)
+
+  # compute log likelihood
+  if (likelihood == "normal") {
+    if (is.null(sigmasq)) {
+      sigmasq <- self$params$sigmasq
     }
-    return(s)
-}
 
-#' Estimate M from current values of Theta
-#'
-#' @param Theta list
-#'
-#' @return matrix
-#' @noRd
-get_Mhat <- function(Theta) {
-    if (sum(Theta$A[1,]) == 0) {
-        Mhat <- matrix(0, nrow = nrow(Theta$P), ncol = ncol(Theta$E))
-    } else {
-        Mhat <- Theta$P %*% diag(Theta$A[1,]) %*% Theta$E
+    # if a variance of length G is provided, convert to matrix
+    # with each column being the same value sigmasq_g
+    if (!("matrix" %in% class(sigmasq))) {
+      sigmasq <- matrix(
+        rep(sigmasq, self$dims$K),
+        ncol = self$dims$G,
+        nrow = self$dims$K,
+        byrow = TRUE
+      )
     }
-    return(Mhat)
+
+    # dnorm doesn't like matrices, so we need to loop over columns
+    loglik_matrix <- lapply(1:self$dims$G, function(g) {
+      dnorm(
+        self$data[, g],
+        mean = Mhat[, g],
+        sd = sqrt(sigmasq[, g]),
+        log = TRUE
+      ) # K x 1 column vector
+    }) %>%
+      do.call(cbind, .) # K x G matrix
+  } else if (likelihood == "poisson") {
+    # clip Mhat to avoid log(0)
+    Mhat <- pmax(Mhat, 1e-6)
+    # loop over columns of data and Mhat to compute log likelihood
+    loglik_matrix <- lapply(1:self$dims$G, function(g) {
+      dpois(self$data[, g], lambda = Mhat[, g], log = TRUE) # K x 1 column vector
+    }) %>%
+      do.call(cbind, .) # K x G matrix
+  }
+  if (return_matrix) {
+    return(loglik_matrix)
+  } else {
+    return(sum(loglik_matrix))
+  }
 }
 
-#' Estimate M from current values of Theta excluding signature N
-#'
-#' @param Theta list
-#' @param n integer, signature to exclude
-#'
-#' @return matrix
+#' Compute the log posterior using model specifications
+#' @param self bayesNMF_sampler object
+#' @param P matrix, optional, dimensions K x N, uses self$params$P if not provided
+#' @param A matrix, optional, dimensions 1 x N, uses self$params$A if not provided
+#' @param E matrix, optional, dimensions N x G, uses self$params$E if not provided
+#' @param sigmasq vector, optional, dimensions G, uses self$params$sigmasq if not provided, only used if likelihood is "normal"
+#' 
+#' @return scalar log posterior
 #' @noRd
-get_Mhat_no_n <- function(Theta, n) {
-    Theta_copy = Theta
-    Theta_copy$A[1, n] = 0
-    Mhat_no_n = get_Mhat(Theta_copy)
+get_logpost_ <- function(self, P = NULL, A = NULL, E = NULL, sigmasq = NULL) {
+  # use current parameters in self if not provided
+  if (is.null(P)) { P <- self$params$P }
+  if (is.null(A)) { A <- self$params$A }
+  if (is.null(E)) { E <- self$params$E }
+  if (is.null(sigmasq)) { sigmasq <- self$params$sigmasq }
 
-    return(Mhat_no_n)
+  # compute log prior
+  logprior <- 0
+  if (self$specs$prior == "truncnormal") {
+    for (n in 1:self$dims$N) {
+      logprior <- logprior + truncnorm::dtruncnorm(
+        P[, n],
+        mean = self$prior_params$Mu_p[, n],
+        sd = sqrt(self$prior_params$Sigmasq_p[, n]),
+        a = 0, b = Inf
+      ) %>% log() %>% sum()
+      logprior <- logprior + truncnorm::dtruncnorm(
+        E[n, ],
+        mean = self$prior_params$Mu_e[n, ],
+        sd = sqrt(self$prior_params$Sigmasq_e[n, ]),
+        a = 0, b = Inf
+      ) %>% log() %>% sum()
+    }
+  } else if (self$specs$prior == "exponential") {
+    for (n in 1:self$dims$N) {
+      logprior <- logprior + dexp(
+        P[, n],
+        rate = self$prior_params$Lambda_p[, n],
+        log = TRUE
+      ) %>% sum()
+      logprior <- logprior + dexp(
+        E[n, ],
+        rate = self$prior_params$Lambda_e[n, ],
+        log = TRUE
+      ) %>% sum()
+    }
+  } else if (self$specs$prior == "gamma") {
+    for (n in 1:self$dims$N) {
+      logprior <- logprior + dgamma(
+        P[, n],
+        shape = self$prior_params$Alpha_p[, n],
+        rate = self$prior_params$Beta_p[, n],
+        log = TRUE
+      ) %>% sum()
+      logprior <- logprior + dgamma(
+        E[n, ],
+        shape = self$prior_params$Alpha_e[n, ],
+        rate = self$prior_params$Beta_e[n, ],
+        log = TRUE
+      ) %>% sum()
+    }
+  }
+
+  # compute log likelihood
+  # defaults to specified likelihood in self$specs$likelihood
+  loglik <- self$get_loglik(P, A, E, sigmasq)
+
+  # return log posterior
+  return(loglik + logprior)
 }
 
-#' Compute log prior
-#'
-#' @param Theta list of parameters
-#' @param likelihood string, one of c('poisson','normal')
-#' @param prior string, one of c('exponential','truncnormal','gamma')
-#'
-#' @return scalar
+#' Compute the maximum a posteriori (MAP) estimate
+#' @param self bayesNMF_sampler object
+#' @param end_iter integer, last iteration to consider for inference, defaults to current iteration
+#' @param n_samples integer, number of samples to consider for inference, defaults to MAP_over specified in convergence control
+#' @param final boolean, if TRUE, subset to only included signatures
+#' @param credible_interval float, credible interval width (default 0.95)
+#' 
+#' @return None, updates self$MAP and self$credible_intervals
 #' @noRd
-get_logprior <- function(
-    Theta, likelihood, prior, dims
+get_MAP_ <- function(
+  self,
+  end_iter = self$state$iter,
+  n_samples = self$specs$convergence_control$MAP_over,
+  final = FALSE,
+  credible_interval = 0.95
 ) {
-    logprior = 0
+  # across the past n_samples samples,
+  # i. find mode of A matrix
+  # among samples that match A mode
+  #   ii. renormalize so that columns of P sum to 1
+  #   iii. compute element-wise average of P and E
+  # iv. return MAP P, A, E
 
-    # if multiple signatures with at least one included
-    if(dims$N > 1 & sum(Theta$A) > 0) {
-        # only include prior of included sigs
-        include = Theta$A[1,]==1
+  # define indices to consider
+  # end_iter can only be provided if self$specs$save_all_samples
+  if (!self$specs$save_all_samples & end_iter != self$state$iter) {
+    stop("end_iter cannot be provided unless self$specs$save_all_samples is TRUE")
+  }
+  if (end_iter == self$state$iter) {
+    considered_idx <- self$state$MAP_idx
+  } else {
+    considered_idx <- seq(
+      from = end_iter - n_samples + 1,
+      to = end_iter
+    )
+  }
 
-        if (prior == 'truncnormal') {
-            log_prior_P <- log(truncnorm::dtruncnorm(
-                Theta$P[,include], a = 0, b = Inf,
-                mean = Theta$Mu_p[,include],
-                sd = sqrt(Theta$Sigmasq_p[,include])
-            ))
-            log_prior_E <- log(truncnorm::dtruncnorm(
-                Theta$E[include,], a = 0, b = Inf,
-                mean = Theta$Mu_e[include,],
-                sd = sqrt(Theta$Sigmasq_e[include,])
-            ))
-        } else if (prior == 'exponential') {
-            log_prior_P <- dexp(
-                Theta$P[,include], Theta$Lambda_p[,include], log = TRUE
-            )
-            log_prior_E <- dexp(
-                Theta$E[include,], Theta$Lambda_e[include,], log = TRUE
-            )
-        } else if (prior == 'gamma') {
-            log_prior_P <- dgamma(
-                Theta$P[,include], Theta$Alpha_p[,include],
-                Theta$Beta_p[,include], log = TRUE
-            )
-            log_prior_E <- dgamma(
-                Theta$E[include,], Theta$Alpha_e[include,],
-                Theta$Beta_p[include,], log = TRUE
-            )
-        }
+  # i. find mode of A matrix
+  A_MAP = get_mode(self$samples$A[considered_idx])
+  MAP_idx = considered_idx[A_MAP$idx]
+  if (final) {
+    keep_sigs <- which(A_MAP$matrix[1,] == 1)
+  } else {
+    keep_sigs <- 1:ncol(A_MAP$matrix)
+  }
+  A_MAP$matrix <- A_MAP$matrix[, keep_sigs, drop = FALSE]
 
-    # different logic if single signature
-    } else if (dims$N == 1 & Theta$A[1,1] == 1) {
-        if (prior == 'truncnormal') {
-            log_prior_P <- log(truncnorm::dtruncnorm(
-                Theta$P, a = 0, b = Inf,
-                mean = Theta$Mu_p,
-                sd = sqrt(Theta$Sigmasq_p)
-            ))
-            log_prior_E <- log(truncnorm::dtruncnorm(
-                Theta$E, a = 0, b = Inf,
-                mean = Theta$Mu_e,
-                sd = sqrt(Theta$Sigmasq_e)
-            ))
-        } else if (prior == 'exponential') {
-            log_prior_P <- dexp(Theta$P, Theta$Lambda_p, log = TRUE)
-            log_prior_E <- dexp(Theta$E, Theta$Lambda_e, log = TRUE)
-        } else if (prior == 'gamma') {
-            log_prior_P <- dgamma(
-                Theta$P, Theta$Alpha_p,
-                Theta$Beta_p, log = TRUE
-            )
-            log_prior_E <- dgamma(
-                Theta$E, Theta$Alpha_e,
-                Theta$Beta_p, log = TRUE
-            )
-        }
-    }
-    logprior <- logprior + sum(log_prior_P) + sum(log_prior_E)
+  #   ii. renormalize so that columns of P sum to 1
+  renormalized_samples <- lapply(MAP_idx, function(idx) {
+    renormalized <- renormalize(
+      self$samples$P[[idx]], self$samples$E[[idx]]
+    )
 
-    if (likelihood == 'normal') {
-        logprior <- logprior + sum(invgamma::dinvgamma(
-            Theta$sigmasq, Theta$Alpha, Theta$Beta, log = TRUE
-        ))
-    }
-    return(logprior)
-}
+    return(list(
+      P = renormalized$P[, keep_sigs, drop = FALSE],
+      E = renormalized$E[keep_sigs, , drop = FALSE]
+    ))
+  })
 
-#' get Normal log likelihood
-#'
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_loglik_normal <- function(M, Theta, dims) {
-    Mhat <- get_Mhat(Theta)
-    loglik <- sum(sapply(1:dims$G, function(g) {
-        dnorm(M[,g], Mhat[,g], sqrt(Theta$sigmasq[g]), log = TRUE)
-    }))
-    return(loglik)
+  #   iii. compute element-wise average of P and E
+  P_MAP <- Reduce("+", lapply(renormalized_samples, `[[`, "P")) / 
+    length(renormalized_samples)
+  E_MAP <- Reduce("+", lapply(renormalized_samples, `[[`, "E")) / 
+    length(renormalized_samples)
+
+  # iv. return MAP P, A, E
+  self$MAP <- list(
+    P = P_MAP,
+    A = A_MAP$matrix,
+    E = E_MAP,
+    idx = MAP_idx,
+    A_counts = A_MAP$top_counts,
+    keep_sigs = keep_sigs
+  )
+
+  # if final, compute credible interval for P and E
+  # or to update credible intervals if they have been previously computed
+  if (final | !is.null(self$credible_intervals)) {
+    probs <- c(0.5 - credible_interval / 2, 0.5 + credible_interval / 2)
+    P_arr <- abind::abind(lapply(renormalized_samples, `[[`, "P"), along = 3)
+    P_CI <- apply(P_arr, c(1, 2), quantile, probs = probs)
+    P_CI_list <- list(
+      lower = P_CI[1, , ],
+      upper = P_CI[2, , ]
+    )
+    E_arr <- abind::abind(lapply(renormalized_samples, `[[`, "E"), along = 3)
+    E_CI <- apply(E_arr, c(1, 2), quantile, probs = probs)
+    E_CI_list <- list(
+      lower = E_CI[1, , ],
+      upper = E_CI[2, , ]
+    )
+    self$credible_intervals <- list(
+      P = P_CI_list,
+      E = E_CI_list
+    )
+  }
 }
 
 
-#' get Poisson log likelihood
-#'
-#' @param M mutational catalog matrix, K x G
-#' @param Theta list of parameters
-#' @param dims list of dimensions
-#'
-#' @return scalar
-#' @noRd
-get_loglik_poisson <- function(M, Theta, dims) {
-    Mhat <- get_Mhat(Theta)
-    Mhat[Mhat <= 0] <- 0.1 # avoids likelihood of 0
-    loglik <- sum(dpois(M, Mhat, log = TRUE))
-    return(loglik)
-}
 
-#' Compute RMSE
-#'
-#' @param M matrix, K x G
-#' @param Mhat reconstructed matrix, K x G
-#'
-#' @return scalar
-#' @noRd
-get_RMSE <- function(M, Mhat) {
-    sqrt(mean((M - Mhat)**2))
-}
 
-#' Compute KL Divergence
-#'
-#' @param M matrix, K x G
-#' @param Mhat reconstructed matrix, K x G
-#'
-#' @return scalar
-#' @noRd
-get_KLDiv <- function(M, Mhat) {
-    Mhat[Mhat <= 0] <- 1
-    M[M <= 0] <- 1
-    sum(M * log(M / Mhat) - M + Mhat)
-}
+####################################
+###### PRIVATE METHODS #############
+####################################
 
-#' compute BIC where number of parameters depends on likelihood-prior combination
-#'
-#' @param loglik scalar, log likelihood at Theta
-#' @param Theta list, current values of all unknowns
-#' @param dims list, named list of dimensions
-#' @param likelihood string, one of c("normal", "poisson")
-#' @param prior string, one of c("truncnormal","exponential","gamma")
-#'
-#' @return scalar, BIC
-#' @noRd
-get_BIC <- function(loglik, Theta, dims, likelihood, prior) {
-    N = sum(Theta$A[1,])
-    n_params = N * (dims$G + dims$K)
-
-    return(n_params * log(dims$G) - 2 * loglik)
-}
 
 #' Get tempering schedule
-#'
-#' @param len integer, number of iterations
-#'
-#' @return vector of gamma values
+#' @description
+#' Temperature parameter is used to control the balance between exploration and exploitation in the sampler.
+#' The temperature starts at 0 and slowly increases to 1 over the course of the first `n_temp` iterations.
+#' 
+#' @param len integer, total number of iterations
+#' @param n_temp integer, number of temperature levels
+#' @return vector of temperatures, length `len`
 #' @noRd
-get_gamma_sched <- function(len = 5000, n_temp = 2000) {
-    nX = round(n_temp / 374)
-    gamma_sched <- c(
-        rep(0, nX),
-        c(sapply(9:5, function(x) {rep(10^(-x), nX)})),
-        rep(10**(-4), round(8 * nX)),
-        c(sapply(4:1, function(y) {
-            c(sapply(seq(0, 8.9, by = 0.1), function(x) {
-                rep((1+x)*10**(-y), nX)
-            }))
-        }))
-    )
-    gamma_sched <- c(gamma_sched, rep(1, len - length(gamma_sched)))
-}
-
-
-#' Pairwise cosine similarity between rows or columns of matrices
-#'
-#' @param mat1 matrix, first matrix for comparison
-#' @param mat2 matrix, second matrix for comparison
-#' @param name1 string, to name rows or cols of similarity matrix
-#' @param name2 string, to name rows or cols of similarity matrix
-#' @param which string, one of c("rows","cols")
-#'
-#' @return matrix
-#' @export
-pairwise_sim <- function(
-        mat1, mat2,
-        name1 = NULL,
-        name2 = NULL,
-        which = 'cols'
-) {
-    row_names = colnames(mat1)
-    col_names = colnames(mat2)
-
-    if (which == 'cols') {
-        mat1 = t(mat1)
-        mat2 = t(mat2)
-    }
-
-    if (ncol(mat1) != ncol(mat2)) {
-        overlap_dim = ifelse(which == "rows","cols","rows")
-        stop(paste0(
-            "Different number of ", overlap_dim, ": ",
-            ncol(mat1), " != ", ncol(mat2)
-        ))
-    }
-
-    sim_mat = do.call(rbind, lapply(1:nrow(mat1), function(row_mat1) {
-        sapply(1:nrow(mat2), function(row_mat2) {
-            lsa::cosine(mat1[row_mat1,], mat2[row_mat2,])
-        })
+get_temp_sched_ <- function(len, n_temp) {
+  nX <- round(n_temp / 374) # number of iterations per temperature
+  nX <- max(nX, 1)
+  temp_sched <- c(
+    rep(0, nX), # initial temperature 0
+    c(sapply(9:5, function(x) {rep(10^(-x), nX)})),
+    rep(10**(-4), round(8 * nX)),
+    c(sapply(4:1, function(y) {
+      c(sapply(seq(0, 8.9, by = 0.1), function(x) {
+        rep((1+x)*10**(-y), nX)
+      }))
     }))
+  )
 
-    if (!is.null(name1)) {
-        rownames(sim_mat) = paste0(name1, 1:nrow(sim_mat))
-    } else {
-        rownames(sim_mat) = row_names
-    }
+  # if already too long, sample n_temp in order
+  if (length(temp_sched) > n_temp) {
+    temp_sched <- sort(sample(temp_sched, n_temp))
+  }
 
-    if (!is.null(name2)) {
-        colnames(sim_mat) = paste0(name2, 1:ncol(sim_mat))
-    } else {
-        colnames(sim_mat) = col_names
-    }
-
-    return(sim_mat)
+  # add final temperature (1) to the end
+  temp_sched <- c(
+    temp_sched,
+    rep(1, len - length(temp_sched)) # final temperature at 1
+  )
+  return(temp_sched)
 }
 
-#' Plot heatmap of cosine similarities
-#' @description Plot a heatmap of cosine similarities between two matrices
-#' with `ggplot2`. Can be similarity between rows or columns with the `which`
-#' parameter.
-#'
-#' @param est_matrix estimated P (signatures matrix)
-#' @param ref_matrix true P (signatures matrix)
-#' @param est_names names of estimated signatures
-#' @param ref_names names of true signatures
-#' @param which string, one of c("rows","cols")
-#'
-#' @return ggplot object
-#' @export
-get_heatmap <- function(
-    est_matrix, ref_matrix = "cosmic",
-    est_names = NULL,
-    ref_names = NULL,
-    which = 'cols',
-    keep_all = FALSE
-) {
-    if ('character' %in% class(ref_matrix)) {
-        if (ref_matrix == 'cosmic') {
-            ref_matrix = get_cosmic()
-        } else {
-            stop("Parameter `ref_matrix` must be a matrix or 'cosmic'")
-        }
-    }
+#' Update sample metrics
+#' @param self bayesNMF_sampler object
+#' @param update_trace boolean, whether to update the trace plot (default FALSE)
+#' @return None, updates self$state$sample_metrics and saves trace plot if update_trace is TRUE
+#' @noRd
+update_sample_metrics_ <- function(self, update_trace = FALSE) {
+  metrics_i <- compute_metrics_(self, final = FALSE)
+  metrics_i$rank <- sum(self$params$A)
+  metrics_i$temp <- self$temperature_schedule[self$state$iter]
+  self$state$sample_metrics <- rbind(self$state$sample_metrics, metrics_i)
+  if (update_trace) {
+    options(bitmapType = "cairo")
+    trace_plot(self, save = TRUE)
+  }
+}
 
-    sim_mat <- pairwise_sim(
-        est_matrix, ref_matrix,
-        name1 = est_names,
-        name2 = ref_names,
-        which = which
+#' Update MAP metrics
+#' @param self bayesNMF_sampler object
+#' @param final boolean, if TRUE, subset to only included signatures
+#' 
+#' @return None, updates self$state$MAP_metrics and saves trace plot if periodic save or final is TRUE
+#' @noRd
+update_MAP_metrics_ <- function(self, final = FALSE) {
+  metrics_i <- compute_metrics_(
+    self, P = self$MAP$P, A = self$MAP$A, E = self$MAP$E, final = final, MAP = TRUE
+  )
+  options(bitmapType = "cairo")
+
+  MAP_idx <- self$state$MAP_idx
+  if (!self$specs$save_all_samples) {
+    # if not saving all samples, MAP_idx is between 1 and MAP_over
+    # need to scale up so that MAP_over is moved to current iteration
+    MAP_idx <- MAP_idx + self$state$iter - self$specs$convergence_control$MAP_over
+  } 
+
+  # for MAP metrics, likelihood and posterior need to be computed per-MAP sample then averaged
+  # because P and E have been renormalized so prior no longer applies
+  # subset sample_metrics to MAP idx, then average
+  metrics_i$loglikelihood <- self$state$sample_metrics %>%
+    dplyr::filter(iter %in% MAP_idx) %>%
+    dplyr::pull(loglikelihood) %>%
+    mean()
+  metrics_i$logposterior <- self$state$sample_metrics %>%
+    dplyr::filter(iter %in% MAP_idx) %>%
+    dplyr::pull(logposterior) %>%
+    mean()
+
+  # recompute BIC with this likelihood
+  metrics_i$BIC <- -2 * metrics_i$loglikelihood +
+    metrics_i$n_params * log(self$dims$G)
+
+  # add rank and MAP_A counts
+  metrics_i$rank <- sum(self$MAP$A)
+  metrics_i$MAP_A_counts <- unname(self$MAP$A_counts[1])
+  metrics_i$mean_temp <- mean(self$temperature_schedule[MAP_idx])
+  
+  # update MAP metrics
+  self$state$MAP_metrics <- rbind(self$state$MAP_metrics, metrics_i)
+
+  # save trace plot if periodic save or final
+  if (self$specs$periodic_save | final) { 
+    trace_plot(self, MAP_means = TRUE, save = TRUE)
+  }
+}
+
+#' Compute metrics for a sample
+#' @description
+#' Helper for update_sample_metrics_ and update_MAP_metrics_
+#' 
+#' @param self bayesNMF_sampler object
+#' @param P matrix, optional, dimensions K x N, uses self$params$P if not provided
+#' @param A matrix, optional, dimensions 1 x N, uses self$params$A if not provided
+#' @param E matrix, optional, dimensions N x G, uses self$params$E if not provided
+#' @param final boolean, if TRUE, subset to only included signatures
+#' @param MAP boolean, if TRUE, ignores loglikelihood and logposterior calculations because P and E have been renormalized so prior no longer applies
+#' 
+#' @return list of metrics, including iter, RMSE, KL, loglikelihood, logposterior, n_params, and BIC
+#' @noRd
+compute_metrics_ <- function(self, P = NULL, A = NULL, E = NULL, final = FALSE, MAP = FALSE) {
+  if (is.null(P)) { P <- self$params$P }
+  if (is.null(A)) { A <- self$params$A }
+  if (is.null(E)) { E <- self$params$E }
+  
+  # if final, P and E have already been filtered to included signatures
+  # recode A as a diagonal of all 1s
+  if (final) {
+    A <- matrix(1, nrow = 1, ncol = ncol(P))
+  }
+
+  Mhat <- self$get_Mhat(P = P, A = A, E = E)
+  n_params <- sum(A) * (self$dims$G + self$dims$K)
+  if (MAP) {
+    loglikelihood <- NA_real_
+    logposterior <- NA_real_
+    BIC <- NA_real_
+  } else {
+    loglikelihood <- self$get_loglik(P = P, A = A, E = E)
+    logposterior <- self$get_logpost(P = P, A = A, E = E)
+    BIC <- -2 * loglikelihood + n_params * log(self$dims$G)
+  }
+  
+  metrics <- list(
+    iter = self$state$iter,
+    RMSE = sqrt(mean((Mhat - self$data) ** 2)),
+    KL = padded_KL_(Mhat, self$data),
+    loglikelihood = loglikelihood,
+    logposterior = logposterior,
+    n_params = n_params,
+    BIC = BIC
+  )
+  if (self$specs$MH) {
+    # average acceptance rates for active signatures
+    metrics$P_mean_acceptance_rate <- mean(
+      self$acceptance_rates$P_acceptance_rate[, self$params$A[1,] == 1]
     )
-    sim_mat <- assign_signatures(sim_mat, keep_all = keep_all)
-
-    sim_mat_melted <- reshape2::melt(sim_mat)
-
-    heatmap <- sim_mat_melted %>%
-        dplyr::mutate(
-            Var1 = factor(
-                sim_mat_melted$Var1,
-                levels = unique(sim_mat_melted$Var1)
-            ),
-            Var2 = factor(
-                sim_mat_melted$Var2,
-                levels = unique(sim_mat_melted$Var2)
-            )
-        ) %>%
-        ggplot2::ggplot(ggplot2::aes(x = Var1, y = Var2, fill = value, label = round(value, 2))) +
-        ggplot2::geom_tile() +
-        ggplot2::geom_text() +
-        ggplot2::labs(x = 'Estimated Signatures', y = 'Reference Signatures', fill = 'Cosine\nSimilarity')
-
-    return(heatmap)
-}
-
-#' Assign signatures based on cosine similarities
-#'
-#' @param sim_mat similarity matrix
-#'
-#' @return matrix
-#' @export
-assign_signatures <- function(sim_mat, keep_all = FALSE) {
-    reassignment <- RcppHungarian::HungarianSolver(-1 * sim_mat)
-    rows = reassignment$pairs[,1]
-    cols = reassignment$pairs[,2]
-    if (keep_all) {
-        for (row in setdiff(1:nrow(sim_mat), rows)) {
-            rows <- c(rows, row)
-        }
-        for (col in setdiff(1:ncol(sim_mat), cols)) {
-            cols <- c(cols, col)
-        }
-    }
-    reassigned_sim_mat <- sim_mat[rows, cols]
-
-    if (nrow(sim_mat) == 1 | ncol(sim_mat) == 1) {
-        reassigned_sim_mat = matrix(reassigned_sim_mat)
-        colnames(reassigned_sim_mat) = colnames(sim_mat)[cols]
-        rownames(reassigned_sim_mat) = rownames(sim_mat)[rows]
-    }
-
-    reassigned_sim_mat
-}
-
-
-#' Get mode of a list of matrices
-#'
-#' @param matrix_list list of matrices
-#'
-#' @return named list with mode ('matrix') and indices ('idx')
-#' @noRd
-get_mode <- function(matrix_list) {
-    top_counts <- sapply(matrix_list, function(mat) {
-        paste(c(mat), collapse = '')
-    })
-    str_counts <- table(top_counts)
-    str_counts <- sort(str_counts, decreasing = TRUE)
-
-    str_mode = names(str_counts)[1]
-    idx_mode = which(top_counts == str_mode)
-    matrix_mode = matrix_list[[idx_mode[1]]]
-
-    return(list(
-        'matrix' = matrix_mode,
-        'top_counts' = str_counts[1:5],
-        'idx' = idx_mode
-    ))
-}
-
-#' Get element-wise mean of a list of matrices
-#'
-#' @param matrix_list list of matrices
-#'
-#' @return matrix
-#' @noRd
-get_mean <- function(matrix_list) {
-    return(Reduce(`+`, matrix_list)/length(matrix_list))
-}
-
-#' Get element-wise quantiles of a list of matrices
-#'
-#' @param matrix_list list of matrices
-#'
-#' @return matrix
-#' @noRd
-get_quantile <- function(matrix_list, A, quantiles = c(0.025, 0.975)) {
-    if (length(matrix_list) == 0) {
-        return()
-    }
-    quantiles = sort(quantiles)
-    quantile_matrices <- list()
-    if (!("matrix" %in% class(matrix_list[[1]]))) {
-        rows = length(matrix_list[[1]])
-        cols = 1
-        vector = TRUE
-    } else {
-        rows = nrow(matrix_list[[1]])
-        cols = ncol(matrix_list[[1]])
-        vector = FALSE
-    }
-    for (quantile in quantiles) {
-        quantile_matrices[[as.character(quantile)]] <- matrix(
-            nrow = rows,
-            ncol = cols
-        )
-    }
-    for (row in 1:rows) {
-        for (col in 1:cols) {
-            quants <- quantile(
-                sapply(matrix_list, function(mat) {
-                    if(vector) {
-                        return(mat[row])
-                    } else {
-                        return(mat[row, col])
-                    }
-                }),
-                quantiles
-            )
-            for (i in 1:length(quantiles)) {
-                quantile = quantiles[i]
-                quantile_matrices[[as.character(quantile)]][row, col] <- quants[i]
-            }
-        }
-    }
-    return(quantile_matrices)
-}
-
-#' Any named item in `fill_with` that is not specified in `list` gets
-#' transferred into `list`. Final `list` is returned.
-#'
-#' @param list list of user specified values
-#' @param fill_with list of default values
-#'
-#' @return updated list
-#' @noRd
-fill_list <- function(list, fill_with) {
-    for (name in names(fill_with)) {
-        if (!(name %in% names(list))) {
-            list[[name]] = fill_with[[name]]
-        }
-    }
-    return(list)
-}
-
-#' Create a matrix full of element values if element is provided and matrix is not
-#'
-#' @param Theta list of parameters
-#' @param element name of element
-#' @param matrix name of matrix
-#' @param nrow row dimension of matrix
-#' @param ncol column dimension of matrix
-#'
-#' @return Theta, list of p
-#' @noRd
-fill_matrix <- function(Theta, element, matrix, nrow, ncol) {
-    if (element %in% names(Theta) & !(matrix %in% names(Theta))) {
-        Theta[[matrix]] = matrix(Theta[[element]], nrow = nrow, ncol = ncol)
-    }
-    return(Theta)
-}
-
-
-#' Plot one metric
-#'
-#' @param x x-axis variable
-#' @param y y-axis variable
-#' @param vblue x-intercept for blue vertical line (convergence)
-#' @param vgreen x-intercept for green vertical line (end of tempering)
-#' @param xlab x-axis label
-#' @param ylab y-axis label
-#'
-#' @return ggplot object
-#' @noRd
-plot_one <- function(x, y, vblue = NULL, vgreen = NULL, xlab = "", ylab = "") {
-    if (sum(!is.na(y)) > 0){
-        if (sum(y != -Inf, na.rm = TRUE) > 0) {
-            plot(x, y, ylab = ylab, xlab = xlab)
-            if (!is.null(vblue)) {
-                abline(v = vblue, col = 'blue')
-            }
-            if (!is.null(vgreen)) {
-                abline(v = vgreen, col = 'green')
-            }
-        }
-    }
-}
-
-#' Plot all metrics and save in a pdf
-#'
-#' @param metrics list, list of metrics
-#' @param plotfile string, file name (pdf) for plot
-#' @param stop integer, iteration at which convergence was reached
-#' @param learn_A boolean, whether A is being learned
-#' @param gamma_sched numeric vector, tempering schedule
-#' @param iter integer, current iteration
-#' @param true_P matrix, true P matrix
-#'
-#' @return NULL
-#' @noRd
-plot_metrics <- function(metrics, plotfile, stop, learn_A, gamma_sched, iter, true_P) {
-    if (!is.null(stop)) {
-        vblue = stop
-    } else { vblue = NULL }
-    if (learn_A & gamma_sched[iter] == 1) {
-        vgreen = which(gamma_sched == 1)[1]
-    } else { vgreen = NULL }
-
-
-    grDevices::pdf(plotfile)
-    graphics::par(mfrow = c(3,1))
-
-    x = unlist(metrics$sample_idx)
-    plot_one(x, unlist(metrics$loglik), vblue, vgreen, xlab = "Iteration", ylab = "Log Likelihood")
-    plot_one(x, unlist(metrics$logpost), vblue, vgreen, xlab = "Iteration", ylab = "Log Posterior")
-    plot_one(x, unlist(metrics$BIC), vblue, vgreen, xlab = "Iteration", ylab = "BIC")
-    plot_one(x, unlist(metrics$RMSE), vblue, vgreen, xlab = "Iteration", ylab = "RMSE")
-    plot_one(x, unlist(metrics$KL), vblue, vgreen, xlab = "Iteration", ylab = "KL Divergence")
-
-    plot_one(x, unlist(metrics$N), vblue, vgreen, xlab = "Iteration", ylab = "Latent Rank")
-    plot_one(x, unlist(metrics$MAP_A_counts), vblue, vgreen, xlab = "Iteration", ylab = "MAP A Counts")
-    if (!is.null(true_P)) {
-        abline(h = ncol(true_P))
-    }
-
-    grDevices::dev.off()
-}
-
-#' Compute maximum a-posteriori (MAP) estimate of A, P, E, q
-#'
-#' @param logs list, list of Gibbs sampler logs
-#' @param keep numeric vector, indices to consider for MAP
-#' @param final boolean, whether this is the final iteration
-#'
-#' @return list, MAP estimate of A, P, E, q
-#' @noRd
-get_MAP <- function(logs, keep, dims, final = FALSE) {
-
-    # get MAP of A matrix (fine to do even if learn_A = FALSE)
-    A_MAP = get_mode(logs$A[keep])
-    map.idx = keep[A_MAP$idx]
-    if (final) {
-        keep_sigs <- which(A_MAP$matrix[1,] == 1)
-    } else {
-        keep_sigs <- 1:ncol(A_MAP$matrix)
-    }
-
-    # get MAP of P, E conditional on MAP of A
-    MAP <- list(
-        A = A_MAP$matrix,
-        P = get_mean(logs$P[map.idx]),
-        P_acceptance = get_mean(logs$P_acceptance[map.idx]),
-        E = get_mean(logs$E[map.idx]),
-        E_acceptance = get_mean(logs$E_acceptance[map.idx]),
-        q = get_mean(logs$q[map.idx]),
-        prob_inclusion = get_mean(logs$prob_inclusion[map.idx]),
-        idx = map.idx,
-        top_counts = A_MAP$top_counts
+    metrics$E_mean_acceptance_rate <- mean(
+      self$acceptance_rates$E_acceptance_rate[self$params$A[1,] == 1, ]
     )
+  }
 
-    if (dims$N == 1) {
-        MAP$P <- matrix(MAP$P, ncol = 1)
-        MAP$E <- matrix(MAP$E, nrow = 1)
-    }
-    if (dims$G == 1) {
-        MAP$E <- matrix(MAP$E, ncol = 1)
-    }
-
-    MAP$P <- MAP$P[,keep_sigs]
-    MAP$E <- MAP$E[keep_sigs,]
-    if ("sigmasq" %in% names(logs)) {
-        MAP$sigmasq <- get_mean(logs$sigmasq[map.idx])
-    }
-
-    return(MAP)
+  return(metrics)
 }
 
-#' Update list of metrics
-#'
-#' @param metrics list, list of metrics
-#' @param MAP list, maximum a-posteriori estimates
-#' @param iter integer, current iteration
-#' @param Theta list, current state of Theta
-#' @param M matrix, data matrix
-#' @param likelihood string, one of c("normal", "poisson")
-#' @param prior string, one of c("truncnormal","exponential","gamma")
-#' @param dims list, named list of dimensions
-#'
-#' @return list, updated metrics
+#' Compute KL divergence with padding to avoid log(0)
+#' @description
+#' Helper for compute_metrics_
+#' Handles cases where Mhat or M is 0 by adding a small amount to both.
+#' 
+#' @param Mhat matrix, dimensions K x G
+#' @param M matrix, dimensions K x G
+#' 
+#' @return scalar KL divergence
 #' @noRd
-update_metrics <- function(
-        metrics, MAP, iter, Theta, M,
-        likelihood, prior, dims
-) {
-    metrics$sample_idx[[iter]] <- iter
-
-    Theta_MAP <- Theta
-    Theta_MAP$P = MAP$P
-    Theta_MAP$E = MAP$E
-    Theta_MAP$A = MAP$A
-    Theta_MAP$q = MAP$q
-    if (dims$G == 1) {
-        Theta_MAP$E = matrix(Theta_MAP$E, ncol = 1)
-    }
-    if (likelihood == 'normal') {
-        Theta_MAP$sigmasq = MAP$sigmasq
-    }
-    Mhat_MAP <- get_Mhat(Theta_MAP)
-
-    # reconstruction errors: RMSE and KL
-    metrics$RMSE[[iter]] <- get_RMSE(M, Mhat_MAP)
-    metrics$KL[[iter]] <- get_KLDiv(M, Mhat_MAP)
-
-    # likelihood-based metrics
-    if (likelihood == 'normal') {
-        metrics$loglik[[iter]] <- get_loglik_normal(M, Theta_MAP, dims)
-    } else if (likelihood == 'poisson') {
-        metrics$loglik[[iter]] <- get_loglik_poisson(M, Theta_MAP, dims)
-    }
-    metrics$N[[iter]] <- sum(Theta_MAP$A[1,])
-    metrics$n_params[[iter]] <- metrics$N[[iter]] * (dims$G + dims$K + 2)
-    metrics$BIC[[iter]] <- get_BIC(
-        loglik = metrics$loglik[[iter]],
-        Theta = Theta_MAP,
-        dims = dims,
-        likelihood = likelihood,
-        prior = prior
-    )
-
-    metrics$logpost[[iter]] <- metrics$loglik[[iter]] + get_logprior(
-        Theta_MAP, likelihood, prior, dims
-    )
-
-    # top counts for MAP A
-    metrics$MAP_A_counts[[iter]] <- MAP$top_counts[1]
-
-    return(list(
-        metrics = metrics,
-        Theta_MAP = Theta_MAP,
-        Mhat_MAP = Mhat_MAP
-    ))
-}
-
-#' Log progress of Gibbs sampler
-#'
-#' @param iter integer, current iteration
-#' @param done boolean, whether sampler is done
-#' @param diff double, time since last log
-#' @param convergence_control list, control parameters
-#' @param convergence_status list, current status of convergence
-#' @param gamma_sched numeric vector, tempering schedule
-#' @param MAP list, maximum a-posteriori estimates
-#' @param learn_A boolean, whether A is being learned
-#'
-#' @return NULL
-#' @noRd
-log_MAP <- function(iter, done, diff, convergence_control, convergence_status, gamma_sched, MAP, learn_A) {
-    cat(paste(
-        iter, "/", ifelse(done, "", "(up to)"), convergence_control$maxiters,
-        "-", round(diff, 4), "seconds",
-        ifelse(
-            gamma_sched[iter] == 1,
-            paste("-", paste0(round(convergence_status$prev_percent_change * 100, 4), "% change"),
-                  "-", convergence_status$inarow_no_best, "no best",
-                  "-", convergence_status$inarow_no_change, "no change"),
-            ""
-        ),
-        "\n"
-    ))
-
-    if (learn_A) {
-        print(MAP$top_counts)
-        cat("\n")
-    }
-}
-
-#' Log when sampler converges
-#'
-#' @param convergence_control list, control parameters
-#' @param convergence_status list, current status of convergence
-#'
-#' @return NULL
-#' @noRd
-log_converged <- function(convergence_control, convergence_status) {
-    cat(paste("\n\nCONVERGED at", convergence_status$best_iter))
-    if (convergence_status$why %in% c("no best", "max iters")) {
-        cat(paste(
-            "\nNo best MAP since sample",
-            convergence_status$best_iter, "\n\n"
-        ))
-    } else {
-        cat(paste(
-            "\nNo change in MAP over past",
-            convergence_control$Ninarow_nochange, "samples\n\n"
-        ))
-    }
-}
-
-#' Compute 95% credible intervals for MAP estimates
-#'
-#' @param logs list, list of Gibbs sampler logs
-#' @param map.idx integer vector, indices used for MAP estiamtes
-#'
-#' @return list, credible intervals for P, E, q, and sigmasq
-#' @noRd
-get_credible_intervals <- function(logs, map.idx) {
-    credible_intervals <- list()
-    credible_intervals[["P"]] <- get_quantile(logs$P[map.idx])
-    credible_intervals[["E"]] <- get_quantile(logs$E[map.idx])
-    credible_intervals[["q"]] <- get_quantile(logs$q[map.idx])
-    if ("sigmasq" %in% names(logs)) {
-        credible_intervals[["sigmasq"]] <- get_quantile(logs$sigmasq[map.idx])
-    }
-    return(credible_intervals)
-}
-
-#' Get Posterior pmf of latent rank
-#'
-#' @param A_list list, list of A matrices
-#'
-#' @return table, posterior pmf of latent rank
-#' @noRd
-get_posterior_counts_N <- function(A_list) {
-    rank_logs = sapply(A_list, function(A) {sum(A)})
-    rank_logs = factor(rank_logs, levels = 1:ncol(A_list[[1]]))
-    posterior_counts <- table(rank_logs)
-    return(posterior_counts)
-}
-
-#' Validate that provided N and max_N are valid
-#'
-#' @param N integer, fixed rank
-#' @param max_N integer, maximum rank
-#' @param recovery_priors list of prior parameters
-#'
-#' @return integer, N or max_N
-#' @noRd
-validate_N <- function(N, max_N, recovery_priors) {
-    if (is.null(N) & is.null(max_N)) {
-        stop("Either `N` or `max_N` must be provided.")
-    } else if (!is.null(N) & !is.null(max_N)) {
-        message("Both `N` and `max_N` provided, using `N`.")
-        max_N = NULL
-    } else if (is.null(N)) {
-        N = max_N
-    }
-    if (length(recovery_priors) > 0) {
-        N = N + recovery_priors$N_r
-    }
-    return(N)
-}
-
-#' Validate likelihood-prior combination
-#'
-#' @param likelihood string, one of c('normal','poisson')
-#' @param prior string, one of c('truncnormal','exponential','gamma')
-#' @param fast boolean, if `likelihood == 'poisson'` and `fast = TRUE`, updates
-#' from the corresponding `likelihood == 'normal'` model are used as proposals
-#' in an efficient Gibb's sampler
-#'
-#' @return NULL
-#' @noRd
-validate_model <- function(likelihood, prior, fast) {
-    if (!(likelihood %in% c('normal', 'poisson'))) {
-        stop("likelihood must be one of c('poisson','normal')")
-    } else if (likelihood == 'normal') {
-        if (!(prior %in% c('truncnormal','exponential'))) {
-            stop("prior must be one of c('truncnormal','exponential') with `likelihood = 'normal'`")
-        }
-    } else if (likelihood == 'poisson') {
-        if (!(prior %in% c('gamma','exponential','truncnormal'))) {
-            stop("prior must be one of c('gamma','exponential','truncnormal') with `likelihood = 'poisson'`")
-        }
-        if (prior == 'gamma' & fast) {
-            stop('gamma prior cannot be used with fast sampler')
-        }
-        if (prior == 'truncnormal' & !fast) {
-            stop('truncnormal prior can only be used with fast sampler')
-        }
-    }
-}
-
-#' Rescale MAP and credible intervals of P, E for columns of P to sum to 1
-#'
-#' @param res bayesNMF res object
-#'
-#' @return rescaled bayesNMF res object
-#' @export
-rescale_bayesNMF <- function(res) {
-    res$MAP$E <- sweep(res$MAP$E, 1, colSums(res$MAP$P), '*')
-    res$MAP$P <- sweep(res$MAP$P, 2, colSums(res$MAP$P), '/')
-
-    new_post_P1 <- list()
-    new_post_P2 <- list()
-    new_post_E1 <- list()
-    new_post_E2 <- list()
-    for (i in 1:length(res$posterior_samples$P[[1]])) {
-        P1i = res$posterior_samples$P[[1]]
-        E1i = res$posterior_samples$E[[1]]
-        E1i <- sweep(E1i, 1, colSums(P1i), '*')
-        P1i <- sweep(P1i, 2, colSums(P1i), '/')
-        new_post_P1[[i]] <- P1i
-        new_post_E1[[i]] <- E1i
-
-        P2i = res$posterior_samples$P[[2]]
-        E2i = res$posterior_samples$E[[2]]
-        E2i <- sweep(E2i, 1, colSums(P2i), '*')
-        P2i <- sweep(P2i, 2, colSums(P2i), '/')
-        new_post_P2[[i]] <- P2i
-        new_post_E2[[i]] <- E2i
-    }
-    res$posterior_samples$P[[1]] <- new_post_P1
-    res$posterior_samples$P[[2]] <- new_post_P2
-    res$posterior_samples$E[[1]] <- new_post_E1
-    res$posterior_samples$E[[2]] <- new_post_E2
-
-    return(res)
+padded_KL_ <- function(Mhat, M) {
+  Mhat <- pmax(Mhat, 1e-6)
+  M <- pmax(M, 1e-6)
+  return(sum(M * log(M / Mhat)))
 }

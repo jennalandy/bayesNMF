@@ -2,121 +2,63 @@
 % Please edit documentation in R/bayesNMF.R
 \name{bayesNMF}
 \alias{bayesNMF}
-\title{Bayesian Non-Negative Matrix Factorization}
+\title{Run bayesNMF}
 \usage{
 bayesNMF(
-  M,
+  data,
   rank,
-  range_N = NULL,
-  learn_rank_method = "SBFI",
   likelihood = "poisson",
   prior = "truncnormal",
-  fast = likelihood == "poisson" & prior \%in\% c("truncnormal", "exponential"),
-  inits = NULL,
-  fixed = NULL,
-  clip = 0.4,
-  prior_parameters = NULL,
-  recovery = FALSE,
-  recovery_priors = "cosmic",
-  file = paste0("nmf_", likelihood, "_", prior),
-  true_P = NULL,
+  rank_method = "SBFI",
+  MH = likelihood == "poisson" & prior \%in\% c("truncnormal", "exponential"),
   convergence_control = new_convergence_control(),
-  store_logs = TRUE,
-  overwrite = FALSE
+  prop_temp = 0.2,
+  post_warmup = 2 * convergence_control$MAP_over,
+  output_dir = paste0("nmf_", likelihood, "_", prior),
+  overwrite = FALSE,
+  hyperprior_params = list(),
+  init_prior_params = list(),
+  init_params = list(),
+  periodic_save = TRUE,
+  save_all_samples = TRUE
 )
 }
 \arguments{
-\item{M}{matrix, data with samples as columns and features as rows}
+\item{data}{matrix, counts matrix (rows are variables, columns are samples)}
 
-\item{rank}{integer or vector, number of latent factors, integers
-(e.g., \code{rank = 5}) or vector (e.g., \code{rank = 1:5}) are accepted.
-If an integer is provided, rank is constant and will not be learned.
-If a vector is provided, values must be sequential and start at 0 or 1
-(e.g., \code{1:5} or \code{0:5}) for \code{learn_rank_method = "BFI"} or
-\code{"SBFI"}, but can be non-sequential (e.g., \code{c(2,4,5)}) for
-\code{learn_rank_method = "heuristic"}.}
+\item{rank}{integer, number of signatures or range of ranks to consider}
 
-\item{learn_rank_method}{string, method used to learn latent rank, one of
-c("SBFI","BFI","heuristic"), used if a vector is provided for \code{rank}.
-Bayesian Factor Inclusion (BFI) learns rank automatically as a part of the
-Bayesian model with a binary Factor inclusion matrix. Sparse Bayesian
-Factor inclusion (SBFI) is a variant of BFI with a sparse prior based on
-the regularization of BIC. The heuristic approach
-fits a fixed-rank Bayesian NMF for each value in \code{rank}, and selects
-the model that minimizes BIC.}
+\item{likelihood}{string, likelihood distribution for M, one of "poisson", "normal" (default "poisson")}
 
-\item{likelihood}{string, one of \code{c('normal','poisson')}, represents the
-distribution used for likelihood f(M|P, E).}
+\item{prior}{string, prior distribution for P and E, one of "truncnormal", "exponential", "gamma" (default "truncnormal")}
 
-\item{prior}{string, one of \code{c('truncnormal','exponential','gamma')},
-represents the distribution used for priors on P and E, f(P) and f(E).}
+\item{rank_method}{string, method to determine rank, one of "SBFI", "BFI", "BIC" (heuristic) (default "SBFI")}
 
-\item{fast}{boolean, if \code{likelihood = 'poisson'} and \code{fast = TRUE},
-then updates from the corresponding \code{likelihood = 'normal'} model
-are used as proposals in an efficient Gibb's sampler. Only available for
-\code{likelihood = 'poisson'} and \code{prior = c('truncnormal', 'exponential')}.
-Defaults \code{TRUE} when possible.}
+\item{MH}{boolean, if likelihood is Poisson, whether to use Metropolis-Hastings updates described in the paper (default TRUE if likelihood is Poisson and prior is "truncnormal" or "exponential")}
 
-\item{inits}{(optional) named list, initial values for parameters, often P and E.
-May also provide sigmasq if \code{likelihood = "normal"},
-if \code{likelihood = "poisson"} and  \code{fast = TRUE}.
-May provide initial values for A if \code{rank} is a vector.}
+\item{convergence_control}{list, convergence control parameters (default new_convergence_control())}
 
-\item{fixed}{(optional) named list, parameters values to fix at constant
-values, rather than learning them through Gibbs updates.}
+\item{prop_temp}{float, proportion of iterations to use for tempering if learning rank (default 0.2)}
 
-\item{clip}{numeric, if \code{rank} is a vector and
-\code{learn_rank_method = "BFI"} or \code{"SBFI"}, prior probabilities of
-factor inclusion will be clipped by \code{clip}/N away from 0 and 1.}
+\item{post_warmup}{integer, number of iterations post-warmup to sample from (if MH = TRUE) (default 2 * convergence_control$MAP_over)}
 
-\item{prior_parameters}{(optional) list, specification of prior parameters.}
+\item{output_dir}{string, output directory, will be created if it does not exist}
 
-\item{recovery}{boolean, if TRUE, allows for the addition of priors
-based on previously discovered factors. In this case, \code{rank} denotes
-the number of additional latent factors on top of those with priors in
-\code{recovery_priors}.}
+\item{overwrite}{boolean, whether to overwrite existing output, will delete existing output directory if it exists (default FALSE)}
 
-\item{recovery_priors}{"cosmic" or list, prior parameters for recovered
-latent factors. If \code{recovery_priors = "cosmic"}, pre-computed priors
-based on the 79 COSMIC cancer mutational signatures are used.
-The function \code{get_recovery_priors} can be used to create recovery priors
-given a reference factor matrix P and a likelihood-prior specification.}
+\item{hyperprior_params}{list, fixed hyperprior parameters}
 
-\item{file}{string, file name (without extension) used for the log, rds,
-and pdf files created by this function.}
+\item{init_prior_params}{list, initial prior parameters}
 
-\item{true_P}{(optional) matrix, reference latent factors matrix P to
-compare estimated factors to with a heatmap. Not used in model, only
-in evaluation.}
+\item{init_params}{list, initial parameters}
 
-\item{convergence_control}{list, specification of convergence parameters.
-See documentation for \code{new_convergence_control}.}
+\item{periodic_save}{boolean, whether to save the sampler object periodically (default TRUE, set to FALSE to reduce I/O and computational time)}
 
-\item{store_logs}{boolean, if \code{store_logs = TRUE}, each iteration of the
-Gibb's sampler is stored in resulting \code{.rds} file. Otherwise, only the
-samples used to compute MAP are saved.}
-
-\item{overwrite}{boolean, if \code{overwrite = TRUE}, the .log, .rds, and
-.pdf files of previous runs with the same \code{file} will be overwritten.
-This will permanently delete previous results, so be careful.}
+\item{save_all_samples}{boolean, whether to save all samples (default TRUE, set to FALSE to reduce memory usage)}
 }
 \value{
-list, also stored in the \code{.rds} file named by \code{file}
-\itemize{
- \item \code{MAP}: list, maximum a-posteriori estimates of all parameters
- \item \code{credible_intervals}: list, lower and upper bounds for 95% credible intervals of all parameters
- \item \code{posterior_samples}: list, Gibb's samples used to compute MAP and credible intervals
- \item \code{metrics}: data.frame, contains MAP metrics at each convergence checkpoint, also plotted in the \code{.pdf} file named by \code{file}
- \item \code{model}: list, parameters of initial \code{bayesNMF} call
- \item \code{totaliters}: integer
- \item \code{converged_at}: integer, iteration determined as the convergence point
- \item \code{final_Theta}: list, parameter values of final iteration
- \item \code{time}: list, holds averge seconds per iteration and total seconds
- \item \code{logs}: list, only included if \code{store_logs = TRUE}, all Gibb's samples
- \item \code{sim_mat}: matrix, only included if \code{true_P} is provided, pairwise similarities between estimated and true factors
- \item \code{heatmap}: ggplot2 object, only included if \code{true_P} is provided, heatmap of pairwise similarities between estimated and true factors
-}
+bayesNMF_sampler object if a fixed rank is provided or rank_method is not "BIC", list of results, best rank, and sampler if "BIC"
 }
 \description{
-Bayesian Non-Negative Matrix Factorization.
+Gibbs sampling for Bayesian Nonnegative Matrix Factorization with automatically learned rank and optional Metropolis-Hastings updates for computational efficiency
 }

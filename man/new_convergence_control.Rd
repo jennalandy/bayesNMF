@@ -8,7 +8,7 @@ new_convergence_control(
   MAP_over = 1000,
   MAP_every = 100,
   tol = 0.001,
-  Ninarow_nochange = 10,
+  Ninarow_nochange = 5,
   Ninarow_nobest = 10,
   miniters = 1000,
   maxiters = 5000,
@@ -21,23 +21,22 @@ new_convergence_control(
 
 \item{MAP_every}{integer, how often (in samples) to compute MAP for evaluation}
 
-\item{tol}{numeric, tolerance for what is a meaninful "percent change"
-in MAP metric}
+\item{tol}{numeric, tolerance for what is a meaningful "change" in MAP metric (default 0.001 means 0.1\% change)}
 
-\item{Ninarow_nobest}{integer, convergence may be determined by the number
-of MAPs in a row with no new "best"}
+\item{Ninarow_nochange}{integer, number of consecutive MAPs with no change before declaring convergence (default 5)}
 
-\item{maxiters}{integer, absolute maximum number of samples to explore}
+\item{Ninarow_nobest}{integer, number of consecutive MAPs with no new "best" before declaring convergence (default 10)}
 
-\item{minA}{integer, minimum number of counts A matrix must have to consider it a valid MAP}
+\item{miniters}{integer, minimum number of samples to consider for convergence (default 1000)}
 
-\item{metric}{string, one of c('loglikelihood','logposterior','RMSE','KL')}
+\item{maxiters}{integer, absolute maximum number of samples to explore (default 5000)}
 
-\item{Ninarow_change}{integer, convergence may be determined by the number
-of MAPs in a row with no change}
+\item{minA}{integer, minimum number of counts A matrix must have to consider it a valid MAP (default 0)}
+
+\item{metric}{string, one of c('loglikelihood','logposterior','RMSE','KL') (default "logposterior")}
 }
 \value{
-list
+list of convergence control parameters
 }
 \description{
 Specify convergence criteria for the bayesNMF Gibbs sampler.

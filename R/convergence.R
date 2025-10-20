@@ -3,180 +3,152 @@
 #'
 #' @param MAP_over integer, number of samples to average over for MAP
 #' @param MAP_every integer, how often (in samples) to compute MAP for evaluation
-#' @param tol numeric, tolerance for what is a meaninful "percent change"
-#' in MAP metric
-#' @param Ninarow_change integer, convergence may be determined by the number
-#' of MAPs in a row with no change
-#' @param Ninarow_nobest integer, convergence may be determined by the number
-#' of MAPs in a row with no new "best"
-#' @param maxiters integer, absolute maximum number of samples to explore
-#' @param minA integer, minimum number of counts A matrix must have to consider it a valid MAP
-#' @param metric string, one of c('loglikelihood','logposterior','RMSE','KL')
+#' @param tol numeric, tolerance for what is a meaningful "change" in MAP metric (default 0.001 means 0.1% change)
+#' @param Ninarow_nochange integer, number of consecutive MAPs with no change before declaring convergence (default 5)
+#' @param Ninarow_nobest integer, number of consecutive MAPs with no new "best" before declaring convergence (default 10)
+#' @param miniters integer, minimum number of samples to consider for convergence (default 1000)
+#' @param maxiters integer, absolute maximum number of samples to explore (default 5000)
+#' @param minA integer, minimum number of counts A matrix must have to consider it a valid MAP (default 0)
+#' @param metric string, one of c('loglikelihood','logposterior','RMSE','KL') (default "logposterior")
 #'
-#' @return list
+#' @return list of convergence control parameters
 #' @export
 new_convergence_control <- function(
-    MAP_over = 1000,
-    MAP_every = 100,
-    tol = 0.001,
-    Ninarow_nochange = 10,
-    Ninarow_nobest = 10,
-    miniters = 1000,
-    maxiters = 5000,
-    minA = 0,
-    metric = "logposterior"
+  MAP_over = 1000,
+  MAP_every = 100,
+  tol = 0.001,
+  Ninarow_nochange = 5,
+  Ninarow_nobest = 10,
+  miniters = 1000,
+  maxiters = 5000,
+  minA = 0,
+  metric = "logposterior"
 ) {
-    if (miniters >= maxiters) {
-        warning("miniters >= maxiters, setting miniters to 0.")
-        miniters = 0
-    }
-    list(
-        MAP_over = MAP_over,
-        MAP_every = MAP_every,
-        tol = tol,
-        Ninarow_nochange = Ninarow_nochange,
-        Ninarow_nobest = Ninarow_nobest,
-        miniters = miniters,
-        maxiters = maxiters,
-        minA = minA,
-        metric = metric
-    )
+  # check for invalid inputs
+  if (miniters >= maxiters) {
+    warning("miniters >= maxiters, setting miniters to 0.")
+    miniters <- 0
+  }
+
+  # return list of convergence control parameters
+  list(
+    MAP_over = MAP_over,
+    MAP_every = MAP_every,
+    tol = tol,
+    Ninarow_nochange = Ninarow_nochange,
+    Ninarow_nobest = Ninarow_nobest,
+    miniters = miniters,
+    maxiters = maxiters,
+    minA = minA,
+    metric = metric
+  )
 }
 
-#' Get metric
-#'
-#' @param metric string, one of c('loglikelihood','logposterior',RMSE','KL')
-#' @param Mhat matrix, reconstructed mutational catalog
-#' @param M matrix, true mutational catalog
-#' @param Theta list, current values of all unkowns
-#' @param likelihood string, one of c("normal", "poisson")
-#' @param prior string, one of c("truncnormal","exponential","gamma")
-#' @param dims list, named list of dimensions
-#'
-#' @return scalar
+# These functions are copied over to be methods of the bayesNMF_sampler class
+
+####################################
+###### PRIVATE METHODS ##############
+####################################
+
+#' Check for convergence
+#' @param self bayesNMF_sampler object
+#' @param private list of private methods of bayesNMF_sampler object
+#' @param final boolean, if TRUE, subset to only included signatures
+#' 
+#' @return string, message indicating convergence status
 #' @noRd
-get_metric <- function(
-    metric, Mhat, M,
-    Theta = NULL,
-    likelihood = NULL,
-    prior = NULL,
-    dims = NULL
-) {
-    if (metric %in% c('loglikelihood', 'logposterior', 'BIC')) {
-        if (likelihood == 'normal') {
-            loglik = get_loglik_normal(M, Theta, dims)
-        } else if (likelihood == 'poisson') {
-            loglik = get_loglik_poisson(M, Theta, dims)
-        }
-        if (metric == 'loglikelihood') {
-            return(-1 * loglik)
-        } else if (metric == 'BIC') {
-            return(get_BIC(loglik, Theta, dims, likelihood, prior))
-        }
-        logpost = loglik + get_logprior(Theta, likelihood, prior, dims)
-        return(-1 * logpost)
-    } else if (metric == 'RMSE') {
-        get_RMSE(M, Mhat)
-    } else if (metric == 'KL') {
-        get_KLDiv(M, Mhat)
-    }
-}
+check_convergence_ <- function(self, private, final = FALSE) {
+  convergence_control <- self$specs$convergence_control
 
-#' Check whether Gibb's sampler has converged
-#'
-#' @param iter integer, iteration/sample
-#' @param gamma numeric, tempering parameter
-#' @param Mhat matrix, reconstructed mutational catalog
-#' @param M matrix, true mutational catalog
-#' @param Theta list, current values of all unkowns
-#' @param convergence_status list, current status of convergence
-#' @param convergence_control list, control parameters
-#' @param first_MAP boolean, whether this is the first MAP computed
-#' @param metric string, one of c('loglikelihood','RMSE','KL')
-#' @param likelihood string, one of c("normal", "poisson")
-#' @param prior string, one of c("truncnormal","exponential","gamma")
-#' @param dims list, named list of dimensions
-#'
-#' @return list, updated status of convergence
-#' @noRd
-check_converged <- function(
-    iter, gamma, Mhat, M,
-    convergence_status,
-    convergence_control,
-    first_MAP,
-    Theta = NULL,
-    likelihood = NULL,
-    prior = NULL,
-    dims = NULL
-) {
-    MAP_metric = get_metric(
-        convergence_control$metric, Mhat, M,
-        Theta, likelihood, prior, dims
-    )
+  # compute new MAP metrics
+  private$update_MAP_metrics(final = final)
 
-    # for first one, force % change < 0
-    if (first_MAP) {
-        convergence_status$prev_MAP_metric = MAP_metric + 1
-        convergence_status$best_MAP_metric = MAP_metric + 1
-        convergence_status$inarow_na = 0
-        convergence_status$inarow_no_change = 0
-        convergence_status$inarow_no_best = 0
-    }
+  # extract MAP metric of interest for current iteration
+  MAP_metric <- self$state$MAP_metrics[
+    self$state$MAP_metrics$iter == self$state$iter,
+    self$specs$convergence_control$metric
+  ]
 
-    percent_change = (
-        MAP_metric - convergence_status$prev_MAP_metric
-    )/convergence_status$prev_MAP_metric
-    convergence_status$prev_percent_change = percent_change
-    convergence_status$prev_MAP_metric = MAP_metric
+  # log likelihood or log posterior should be maximized not minimized
+  # so we need to invert the sign of the metric
+  if (
+    self$specs$convergence_control$metric %in% 
+    c("loglikelihood", "logposterior")
+  ) {
+    MAP_metric <- -1 * MAP_metric
+  }
 
-    if (is.na(percent_change)) {
-        # if NA percent change, hold off convergence
-        convergence_status$inarow_no_change = 0
-        convergence_status$inarow_no_best = 0
-        convergence_status$inarow_na = convergence_status$inarow_na + 1
-    } else if (abs(percent_change) < convergence_control$tol) {
-        # if |change| < tol, then there was "no change"
-        convergence_status$inarow_no_change =
-            convergence_status$inarow_no_change + 1
+  # for first one, force % change < 0
+  if (!("prev_MAP_metric" %in% names(self$state))) {
+    self$state$prev_MAP_metric <- MAP_metric + 1
+    self$state$best_MAP_metric <- MAP_metric + 1
+    self$state$inarow_na <- 0
+    self$state$inarow_no_change <- 0
+    self$state$inarow_no_best <- 0
+  }
+  percent_change <- (
+    MAP_metric - self$state$prev_MAP_metric
+  ) / self$state$prev_MAP_metric
+  self$state$prev_percent_change <- percent_change
+  self$state$prev_MAP_metric <- MAP_metric
+  if (is.na(percent_change)) {
+    # if NA percent change, reset convergence
+    self$state$inarow_no_change <- 0
+    self$state$inarow_no_best <- 0
+    self$state$inarow_na <- self$state$inarow_na + 1
+  } else if (abs(percent_change) < convergence_control$tol) {
+    # if |change| < tol, then there was "no change"
+    self$state$inarow_no_change <- self$state$inarow_no_change + 1
+    self$state$inarow_na <- 0
+  } else {
+    # otherwise |change| > tol, so there was a change
+    self$state$inarow_no_change <- 0
+    self$state$inarow_na <- 0
+  }
+
+  # qualifies if 
+  #     (temperature == 1 for all samples considered) 
+  #     AND (iter is at least miniters)
+  if (
+    all(self$temperature_schedule[
+        # only equivalent to self$MAP$idx if self$specs$save_all_samples is TRUE
+        (self$state$iter - self$specs$convergence_control$MAP_over):(self$state$iter)
+      ] == 1) &
+      self$state$iter >= convergence_control$miniters
+  ) {
+    # if iter is the new best, store info
+    if (MAP_metric < self$state$best_MAP_metric) {
+      self$state$best_MAP_metric <- MAP_metric
+      self$state$best_iter <- self$state$iter
+      self$state$inarow_no_best <- 0
     } else {
-        # otherwise |change| > tol, so there was a change
-        convergence_status$inarow_no_change = 0
+      self$state$inarow_no_best <- self$state$inarow_no_best + 1
     }
 
-    # if this is new best
-    if (MAP_metric < convergence_status$best_MAP_metric) {
-        convergence_status$best_MAP_metric = MAP_metric
-        convergence_status$best_iter = iter
-        convergence_status$inarow_no_best = 0
-    } else {
-        convergence_status$inarow_no_best =
-            convergence_status$inarow_no_best + 1
-    }
-
-    # stop if
-    # gamma == 1 AND iter is at least miniters
-    # AND
-    #   (no change for Ninarow)
-    #   OR (no best for Ninarow)
-    #   OR (change is less than mintol)
+    # converged if
+    #   (no change for Ninarow_nochange)
+    #   OR (no best for Ninarow_nobest)
     #   OR (iter hit maxiters)
-    if (gamma == 1 & iter >= convergence_control$miniters) {
-        if (convergence_status$inarow_no_change >=
-            convergence_control$Ninarow_nochange
-        ) {
-            convergence_status$converged = TRUE
-            convergence_status$why = "no change"
-        } else if (convergence_status$inarow_no_best >=
-                   convergence_control$Ninarow_nobest
-        ) {
-            convergence_status$converged = TRUE
-            convergence_status$why = "no best"
-        } else if (iter >= convergence_control$maxiters) {
-            convergence_status$converged = TRUE
-            convergence_status$why = "max iters"
-        }
+    if (self$state$inarow_no_change >= convergence_control$Ninarow_nochange) {
+      self$state$converged <- TRUE
+      self$state$why <- "no change"
+    } else if (self$state$inarow_no_best >= convergence_control$Ninarow_nobest) {
+      self$state$converged <- TRUE
+      self$state$why <- "no best"
+    } else if (self$state$iter >= convergence_control$maxiters) {
+      self$state$converged <- TRUE
+      self$state$why <- "max iters"
     }
+  }
 
-
-    return(convergence_status)
+  # construct message indicating convergence status
+  flip <- if (self$specs$convergence_control$metric %in% c("loglikelihood", "logposterior")) -1 else 1
+  msg <- glue::glue(paste0(
+    "{self$specs$convergence_control$metric} = {round(MAP_metric, 2)} | ",
+    "{flip * round(percent_change*100, 2)}% change | ",
+    "{self$state$inarow_no_change} no change | ",
+    "{self$state$inarow_no_best} no best | ",
+    "{self$state$inarow_na} NA"
+  ))
+  return(msg)
 }
