@@ -1,11 +1,10 @@
-.Rproj.user
-inst/doc
-examples/*
-!examples/N4_G64_rep1.rds
 .DS_Store
 .RData
 .Rhistory
-vignettes/bayesNMF_tutorial_files/
-vignettes/advanced_files/
 R/trash.R
-*.tar.gz
+bayesNMF_1.0.0.tar.gz
+examples/
+vignettes/advanced_files/
+vignettes/bayesNMF_tutorial_files/
+.Rproj.user
+inst/doc
