@@ -651,7 +651,7 @@ bayesNMF_sampler <- R6::R6Class(
             # if not saving all samples
             self$samples[[name]] <- update_list(
               list = self$samples[[name]],
-              new_value = li[[name]][[self$state$iter]],
+              new_value = li[[name]],
               index = self$state$iter,
               max_length = self$specs$convergence_control$MAP_over
             )

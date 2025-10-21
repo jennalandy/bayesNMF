@@ -62,7 +62,6 @@ If a range vector is provided, rank is learned using the `"SBFI"` appraoch intro
 sampler_learn_rank <- bayesNMF(
     data$M, rank = 1:10,
     output_dir = "../examples/learn_rank",
-    save_all_samples = TRUE,
     overwrite = TRUE
 )
 ```
@@ -220,8 +219,7 @@ Heatmap of the cosine similarity between the estimated and assigned reference si
 ![](../examples/learn_rank/similarity_heatmap.png){width=50%}
 
 #### `label_switching.png`
-Diagnostic plot of label switching, showing the closest reference match for each signature for each posterior sample.
-Only created if learning rank and `save_all_samples = TRUE`. If label switching occurs, the color of a latent factor will switch part way through the chain. 
+Diagnostic plot of label switching, showing the closest reference match for each signature for each posterior sample. Only created if learning rank and `save_all_samples = TRUE` (default). If label switching occurs, the color of a latent factor will switch part way through the chain. 
 
 ![](../examples/learn_rank/label_switching.png){width=90%}
 

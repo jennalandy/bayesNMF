@@ -10,6 +10,7 @@ vignette: >
 ```{r}
 library(bayesNMF)
 library(ggplot2)
+library(pryr)
 ```
 
 ```{r}
@@ -46,8 +47,7 @@ sampler_learn_rank <- bayesNMF(
     convergence_control = convergence_control,
     output_dir = "../examples/learn_rank",
     save_all_samples = TRUE,
-    overwrite = TRUE,
-    periodic_save = FALSE # reduced I/O and computational time
+    overwrite = TRUE
 )
 ```
 
@@ -285,6 +285,57 @@ all(sampler_learn_rank_PE_init$samples$P[[1]] == init_params$P)
 all(sampler_learn_rank_PE_init$samples$Mu_p[[1]] == gamma_init_prior_params$Alpha_p)
 sampler_learn_rank_PE_init$hyperprior_params$a_p == gamma_hyperprior_params$a_p
 ```
+
+## Reduced compute options
+
+For reference, here are the total runtime and memory usage of the sampler with the default settings.
+
+```{r}
+length(sampler_learn_rank$samples$P)
+sampler_learn_rank$time$total
+pryr::object_size(sampler_learn_rank)
+```
+
+By default, the sampler is saved and trace plot png files are updated periodically. This I/O intensive operation can be reduced by specifying `periodic_save = FALSE` to only save the sampler object and trace plot png files at the very end.
+
+```{r eval = FALSE}
+sampler_learn_rank_faster <- bayesNMF(
+    data$M, rank = 1:10,
+    output_dir = "../examples/learn_rank_faster",
+    periodic_save = FALSE,
+    overwrite = TRUE
+)
+```
+
+```{r}
+sampler_learn_rank_faster <- readRDS("../examples/learn_rank_faster/sampler.rds")
+length(sampler_learn_rank_faster$samples$P)
+sampler_learn_rank_faster$time$total
+pryr::object_size(sampler_learn_rank_faster)
+```
+
+Also by default, all Gibbs samples are saved. However, for large datasets or long runs, this can be memory-intensive. The user can specify `save_all_samples = FALSE` to only save the last 1000 samples for MAP inference. 
+
+```{r eval = FALSE}
+sampler_learn_rank_faster_smaller <- bayesNMF(
+    data$M, rank = 1:10,
+    output_dir = "../examples/learn_rank_faster_smaller",
+    save_all_samples = FALSE,
+    periodic_save = FALSE,
+    overwrite = TRUE
+)
+```
+
+```{r}
+sampler_learn_rank_faster_smaller <- readRDS("../examples/learn_rank_faster_smaller/sampler.rds")
+length(sampler_learn_rank_faster_smaller$samples$P)
+sampler_learn_rank_faster_smaller$time$total
+pryr::object_size(sampler_learn_rank_faster_smaller)
+```
+
+Even with these settings, the log file will still be updated and can be used to monitor progress.
+
+We used both of these settings to run all analyses in the paper to minimize computational time and memory requirements.
 
 ## Inference on Custom Indices
 
