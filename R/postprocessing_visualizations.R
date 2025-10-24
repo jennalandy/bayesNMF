@@ -53,8 +53,8 @@ plot.bayesNMF_sampler <- function(
     # similarity heatmap plot
     # use assignments based on ensemble
     similarity_heatmap_plot <- plot_similarity_heatmap(
-      sampler$MAP$P[,sampler$MAP$sig_idx], # use MAP$sig_idx when accessing the MAP
-      reference_P = reference_P[,signature_assignments$assignments$sig_ref]
+      sampler$MAP$P[,sampler$MAP$sig_idx, drop = FALSE], # use MAP$sig_idx when accessing the MAP
+      reference_P = reference_P[,signature_assignments$assignments$sig_ref, drop = FALSE]
     )
     similarity_heatmap_filename <- file.path(
       sampler$specs$output_dir, "similarity_heatmap.png"
