@@ -123,6 +123,7 @@ bayesNMF <- function(
         sampler = sampler
       )
       saveRDS(sampler, file.path(output_dir, "sampler.rds"))
+      return(out)
     } else if (!(sampler$specs$rank_method %in% c("SBFI", "BFI"))) {
       stop("Rank method must be SBFI, BFI, or BIC")
     } 

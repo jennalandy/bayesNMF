@@ -351,6 +351,15 @@ bayesNMF_sampler <- R6::R6Class(
             self$state$iter %% self$specs$convergence_control$MAP_every == 0 |
             i == self$specs$post_warmup
           ) {
+            if (self$specs$save_all_samples) {
+              # update MAP_idx to last MAP_over samples
+              self$state$MAP_idx <- seq(
+                from = self$state$iter -
+                  self$specs$convergence_control$MAP_over + 1,
+                to = self$state$iter
+              )
+            }
+
             final = i == self$specs$post_warmup
             self$log(glue::glue("iter = {self$state$iter}"), verbosity = 1)
             self$state$indent <- 2
