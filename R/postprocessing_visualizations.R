@@ -43,7 +43,6 @@ plot.bayesNMF_sampler <- function(
   ggplot2::ggsave(
     filename = summary_filename,
     plot = summary_plot,
-    # type = "cairo",
     height = 20, width = 7
   )
   if (verbose) {
@@ -64,7 +63,6 @@ plot.bayesNMF_sampler <- function(
     ggplot2::ggsave(
       filename = similarity_heatmap_filename,
       plot = similarity_heatmap_plot,
-      # type = "cairo",
       height = 10, width = 10
     )
     if (verbose) {
@@ -85,7 +83,6 @@ plot.bayesNMF_sampler <- function(
       ggplot2::ggsave(
         filename = label_switching_filename,
         plot = label_switching_plot,
-        # type = "cairo",
         height = min(sampler$dims$N*3, 20),
         width = min(sampler$state$iter/10 + 3, 40),
         limitsize = FALSE
@@ -107,7 +104,6 @@ plot.bayesNMF_sampler <- function(
   ggplot2::ggsave(
     filename = signature_dist_filename,
     plot = signature_dist_plot,
-    # type = "cairo",
     height = 5, width = 10
   )
   if (verbose) {
@@ -141,7 +137,6 @@ plot.bayesNMF_sampler <- function(
       ggplot2::ggsave(
         filename = sig_filename,
         plot = sig_plot,
-        # type = "cairo",
         height = 3, width = 10
       )
     }
@@ -472,6 +467,7 @@ plot_sig <- function(
 #' @return ggplot2 theme object
 #' @noRd
 get_sig_theme <- function() {
+  ggthemes::theme_few() +
   ggplot2::theme(
     axis.text.x = ggtext::element_markdown(
       size = 6, angle = 90, vjust = 0.5, hjust=1

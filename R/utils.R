@@ -247,6 +247,13 @@ get_MAP_ <- function(
   E_MAP <- Reduce("+", lapply(renormalized_samples, `[[`, "E")) / 
     length(renormalized_samples)
 
+  if (!is.null(rownames(self$data))) {
+    rownames(P_MAP) <- rownames(self$data)
+  }
+  if (!is.null(colnames(self$data))) {
+    colnames(E_MAP) <- colnames(self$data)
+  }
+
   # iv. return MAP P, A, E
   self$MAP <- list(
     P = P_MAP,
