@@ -18,6 +18,38 @@ data <- readRDS(system.file("extdata", "example_data.rds", package = "bayesNMF")
 dim(data$M)
 ```
 
+```{r}
+reference <- get_cosmic()
+```
+
+## Auto-ordering of reference signature rows
+
+Ideally, the reference signature rows are in the same order as the data rows. However, if the reference signature rows are not in the same order as the data rows, and both data and reference have row names, then the reference signature rows will be reordered to match the data rows. If the data and reference have different row names, then the reference signature rows will not be reordered and a warning will be issued.
+
+```{r}
+sampler_learn_rank <- readRDS("../examples/learn_rank/sampler.rds")
+all(rownames(sampler_learn_rank$data) ==rownames(reference))
+```
+
+For reference, here is the signature plot with the reference in the original order.
+```{r, fig.height = 3, fig.width = 8}
+plot_sig(sampler_learn_rank, sig = 1, reference_P = reference)
+```
+
+Because there are row names on both the data and reference, even if the reference is not in the same order as the data, it will be reordered to match the data. Here, the signature plot looks exactly the same because the reference was reoredered appropriately.
+```{r, fig.height = 3, fig.width = 8}
+set.seed(321)
+reference_reoredered <- reference[sample(rownames(reference)), ]
+plot_sig(sampler_learn_rank, sig = 1, reference_P = reference_reoredered)
+```
+
+If the data does not have row names, then the reference will not be reordered and a warning will be issued. In this case, we see the signature was aligned poorly because the reference is no longer applicable to the data.
+```{r, fig.height = 3, fig.width = 8}
+set.seed(123)
+reference_reoredered_nonames <- reference[sample(rownames(reference)), ]
+rownames(reference_reoredered_nonames) <- NULL
+plot_sig(sampler_learn_rank, sig = 1, reference_P = reference_reoredered_nonames)
+```
 
 ## Convergence Specifications
 

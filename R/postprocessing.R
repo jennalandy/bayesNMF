@@ -35,6 +35,7 @@ summary.bayesNMF_sampler <- function(sampler, reference_P = "cosmic") {
     signature_assignments <- sampler$assign_signatures_ensemble(
       reference_P = reference_P
     )
+    reference_P <- sampler$reference_comparison$reference
     cosine_sim <- pairwise_sim(
       # use MAP$sig_idx when accessing the MAP
       sampler$MAP$P[,sampler$MAP$sig_idx, drop = FALSE],
@@ -246,11 +247,29 @@ assign_signatures_ensemble_ <- function(
   }
   # otherwise, assign signatures and store the result in self$reference_comparison
 
+  # reorder reference_P to match the order of the data if available
+  if (!is.null(rownames(self$data))) {
+    if (!is.null(rownames(reference_P))) {
+      if (!all(rownames(self$data) == rownames(reference_P))) {
+        if (!setequal(rownames(self$data), rownames(reference_P))) {
+          warning("Row names of self$data and reference_P do not overlap. Reference matrix will not be reordered.")
+        } else {
+          reference_P <- reference_P[rownames(self$data), ]
+          self$reference_comparison$reference_P <- reference_P
+        }
+      } # else they're already in the same order
+    } else {
+      warning("Row names of reference_P are not available. Reference matrix will not be reordered.")
+    }
+  } else {
+    warning("Row names of self$data are not available. Reference matrix will not be reordered.")
+  }
+
   # across idxs, assign signatures and use cosine similarity as voting weight
   votes <- lapply(idxs, function(idx) {
     assignment_res <- hungarian_assignment(
       self$samples$P[[idx]][, keep_sigs, drop = FALSE], # use keep_sigs when accessing individual samples
-      reference_P
+      reference_P, check_reference_order = FALSE
     )
     assignment_res$i = idx
     return(assignment_res)

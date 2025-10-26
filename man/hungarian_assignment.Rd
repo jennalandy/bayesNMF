@@ -10,7 +10,8 @@ hungarian_assignment(
   which = "cols",
   keep_all_est = TRUE,
   keep_all_ref = FALSE,
-  return_mat = FALSE
+  return_mat = FALSE,
+  check_reference_order = TRUE
 )
 }
 \arguments{

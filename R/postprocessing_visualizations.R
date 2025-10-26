@@ -33,6 +33,7 @@ plot.bayesNMF_sampler <- function(
     }
     # only reassigns signatures if reference set has changed
     signature_assignments <- sampler$assign_signatures_ensemble(reference_P = reference_P)
+    reference_P <- sampler$reference_comparison$reference_P
   }
 
   # summary plot
@@ -299,6 +300,7 @@ plot_sig <- function(
     if (ref == 'assigned') {
       # only reassigns signatures if reference set has changed
       signature_assignments <- sampler$assign_signatures_ensemble(reference_P = reference_P)
+      reference_P <- sampler$reference_comparison$reference
 
       ref <- signature_assignments$assignments$sig_ref[
         signature_assignments$assignments$sig_est == sig
@@ -316,10 +318,75 @@ plot_sig <- function(
   }
 
   # mutation names are rownames of reference_P if available, otherwise rownames of cosmic
-  if (!is.null(rownames(reference_P))) {
-    mutations <- rownames(reference_P)
+  plot_dat <- NULL
+  cosmic <- get_cosmic()
+  use_sig_theme <- FALSE
+  if (!is.null(reference_P)) {
+    if(setequal(rownames(reference_P), rownames(cosmic))) {
+      use_sig_theme <- TRUE
+    }
+  }
+  if (!is.null(sig)) {
+    if(setequal(names(sig), rownames(cosmic))) {
+      use_sig_theme <- TRUE
+    }
+  }
+  if (use_sig_theme) {
+    COSMIC_colors <- get_cosmic_colors()
+
+    if (!is.null(reference_P)) {
+      mutations <- rownames(reference_P)
+    } else {
+      mutations <- names(sig)
+    }
+
+    plot_dat <- data.frame(
+      'mutation' = mutations
+    ) %>%
+      # decompose left[center]right into its parts
+      # where center is reference>mutated
+      dplyr::mutate(
+        center = substr(mutation, 3, 5),
+        left = substr(mutation, 1, 1),
+        right = substr(mutation, 7, 7),
+        reference = substr(mutation, 3, 3)
+      ) %>%
+      # sort by center first, then left, then right
+      dplyr::arrange(
+        center, left, right
+      ) %>%
+      # set factor levels to match this ordering
+      dplyr::mutate(
+        center = factor(center, levels = unique(center))
+      ) %>%
+      # create facet labels and x tick labels with COSMIC colors
+      dplyr::mutate(
+        x.label = paste0(
+          left, "<span style = 'color: ", COSMIC_colors[center],
+          ";'>", reference, "</span>", right
+        ),
+        facet.label = paste0(
+          center, "<br><span style = 'color: ", COSMIC_colors[center],
+          ";'>", paste0(rep('|', 50), collapse = '') , "</span>"
+        )
+      )
   } else {
-    mutations <- rownames(get_cosmic())
+    if (!is.null(reference_P)) {
+      mutations <- 1:nrow(reference_P)
+    } else {
+      mutations <- 1:length(sig)
+    }
+    plot_dat <- data.frame(
+      'mutation' = mutations
+    ) %>%
+      dplyr::mutate(
+        x.label = mutations,
+        facet.label = rep("", length(mutations)),
+        center = rep("", length(mutations)),
+        left = rep("", length(mutations)),
+        right = rep("", length(mutations)),
+        reference = rep("", length(mutations))
+      )
   }
 
   plot_ref <- !is.null(ref) & !is.null(reference_P)
@@ -335,39 +402,7 @@ plot_sig <- function(
     if (is.null(names(ref))) {
       names(ref) <- mutations
     }
-  }
-
-  COSMIC_colors <- get_cosmic_colors()
-  plot_dat <- data.frame(
-    'mutation' = mutations
-  ) %>%
-    # decompose left[center]right into its parts
-    # where center is reference>mutated
-    dplyr::mutate(
-      center = substr(mutation, 3, 5),
-      left = substr(mutation, 1, 1),
-      right = substr(mutation, 7, 7),
-      reference = substr(mutation, 3, 3)
-    ) %>%
-    # sort by center first, then left, then right
-    dplyr::arrange(
-      center, left, right
-    ) %>%
-    # set factor levels to match this ordering
-    dplyr::mutate(
-      center = factor(center, levels = unique(center))
-    ) %>%
-    # create facet labels and x tick labels with COSMIC colors
-    dplyr::mutate(
-      x.label = paste0(
-        left, "<span style = 'color: ", COSMIC_colors[center],
-        ";'>", reference, "</span>", right
-      ),
-      facet.label = paste0(
-        center, "<br><span style = 'color: ", COSMIC_colors[center],
-        ";'>", paste0(rep('|', 50), collapse = '') , "</span>"
-      )
-    )
+  }  
 
   if (plot_ref) {
     ref_plot_dat <- data.frame(
@@ -399,10 +434,22 @@ plot_sig <- function(
   plot <- plot_dat %>%
     ggplot2::ggplot(ggplot2::aes(x = x.label, fill = center)) +
     ggplot2::facet_grid(cols = ggplot2::vars(facet.label), scales = 'free') +
-    ggplot2::scale_fill_manual(values = COSMIC_colors) +
-    get_sig_theme() +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = c(0, 0.05))) +
-    ggplot2::ggtitle(title)
+    ggplot2::ggtitle(title) +
+    ggthemes::theme_few()
+
+  if (use_sig_theme) {
+    plot <- plot +
+      ggplot2::scale_fill_manual(values = COSMIC_colors) +
+      get_sig_theme()
+  } else {
+    plot <- plot + 
+      ggplot2::scale_fill_manual(values = c("grey")) +
+      ggplot2::theme(
+        legend.position = "none",
+        axis.title.x = ggplot2::element_blank()
+      )
+  }
 
   if (plot_ref) {
     plot <- plot +
@@ -425,18 +472,17 @@ plot_sig <- function(
 #' @return ggplot2 theme object
 #' @noRd
 get_sig_theme <- function() {
-    ggthemes::theme_few() +
-    ggplot2::theme(
-        axis.text.x = ggtext::element_markdown(
-            size = 6, angle = 90, vjust = 0.5, hjust=1
-        ),
-        axis.title = ggplot2::element_blank(),
-        axis.line = ggplot2::element_line(linewidth = 0.3),
-        panel.spacing.x = ggplot2::unit(0, "lines"),
-        panel.border = ggplot2::element_blank(),
-        strip.text = ggtext::element_markdown(),
-        legend.position = "none"
-    )
+  ggplot2::theme(
+    axis.text.x = ggtext::element_markdown(
+      size = 6, angle = 90, vjust = 0.5, hjust=1
+    ),
+    axis.title = ggplot2::element_blank(),
+    axis.line = ggplot2::element_line(linewidth = 0.3),
+    panel.spacing.x = ggplot2::unit(0, "lines"),
+    panel.border = ggplot2::element_blank(),
+    strip.text = ggtext::element_markdown(),
+    legend.position = "none"
+  )
 }
 
 
@@ -797,6 +843,7 @@ plot_signature_dist <- function(
   if (!is.null(reference_P)) {
     # only reassigns signatures if reference set has changed
     signature_assignments <- sampler$assign_signatures_ensemble(reference_P = reference_P)
+    reference_P <- sampler$reference_comparison$reference
     ref <- signature_assignments$assignments$sig_ref
 
     colnames(all_counts)[1:sum(sampler$MAP$A)] = ref

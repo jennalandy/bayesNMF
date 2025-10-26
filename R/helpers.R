@@ -290,7 +290,8 @@ hungarian_assignment <- function(
   which = "cols",
   keep_all_est = TRUE,
   keep_all_ref = FALSE,
-  return_mat = FALSE
+  return_mat = FALSE,
+  check_reference_order = TRUE
 ) {
   if ("character" %in% class(reference_P)) {
     if (reference_P == "cosmic") {
@@ -299,6 +300,26 @@ hungarian_assignment <- function(
       stop("Parameter `reference_P` must be a matrix or 'cosmic'")
     }
   }
+
+  # reorder reference_P to match the order of the data if available
+  if (check_reference_order) {
+    if (!is.null(rownames(estimated_P))) {
+      if (!is.null(rownames(reference_P))) {
+        if (!all(rownames(estimated_P) == rownames(reference_P))) {
+          if (!setequal(rownames(estimated_P), rownames(reference_P))) {
+            warning("Row names of estimated_P and reference_P do not overlap. Reference matrix will not be reordered.")
+          } else {
+            reference_P <- reference_P[rownames(estimated_P), ]
+          }
+        } # else they're already in the same order
+      } else {
+        warning("Row names of reference_P are not available. Reference matrix will not be reordered.")
+      }
+    } else {
+      warning("Row names of estimated_P are not available. Reference matrix will not be reordered.")
+    }
+  }
+  
 
   sim_mat <- pairwise_sim(estimated_P, reference_P, which = which)
 
